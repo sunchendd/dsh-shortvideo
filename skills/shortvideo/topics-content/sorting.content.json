@@ -1,0 +1,19 @@
+{
+  "title": "排序对决",
+  "subtitle": "冒泡 vs 选择",
+  "voice": {"engine": "edge", "name": "zh-CN-XiaoxiaoNeural"},
+  "fps": 30, "size": [1080, 1920],
+  "lead_in": 0.15, "tail": 0.55,
+  "shots": [
+    {"id": "hook", "mood": "hook", "min_dur": 5.2,
+     "narration": "烧脑的来了。六个数，两种排法，为什么一个快，一个慢一倍？"},
+    {"id": "rule", "mood": "rule", "min_dur": 5.4,
+     "narration": "排序的代价是比较。每比一次，只知道两个数的大小关系。"},
+    {"id": "insight", "mood": "explain", "min_dur": 7.0,
+     "narration": "冒泡排序，相邻才比。大数一步步冒到末尾，交换发生在每一轮的每一处。"},
+    {"id": "reveal", "mood": "reveal", "min_dur": 6.6,
+     "narration": "选择排序更聪明：扫完一轮记住最小值，只交换一次。"},
+    {"id": "solve", "mood": "win", "min_dur": 8.0,
+     "narration": "同一个数组，比较次数一样，但选择排序少一半交换。数据越大，差距越大，这就是算法设计的意义。"}
+  ]
+}

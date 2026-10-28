@@ -1,0 +1,14 @@
+# 运行产物与临时文件不入库
+*.mp4
+*.wav
+*.mp3
+build/
+out/
+.venv/
+__pycache__/
+*.pyc
+
+# 预览帧样张保留 README 引用需要时可放开
+hook_90.png
+reveal_45.png
+solve_90.png

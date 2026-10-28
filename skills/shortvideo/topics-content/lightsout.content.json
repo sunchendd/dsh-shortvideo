@@ -1,0 +1,19 @@
+{
+  "title": "九宫格拆弹",
+  "subtitle": "从奇偶抵消到矩阵求逆",
+  "voice": {"engine": "edge", "name": "zh-CN-XiaoxiaoNeural"},
+  "fps": 30, "size": [1080, 1920],
+  "lead_in": 0.15, "tail": 0.55,
+  "shots": [
+    {"id": "hook", "mood": "hook", "min_dur": 5.2,
+     "narration": "烧脑的来了。九个格子，九个按钮，怎样按，才能让所有灯一次全灭？"},
+    {"id": "rule", "mood": "rule", "min_dur": 5.4,
+     "narration": "规则很朴素：按下一个格子，它自己，和上下左右的灯，会一起翻转。"},
+    {"id": "insight", "mood": "explain", "min_dur": 7.0,
+     "narration": "先做一次抵消。同一个格子按两次，等于没按。所以每一格只有按与不按两种状态，顺序也不影响结果。"},
+    {"id": "reveal", "mood": "reveal", "min_dur": 6.6,
+     "narration": "在模二的意义下，这个矩阵恰好可逆。于是解唯一，把 b 乘上逆矩阵，就能提前算出来。"},
+    {"id": "solve", "mood": "win", "min_dur": 8.0,
+     "narration": "四角全亮的局面，逆矩阵直接给出答案：按四个角。灯，灭了。算一次逆矩阵，之后所有局面都是查表。"}
+  ]
+}
