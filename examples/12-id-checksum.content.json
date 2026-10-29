@@ -53,8 +53,8 @@
     {
       "id": "insight",
       "mood": "explain",
-      "min_dur": 8.6,
-      "narration": "第18位是校验码：前17位每位乘一个权重，加总，再除以11。",
+      "min_dur": 7.6,
+      "narration": "第18位是校验码：前17位各乘权重，加总，除以11。",
       "emphasis": [
         "乘一个权重",
         "除以11"
@@ -63,8 +63,8 @@
     {
       "id": "reveal",
       "mood": "reveal",
-      "min_dur": 8.7,
-      "narration": "算出来的校验值有11种：0到9照写，第11种是10，写成字母X。",
+      "min_dur": 7.2,
+      "narration": "校验值有11种：0到9照写，第11种是10，写成字母X。",
       "emphasis": [
         "11种",
         "写成字母X"

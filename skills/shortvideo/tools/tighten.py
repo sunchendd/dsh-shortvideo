@@ -33,8 +33,12 @@ def wav_dur(path):
 # 注意：渲染里的动画进度是"按比例"走的（p = t/dur），所以缩短镜头不会让动画演不完；
 # 余量的真正作用是给"最后一个元素出现后"留阅读时间。这里只给密集版式多 0.3s，
 # 给多了会让所有镜头都顶到 cap，反而让全片节奏变平。
-KIND_PAD = {"bars": 2.1, "timeline": 2.1, "flow": 2.0, "digits": 2.0,
-            "stat": 2.0, "formula": 2.0, "bits": 2.0, "compare": 1.9}
+# 分档依据"最后一帧之后还需要多久才读得完"：
+#   bars/timeline/flow —— 元素逐个长出来，最后一项出现得晚，留 2.1~2.2s
+#   stat/formula/digits —— 单元素场景（数字数完就到齐了），1.6s 足够，
+#                          留多了会让相邻两镜都顶到 cap，形成"连排长镜"的闷段落
+KIND_PAD = {"bars": 2.1, "timeline": 2.1, "flow": 2.0, "bits": 2.0,
+            "compare": 1.9, "stat": 1.6, "formula": 1.6, "digits": 1.6}
 
 
 def tighten(path, pad=1.5, floor=4.5, cap=8.0, dry_run=False):

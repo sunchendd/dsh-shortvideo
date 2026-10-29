@@ -33,7 +33,7 @@
     {
       "id": "hook",
       "mood": "hook",
-      "min_dur": 6.2,
+      "min_dur": 7.1,
       "narration": "一行中文存下来，占的空间是英文的3倍。字明明一样多。",
       "emphasis": [
         "3倍"
@@ -42,7 +42,7 @@
     {
       "id": "rule",
       "mood": "rule",
-      "min_dur": 7.6,
+      "min_dur": 8.1,
       "narration": "这套规矩叫UTF-8。一个字母1个字节，一个汉字3个字节。",
       "emphasis": [
         "UTF-8"
@@ -51,7 +51,7 @@
     {
       "id": "insight",
       "mood": "explain",
-      "min_dur": 7.8,
+      "min_dur": 8.3,
       "narration": "一个字节只有256个格子，汉字有两万多个，一个格子放不下。",
       "emphasis": [
         "256个格子"
@@ -60,7 +60,7 @@
     {
       "id": "reveal",
       "mood": "reveal",
-      "min_dur": 7.6,
+      "min_dur": 8.0,
       "narration": "3个字节是24位，其中8位在打标记，真正装字的只有16位。",
       "emphasis": [
         "24位",

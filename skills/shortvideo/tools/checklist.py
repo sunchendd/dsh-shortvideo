@@ -96,6 +96,8 @@ def main():
     ap.add_argument("--dir", default="examples")
     ap.add_argument("--only", default=None, help="逗号分隔的序号前缀，如 13,14")
     ap.add_argument("--strict", action="store_true", help="警告也算 NO-GO")
+    ap.add_argument("--publish-order", action="store_true",
+                    help="额外输出建议投放顺序（按节奏风险从低到高）")
     args = ap.parse_args()
 
     only = [x.strip() for x in (args.only or "").split(",") if x.strip()]
@@ -120,7 +122,22 @@ def main():
             print(f"      - {p}")
 
     ok = sum(1 for r in rows if r["ok"])
-    print(f"\n  {ok}/{len(rows)} 条可以发\n")
+    print(f"\n  {ok}/{len(rows)} 条可以发")
+
+    if args.publish_order:
+        # 新号先发"节奏最稳"的：开局几条的完播率决定账号被判定成什么档位，
+        # 等权重起来再发信息更密、节奏更重的片子
+        def risk_of(r):
+            v = r["gates"].get("节奏")
+            return v if isinstance(v, (int, float)) else 99
+        ranked = sorted([r for r in rows if r["ok"]], key=risk_of)
+        print("\n  建议投放顺序（节奏风险低的先发，先把账号权重做起来）：")
+        for i, r in enumerate(ranked, 1):
+            print(f"    {i:>2}. {r['slug']:<26} 节奏风险 {risk_of(r)}")
+        held = [r["slug"] for r in rows if not r["ok"]]
+        if held:
+            print(f"  暂缓：{', '.join(held)}")
+    print()
     return 0 if ok == len(rows) else 1
 
 

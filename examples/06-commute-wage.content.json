@@ -43,7 +43,7 @@
     {
       "id": "rule",
       "mood": "rule",
-      "min_dur": 7.0,
+      "min_dur": 6.4,
       "narration": "一个月22个工作日，每天8小时，时薪是45块4。",
       "emphasis": [
         "45块4"

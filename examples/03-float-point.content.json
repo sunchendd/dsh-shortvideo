@@ -43,7 +43,7 @@
     {
       "id": "rule",
       "mood": "rule",
-      "min_dur": 7.9,
+      "min_dur": 7.3,
       "narration": "电脑用二进制存小数。零点一写成二进制，是无限循环。",
       "emphasis": [
         "无限循环"
@@ -62,7 +62,7 @@
     {
       "id": "reveal",
       "mood": "reveal",
-      "min_dur": 7.5,
+      "min_dur": 6.9,
       "narration": "误差藏在小数点后第十七位。两个一加，它就露出来了。",
       "emphasis": [
         "第十七位"

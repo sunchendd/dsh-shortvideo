@@ -44,7 +44,7 @@
     {
       "id": "rule",
       "mood": "rule",
-      "min_dur": 6.5,
+      "min_dur": 5.9,
       "narration": "先算压强：80公斤踩6平方厘米，大约1.3兆帕。",
       "emphasis": [
         "1.3兆帕"

@@ -68,7 +68,7 @@
     {
       "id": "reveal",
       "mood": "reveal",
-      "min_dur": 7.2,
+      "min_dur": 6.6,
       "narration": "17个校验，能补回8个坏码字。8除以26，三成出头。",
       "emphasis": [
         "8个坏码字",

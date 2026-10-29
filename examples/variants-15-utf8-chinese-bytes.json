@@ -1,0 +1,71 @@
+{
+  "base": "15-utf8-chinese-bytes.content.json",
+  "variants": [
+    {
+      "id": "num",
+      "label": "数字冲击",
+      "hook": "一个汉字 3 个字节，英文居然只用 1 个。",
+      "hook_lines": [
+        "汉字 3 字节",
+        "英文才 1 个"
+      ],
+      "emphasis": [
+        "3 个字节"
+      ],
+      "publish_title": "一个汉字占 3 个字节，英文只要 1 个",
+      "cover": {
+        "headline": [
+          "汉字 3 字节",
+          "英文 1 个"
+        ],
+        "highlight": [
+          "3 字节"
+        ]
+      }
+    },
+    {
+      "id": "ask",
+      "label": "提问式",
+      "hook": "同样 10 个字，中文为什么占 3 倍空间？",
+      "hook_lines": [
+        "同样 10 个字",
+        "占 3 倍空间？"
+      ],
+      "emphasis": [
+        "3 倍空间"
+      ],
+      "publish_title": "同样 10 个字，中文为什么占 3 倍空间",
+      "cover": {
+        "headline": [
+          "同样 10 个字",
+          "占 3 倍空间"
+        ],
+        "highlight": [
+          "3 倍空间"
+        ]
+      }
+    },
+    {
+      "id": "cost",
+      "label": "代价恐惧",
+      "hook": "复制一篇中文，文件悄悄大了 3 倍。",
+      "hook_lines": [
+        "复制一篇中文",
+        "悄悄大 3 倍"
+      ],
+      "emphasis": [
+        "大 3 倍"
+      ],
+      "publish_title": "复制一篇中文，文件悄悄大了 3 倍",
+      "cover": {
+        "headline": [
+          "复制一篇中文",
+          "悄悄大 3 倍"
+        ],
+        "highlight": [
+          "3 倍"
+        ]
+      }
+    }
+  ]
+}

@@ -1,0 +1,71 @@
+{
+  "base": "16-hex-gray-not-half.content.json",
+  "variants": [
+    {
+      "id": "num",
+      "label": "数字冲击",
+      "hook": "颜色填 128，实际只有 21.6% 的亮度。",
+      "hook_lines": [
+        "填 128",
+        "只有 21.6%"
+      ],
+      "emphasis": [
+        "21.6%"
+      ],
+      "publish_title": "颜色填 128，实际只有 21.6% 的亮度",
+      "cover": {
+        "headline": [
+          "填 128",
+          "只有 21.6%"
+        ],
+        "highlight": [
+          "21.6%"
+        ]
+      }
+    },
+    {
+      "id": "ask",
+      "label": "提问式",
+      "hook": "想要一半亮度，你会填 128 吗？",
+      "hook_lines": [
+        "要一半亮度",
+        "你填 128？"
+      ],
+      "emphasis": [
+        "128"
+      ],
+      "publish_title": "想要一半亮度，你真的应该填 128 吗",
+      "cover": {
+        "headline": [
+          "要一半亮度",
+          "填 128？"
+        ],
+        "highlight": [
+          "128"
+        ]
+      }
+    },
+    {
+      "id": "cost",
+      "label": "代价恐惧",
+      "hook": "填 128 想要半亮，其实只有两成光。",
+      "hook_lines": [
+        "想要半亮",
+        "只有两成光"
+      ],
+      "emphasis": [
+        "两成光"
+      ],
+      "publish_title": "填 128 想要半亮，实际只有两成光",
+      "cover": {
+        "headline": [
+          "想要半亮",
+          "只有两成光"
+        ],
+        "highlight": [
+          "两成光"
+        ]
+      }
+    }
+  ]
+}

@@ -47,7 +47,7 @@
     {
       "id": "hook",
       "mood": "hook",
-      "min_dur": 5.8,
+      "min_dur": 6.5,
       "narration": "屏幕上那个128，其实不是一半的亮度。它暗得多。",
       "emphasis": [
         "128"
@@ -65,7 +65,7 @@
     {
       "id": "insight",
       "mood": "explain",
-      "min_dur": 7.8,
+      "min_dur": 7.2,
       "narration": "每两位是一个0到255的十六进制数。80就是128。",
       "emphasis": [
         "80就是128"
@@ -74,7 +74,7 @@
     {
       "id": "reveal",
       "mood": "reveal",
-      "min_dur": 8.2,
+      "min_dur": 8.6,
       "narration": "同一个128，屏幕上只发出21.6%的光。数字和亮度不是一回事。",
       "emphasis": [
         "21.6%"
