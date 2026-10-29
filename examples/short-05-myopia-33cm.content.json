@@ -152,5 +152,6 @@
     "cta": "18 秒自测"
   },
   "disclosure": "AI 语音合成配音；画面为程序化渲染",
-  "theme": "arctic"
+  "theme": "arctic",
+  "cover_direction": "blueprint"
 }

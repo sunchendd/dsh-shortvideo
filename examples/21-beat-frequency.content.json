@@ -201,5 +201,6 @@
     "type": "fade",
     "dur": 0.24
   },
-  "theme": "jade"
+  "theme": "jade",
+  "cover_direction": "cinematic"
 }

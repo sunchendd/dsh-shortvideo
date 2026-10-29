@@ -167,5 +167,6 @@
       "note": "评论区说说你调过什么乐器"
     }
   },
-  "theme": "jade"
+  "theme": "jade",
+  "cover_direction": "blueprint"
 }

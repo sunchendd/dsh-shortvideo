@@ -199,5 +199,6 @@
     "type": "fade",
     "dur": 0.24
   },
-  "theme": "rice-paper"
+  "theme": "rice-paper",
+  "cover_direction": "blueprint"
 }

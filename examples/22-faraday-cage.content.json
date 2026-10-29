@@ -202,5 +202,6 @@
       "note": "评论区说说你电梯里掉几格"
     }
   },
-  "theme": "graphite"
+  "theme": "graphite",
+  "cover_direction": "editorial"
 }

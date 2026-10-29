@@ -545,7 +545,17 @@ def build_covers(content, out_dir, frame_path=None, variants=None):
         secs = round(sum(float(sh.get("min_dur") or 0) for sh in (content or {}).get("shots") or []))
     c["seconds"] = secs
     made = []
+    direction = str((content or {}).get("cover_direction") or "off")
     for v in variants:
+        if v == "short" and direction != "off":
+            # 主封面走 v2（编辑部 / 蓝图 / 电影感三流派之一，存在 content.cover_direction）。
+            # f1/f3/f6 仍是 v1 版式，留作 A/B 备选，所以两种设计语言不会在同一张图上混。
+            import cover2
+            img, _man = cover2.render(content, direction)
+            path = os.path.join(out_dir, "cover_short.png")
+            img.save(path, quality=95)
+            made.append(path)
+            continue
         if v == "9x16":
             img, name = _variant_f1(c, 1080, 1920), "cover_9x16.png"
         elif v in _BUILDERS:

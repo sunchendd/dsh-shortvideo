@@ -204,5 +204,6 @@
     "type": "fade",
     "dur": 0.24
   },
-  "theme": "porcelain"
+  "theme": "porcelain",
+  "cover_direction": "blueprint"
 }

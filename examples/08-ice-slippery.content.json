@@ -162,5 +162,6 @@
   },
   "publish_title": "冰刀压下去冰点只降0.1度，那靠什么滑",
   "disclosure": "AI 语音合成配音；画面为程序化渲染",
-  "theme": "midnight"
+  "theme": "midnight",
+  "cover_direction": "blueprint"
 }

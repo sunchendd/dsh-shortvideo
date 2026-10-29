@@ -192,5 +192,6 @@
     "de Havilland Comet G-ALYP（1954-01-10 埃尔巴岛外）与 G-ALYY（1954-04-08 那不勒斯外）解体事故：方角窗/开口处疲劳裂纹起源，见英国民航部 Cohen 调查报告（1954–55）与 RAE 全机水槽疲劳复现试验",
     "增圧载荷与压差上限：CS-25.365 / FAR 25.365（Pressurized compartment loads），民机设计压差通常 0.5–0.6 bar"
   ],
-  "theme": "graphite"
+  "theme": "graphite",
+  "cover_direction": "cinematic"
 }

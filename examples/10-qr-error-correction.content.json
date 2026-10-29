@@ -270,5 +270,6 @@
     "gain": -25.5
   },
   "disclosure": "AI 语音合成配音；画面为程序化渲染",
-  "theme": "graphite"
+  "theme": "graphite",
+  "cover_direction": "editorial"
 }
