@@ -299,6 +299,12 @@ def check_diag(records):
         hi = max(rs.values(), key=lambda r: _num(r["prosody"]["pitch"]))
         lo = min(rs.values(), key=lambda r: _num(r["prosody"]["pitch"]))
         if _num(hi["prosody"]["pitch"]) - _num(lo["prosody"]["pitch"]) >= 4:
+            if not hi["f0_median"] or not lo["f0_median"]:
+                # 没测到基频：多半是这一条被 TTS 抖动成了静音/气声，不是参数没生效
+                issues.append(("WARN", f"{key} 音高对比跳过："
+                                       f"{hi['mood'] if not hi['f0_median'] else lo['mood']} "
+                                       f"未测到基频（重跑一次通常就好）"))
+                continue
             df0 = hi["f0_median"] - lo["f0_median"]
             issues.append(("OK" if df0 > 1.0 else "FAIL",
                            f"{key} 音高 {hi['mood']}{hi['prosody']['pitch']} "

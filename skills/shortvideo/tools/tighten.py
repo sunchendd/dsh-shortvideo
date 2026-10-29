@@ -28,17 +28,26 @@ def wav_dur(path):
         return 0.0
 
 
+# 动效密集的 kind 需要更多余量：bars/timeline/flow 要一条条长出来，
+# 余量不够会"画面还没长完就切走"。big/cards 只是文字入场，1.8s 够。
+KIND_PAD = {"bars": 2.4, "timeline": 2.4, "flow": 2.2, "digits": 2.2,
+            "stat": 2.2, "formula": 2.2, "bits": 2.2, "compare": 2.0}
+
+
 def tighten(path, pad=1.5, floor=4.5, cap=8.0, dry_run=False):
     cfg = json.load(open(path, encoding="utf-8"))
     slug = os.path.basename(path).replace(".content.json", "")
     build = os.path.join(os.path.dirname(path), "out", slug, "build")
     changed = []
+    deck = cfg.get("deck") or {}
     for i, shot in enumerate(cfg.get("shots") or []):
         sid = shot.get("id") or str(i)
         adur = wav_dur(os.path.join(build, f"{i:02d}_{sid}.wav"))
         if not adur:
             continue
-        new = round(min(cap, max(floor, adur + pad)), 1)
+        kind = str((deck.get(sid) or {}).get("kind") or "big")
+        my_pad = KIND_PAD.get(kind, pad)
+        new = round(min(cap, max(floor, adur + my_pad)), 1)
         old = float(shot.get("min_dur") or 0)
         if abs(new - old) >= 0.3:
             shot["min_dur"] = new

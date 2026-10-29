@@ -64,7 +64,7 @@
     {
       "id": "reveal",
       "mood": "reveal",
-      "min_dur": 6.8,
+      "min_dur": 7.5,
       "narration": "你以为在回放，其实在重录。每回想一次，就重写一次。",
       "emphasis": [
         "重录",

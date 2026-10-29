@@ -63,7 +63,7 @@
     {
       "id": "reveal",
       "mood": "reveal",
-      "min_dur": 8.6,
+      "min_dur": 9.0,
       "narration": "两个相减，每天快38.5微秒。乘上光速，一天差11.5公里。",
       "emphasis": [
         "38.5微秒",
@@ -73,7 +73,7 @@
     {
       "id": "solve",
       "mood": "win",
-      "min_dur": 7.9,
+      "min_dur": 8.3,
       "narration": "所以发射前先把钟调慢，天上还得天天校。关注我，下条讲北斗。",
       "emphasis": [
         "调慢",

@@ -43,7 +43,7 @@
     {
       "id": "rule",
       "mood": "rule",
-      "min_dur": 7.4,
+      "min_dur": 7.8,
       "narration": "阳光是七色混成的白。穿进大气，一路撞上氮和氧的分子。",
       "emphasis": [
         "七色"
@@ -52,7 +52,7 @@
     {
       "id": "insight",
       "mood": "explain",
-      "min_dur": 7.5,
+      "min_dur": 8.4,
       "narration": "波长越短，被撞得越狠。散射强度和波长的四次方成反比。",
       "emphasis": [
         "四次方"
@@ -61,7 +61,7 @@
     {
       "id": "reveal",
       "mood": "reveal",
-      "min_dur": 7.8,
+      "min_dur": 8.5,
       "narration": "四百五十纳米对七百纳米，算出来近六倍。所以满天是被撞散的蓝。",
       "emphasis": [
         "近六倍",

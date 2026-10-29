@@ -44,7 +44,7 @@
     {
       "id": "rule",
       "mood": "rule",
-      "min_dur": 8.2,
+      "min_dur": 8.8,
       "narration": "1969年阿波罗11号留下反射镜。激光打上去，来回2.6秒。",
       "emphasis": [
         "反射镜",
@@ -54,7 +54,7 @@
     {
       "id": "insight",
       "mood": "explain",
-      "min_dur": 7.8,
+      "min_dur": 8.5,
       "narration": "海水被月亮拉出鼓包，自转又把鼓包拖到前面。鼓包回头拽月亮。",
       "emphasis": [
         "鼓包"
@@ -63,7 +63,7 @@
     {
       "id": "reveal",
       "mood": "reveal",
-      "min_dur": 8.2,
+      "min_dur": 8.6,
       "narration": "拽的代价：一天每百年长1.7毫秒。57年，它已经远了2.2米。",
       "emphasis": [
         "1.7毫秒",

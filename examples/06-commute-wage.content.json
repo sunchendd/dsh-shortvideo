@@ -43,7 +43,7 @@
     {
       "id": "rule",
       "mood": "rule",
-      "min_dur": 6.3,
+      "min_dur": 7.0,
       "narration": "一个月22个工作日，每天8小时，时薪是45块4。",
       "emphasis": [
         "45块4"
@@ -61,7 +61,7 @@
     {
       "id": "reveal",
       "mood": "reveal",
-      "min_dur": 7.4,
+      "min_dur": 7.9,
       "narration": "通勤一个月44小时，等于白上5天半。这5天半，一分钱不算。",
       "emphasis": [
         "5天半"
