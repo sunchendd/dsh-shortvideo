@@ -635,6 +635,8 @@ $PY $TOOLS/tighten.py --dir examples --dry-run   # 先看要改哪些
 
 ```bash
 # lofi（默认）：pad 铺底 + 稀疏琶音 + 1/3 拍底鼓，适合叙事/生活类
+# [!] 同等 gain 下 lofi 比全库 BGM 中位低约 2.6dB，loudaudit 会报"需调整"；
+#     用 lofi 时 gain 给 -25（不是 -28）。短版尤其容易踩。
 # pulse      ：四拍底鼓 + 八分贝斯 + 十六分踩镲，适合机制/实验/科技类
 $PY $TOOLS/bgm.py --dur 40 --styles lofi,pulse --out /tmp/bed.wav
 $PY $TOOLS/viz.py --bgm /tmp/bed.lofi.wav /tmp/bed.pulse.wav --out /tmp/cmp.png

@@ -151,7 +151,12 @@ def main():
     args = ap.parse_args()
 
     allrows = []
-    for cp in sorted(glob.glob(os.path.join(args.dir, "*.content.json"))):
+    cps = sorted(glob.glob(os.path.join(args.dir, "*.content.json")))
+    if args.only:      # 之前 argparse 收了 --only 却从没用过，单条复核仍要扫全库 8~10 分钟
+        cps = [c for c in cps if os.path.basename(c).startswith(args.only)]
+        if not cps:
+            print(f"[!] --only {args.only} 没匹配到任何 content.json")
+    for cp in cps:
         slug = os.path.basename(cp).replace(".content.json", "")
         vp = os.path.join(args.dir, "out", slug, f"{slug}.mp4")
         allrows += analyse(slug, cp, vp)

@@ -117,15 +117,34 @@ def _big(img, t, dur, spec):
     line_h = int(size * 1.24)
     y0 = int(R.H * 0.40 - line_h * n / 2)
     accent = tuple(spec.get("accent") or R.ACCENT)
+    # 错峰间隔要跟镜长走：固定 0.12s 时，7s 长的钩子镜会在 0.8s 后就没动静了
+    # （hookaudit 实测前 3 秒有 1.4s 像素零变化）。按镜长给间隔，第二行在长镜里
+    # 1.5~1.8s 才砸进来，正好补上死区。
+    stagger = min(1.9, max(0.12, dur * 0.24)) if dur else 0.12
     for i, ln in enumerate(lines):
-        # 每行错峰砸入（0.0 / 0.12 / 0.24 秒），比整块一起出现有节奏
         S.kinetic_text(img, (R.W / 2, y0 + line_h * i + line_h / 2), ln, size,
                        fill=tuple(spec.get("color") or R.TEXT),
-                       t=t - i * 0.12, dur=0.5, style=spec.get("style") or "slam",
+                       t=t - i * stagger, dur=0.5, style=spec.get("style") or "slam",
                        stroke=tuple(spec.get("stroke") or R.BG_BOT), stroke_w=max(3, size // 22),
                        shadow=0.8)
+    # 第二拍：中段（约 35% 处）从中间向两边扫出一条强调下划线。
+    # 钩子镜常 7s 长，大字 0.7s 就砸完了，中段没有任何变化——hookaudit 实测
+    # 12/27 条在前 3 秒有 0.9~1.4s 像素零变化。这条"扫线"既是设计语言也是第二拍。
+    # 扫线要"慢慢拉长"而不是"唰一下就完"：钩子镜 7s 长，字幕按词高亮会出现
+    # 1.4s 完全不变的窗口（实测 19 号 1.7~3.1s 像素零变化），
+    # 把扫线时长拉到镜长的 55%，这段就一直在动。
+    sweep_at = float(spec.get("sweep_at") or 0.15)
+    sw = R.clamp((p - sweep_at) / float(spec.get("sweep_span") or 0.55))
+    if sw > 0:
+        y_line = int(y0 + line_h * n - line_h * 0.12)
+        half = (R.W * 0.30) * _ease(sw)
+        S.highlight_bar(img, int(R.W / 2 - half), int(R.W / 2 + half),
+                        y_line, 6, p=1.0, color=accent, radius=3, alpha=0.95)
     if spec.get("sub"):
-        a = _appear(p, 0.45)
+        # 副标按**绝对时间**入场（t≥1.1s），不用 p*dur：
+        # 钩子镜往往 7s 长，按 45% 算要到 3.3s 才动，于是 1.7~3.1s 画面完全静止——
+        # 实测 27 条里有 12 条在前 3 秒存在 0.9~1.4s 的静止段（hookaudit 查出来的）。
+        a = R.clamp((t - 1.05) / 0.45)
         _note(img, spec["sub"], y=int(y0 + line_h * n + 96), size=int(size * 0.34),
               alpha=a, color=accent)
 
@@ -634,6 +653,12 @@ def _ghost(img, spec, p):
     if w > R.W * 1.02:                      # 太宽就等比缩
         size = int(size * R.W * 1.02 / w)
         f = R.font(size, bold=True)
+    # 缓慢"呼吸"：水印字在整镜里极慢地从 0.97 长到 1.03，再保持。
+    # 动机：hookaudit 实测 12/27 条在前 3 秒存在 0.9~1.4s 像素零变化的静止段——
+    # 钩子镜往往 7s 长，而大字砸入 0.7s 就结束了，中段完全死掉。
+    # 幅度必须小（3%），大了会晕；目的只是让画面"活着"。
+    p_breath = R.clamp(p / 0.9)
+    size = int(size * (0.97 + 0.06 * p_breath))
     # 默认用一个"比底色略亮的深蓝"，像设计稿里的水印字，而不是荧光色（会抢主文案）
     color = spec.get("ghost_color") or (44, 58, 82)
     # 放在副标题下方：水印要"托住"画面，不能压到副标题的阅读

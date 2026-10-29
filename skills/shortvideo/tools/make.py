@@ -16,6 +16,7 @@ ffmpeg 的 stdin，用「滑动窗口」控制内存（不攒帧）。
 """
 import argparse
 import fcntl
+import glob
 import importlib.util
 import json
 import os
@@ -66,6 +67,32 @@ CLAUSE = re.compile(r"[^，。；：？！,;?!]+[，。；：？！]?")
 
 # ---------------------------------------------------------------- 题材包
 
+def _preflight_topics():
+    """渲染前把 topics/ 下的题材包编译一遍。
+
+    多人（或多个 agent）共用一个工作树时，渲染进程可能读到别人正在改写的半成品文件——
+    实际发生过两次：`_ghost` 里 `color` 未定义、`S.rect` 不存在，两次都是渲染到一半崩，
+    报错也看不出是"文件正在被改"。这里提前给一句人话。
+    """
+    import py_compile
+    td = os.path.join(os.path.dirname(os.path.abspath(__file__)), "topics")
+    bad = []
+    for f in sorted(glob.glob(os.path.join(td, "*.py"))):
+        try:
+            py_compile.compile(f, doraise=True, cfile=f + ".pyc", optimize=2)
+        except py_compile.PyCompileError as e:
+            bad.append(f"{os.path.basename(f)}: {str(e).splitlines()[-1][:120]}")
+    for f in sorted(glob.glob(os.path.join(td, "*.pyc"))):
+        try:
+            os.remove(f)
+        except OSError:
+            pass
+    if bad:
+        raise SystemExit(
+            "[!] 题材包编译失败（大概率是有人正在改这些文件，稍等重试）:\n    "
+            + "\n    ".join(bad))
+
+
 def load_topic(ref):
     """ref 可以是模块名（topics 目录下）或 .py 文件路径。"""
     if ref.endswith(".py") and os.path.exists(ref):
@@ -73,7 +100,13 @@ def load_topic(ref):
         mod = importlib.util.module_from_spec(spec)
         spec.loader.exec_module(mod)
         return mod
-    return importlib.import_module(f"topics.{ref}")
+    try:
+        return importlib.import_module(f"topics.{ref}")
+    except (NameError, AttributeError) as e:
+        raise SystemExit(
+            f"[!] 题材包 topics.{ref} 导入/绘制时报错：{e}\n"
+            f"    多半是这个文件正在被别的进程改写，稍等重试；"
+            f"若持续报错请看 topics/{ref}.py 最近改动。") from e
 
 
 # ---------------------------------------------------------------- 字幕
@@ -814,6 +847,9 @@ def main():
     ap.add_argument("--bgm-gain", type=float, default=None,
                     help="BGM 增益 dB（默认 -27，越小越轻）")
     args = ap.parse_args()
+
+    if not args.no_lint:
+        _preflight_topics()
 
     cfg = json.load(open(args.content, encoding="utf-8"))
     fps = args.fps or cfg.get("fps", 30)

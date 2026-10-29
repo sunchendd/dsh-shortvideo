@@ -145,12 +145,25 @@ def _tags(img, cx, y, tags, accent, size=34):
 
 
 def _serial(img, w, n, accent, r=None):
+    """右上角序号徽标。
+
+    两个曾经的真问题（队友在短版封面上报出来的）：
+      ① 字号写死成 r，而序号是「短05」这种 3 个字符——直接撑出圆外；
+      ② 黑字压在洋红圆上，缩略图里糊成一团，读不出来。
+    现在按实测宽度缩字号（圆内接方宽的 0.88），并按圆底色亮度选黑/白字。
+    """
     r = r or int(w * 0.052)
     d = ImageDraw.Draw(img, "RGBA")
     cx, cy = w - MARGIN - r, MARGIN + r
     d.ellipse((cx - r, cy - r, cx + r, cy + r), fill=accent + (255,))
-    d.text((cx, cy), str(n), font=R.font(int(r * 1.0), bold=True),
-           fill=(10, 12, 18, 255), anchor="mm")
+    txt = str(n)
+    size = int(r * 1.05)
+    box = r * 2 * 0.68                       # 留足内边距（字形比 advance 宽一点）
+    while size > 9 and R.font(size, bold=True).getlength(txt) > box:
+        size -= 2
+    lum = 0.2126 * accent[0] + 0.7152 * accent[1] + 0.0722 * accent[2]
+    fg = (10, 12, 18, 255) if lum > 168 else (255, 255, 255, 255)
+    d.text((cx, cy), txt, font=R.font(size, bold=True), fill=fg, anchor="mm")
 
 
 def _text_outline(img, xy, s, size, fill, stroke=None, anchor="mm", stroke_w=None, font=None):
