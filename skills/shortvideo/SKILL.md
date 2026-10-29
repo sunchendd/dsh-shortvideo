@@ -450,6 +450,30 @@ $PY $TOOLS/make.py --content examples/01-x.content.json --topic deck --out examp
 
 **写 mood_tuning 的前提**：确认该镜有 mood（自动推断也算），否则 tuning 不生效。
 
+### 检查情绪到底有没有生效：`voiceaudit.py`
+
+```bash
+python3 tools/voiceaudit.py --dir examples          # 全库：扁平/白写
+python3 tools/voiceaudit.py --content examples/x.content.json   # 单条逐镜明细
+python3 tools/voiceaudit.py --matrix                # 三音色 × 五情绪对照表
+```
+
+输出会标出：哪几镜是"推断"来的情绪、`mood_tuning` 里哪些 key 白写、整条是否扁平。
+`checklist.py` 已把它接成第 8 道门（严格模式下白写直接 NO-GO）。
+
+### 情绪的实测强度（同一句话，yunxi）
+
+| 情绪 | 语速 | 时长 | 过零率（亮度代理） |
+|---|---|---|---|
+| hook | +16% | 3.95s | 988 |
+| win | +13% | 4.05s | 938 |
+| rule | +7% | 4.25s | 900 |
+| reveal | +5% | 4.34s | 862 |
+| explain | -1% | 4.58s | 800 |
+
+时长跨度 1.16×，亮度跨度 1.23×。**早先音高只给 ±5~9Hz（≈3%），实测亮度跨度仅 1.18×、
+基本听不出差别**；现在拉到 ±6~15Hz 才有"在讲"的感觉。
+
 ## 语速的三个开关（按优先级）
 
 | 写法 | 作用 | 实测（同一句话、同一音色） |

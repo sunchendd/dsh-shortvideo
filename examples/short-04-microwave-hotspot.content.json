@@ -18,7 +18,7 @@
   "shots": [
     {
       "id": "hook",
-      "min_dur": 3.7,
+      "min_dur": 3.5,
       "narration": "微波炉加热不匀，差在6厘米。",
       "emphasis": [
         "6厘米"

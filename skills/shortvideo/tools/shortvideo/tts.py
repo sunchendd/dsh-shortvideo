@@ -112,27 +112,30 @@ DEFAULT_PRESET = "xiaoxiao"
 #      太小（±2Hz）在实测里会被句子语调盖掉，等于没做情绪）
 #   - volume：±8% 幅度约 0.6dB —— 配合 loudness 对齐后仍保留这 0.6dB 的强弱意图
 # 低音色不靠“加速”制造紧张：yunjian 的 reveal 是“更低 + 更响”，不是更快。
+# 情绪表：语速 + 音高 + 音量三轴一起动，才有"在讲"的感觉。
+# 早先音高只有 ±5~9Hz（≈2~4%），实测过零率差异 <5%，基本听不出来；
+# 现在拉开到 ±6~15Hz（≈5~10%），配合语速差，同一句话的亮度差异约 1.3 倍。
 VOICE_MOODS = {
     "xiaoxiao": {
-        "hook":    dict(rate="+14%", pitch="+5Hz",  volume="+2%"),
+        "hook":    dict(rate="+14%", pitch="+11Hz", volume="+3%"),
         "rule":    dict(rate="+4%",  pitch="+1Hz",  volume="+0%"),
-        "explain": dict(rate="-3%",  pitch="-8Hz",  volume="+0%"),
-        "reveal":  dict(rate="+3%",  pitch="+4Hz",  volume="+6%"),
-        "win":     dict(rate="+12%", pitch="+8Hz",  volume="+8%"),
+        "explain": dict(rate="-3%",  pitch="-14Hz", volume="-1%"),
+        "reveal":  dict(rate="+3%",  pitch="+8Hz",  volume="+6%"),
+        "win":     dict(rate="+12%", pitch="+13Hz", volume="+8%"),
     },
     "yunxi": {
-        "hook":    dict(rate="+16%", pitch="+4Hz",  volume="+3%"),
+        "hook":    dict(rate="+16%", pitch="+9Hz",  volume="+4%"),
         "rule":    dict(rate="+7%",  pitch="+0Hz",  volume="+0%"),
-        "explain": dict(rate="-1%",  pitch="-7Hz",  volume="+0%"),
-        "reveal":  dict(rate="+5%",  pitch="+3Hz",  volume="+5%"),
-        "win":     dict(rate="+13%", pitch="+7Hz",  volume="+7%"),
+        "explain": dict(rate="-1%",  pitch="-13Hz", volume="-1%"),
+        "reveal":  dict(rate="+5%",  pitch="+6Hz",  volume="+5%"),
+        "win":     dict(rate="+13%", pitch="+11Hz", volume="+8%"),
     },
     "yunjian": {
-        "hook":    dict(rate="+4%",  pitch="-2Hz",  volume="+4%"),
+        "hook":    dict(rate="+8%",  pitch="+4Hz",  volume="+5%"),
         "rule":    dict(rate="-2%",  pitch="-3Hz",  volume="+0%"),
-        "explain": dict(rate="-8%",  pitch="-6Hz",  volume="+0%"),
-        "reveal":  dict(rate="-4%",  pitch="-9Hz",  volume="+8%"),
-        "win":     dict(rate="+2%",  pitch="+1Hz",  volume="+6%"),
+        "explain": dict(rate="-8%",  pitch="-10Hz", volume="-1%"),
+        "reveal":  dict(rate="-2%",  pitch="-2Hz",  volume="+8%"),
+        "win":     dict(rate="+6%",  pitch="+6Hz",  volume="+7%"),
     },
 }
 

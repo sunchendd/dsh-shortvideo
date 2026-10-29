@@ -18,7 +18,7 @@
   "shots": [
     {
       "id": "hook",
-      "min_dur": 3.7,
+      "min_dur": 3.4,
       "narration": "5 厘米的洞，你居然看不见。",
       "emphasis": [
         "5 厘米"
@@ -42,7 +42,7 @@
     },
     {
       "id": "solve",
-      "min_dur": 4.5,
+      "min_dur": 4.3,
       "narration": "剩下的是大脑猜的。评论区聊？",
       "emphasis": [
         "猜"

@@ -30,7 +30,7 @@
     },
     {
       "id": "reveal",
-      "min_dur": 3.6,
+      "min_dur": 3.4,
       "narration": "坏几个码字，解方程补回来。",
       "emphasis": [
         "解方程"

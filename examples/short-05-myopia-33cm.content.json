@@ -33,7 +33,7 @@
     {
       "id": "hook",
       "mood": "hook",
-      "min_dur": 4.0,
+      "min_dur": 3.9,
       "narration": "三百度近视，只能看清三十三厘米？",
       "emphasis": [
         "三十三厘米"
@@ -60,7 +60,7 @@
     {
       "id": "solve",
       "mood": "win",
-      "min_dur": 3.6,
+      "min_dur": 3.4,
       "narration": "摘镜量远点，评论区报数。",
       "emphasis": [
         "远点"

@@ -34,7 +34,7 @@
     },
     {
       "id": "reveal",
-      "min_dur": 5.7,
+      "min_dur": 6.0,
       "narration": "刚喝是 100%，5 小时后剩 50%。",
       "emphasis": [
         "5 小时"

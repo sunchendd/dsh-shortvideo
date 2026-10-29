@@ -91,6 +91,35 @@ def check_one(content_path, out_dir, strict=False):
     return row
 
 
+def add_voice_gate(rows, content_paths, strict=False):
+    """配音门：情绪是否真的生效（mood_tuning 白写 / 全片扁平都算不合格）。"""
+    try:
+        sys.path.insert(0, HERE)
+        import voiceaudit
+    except Exception:  # noqa: BLE001
+        return
+    by_slug = {os.path.basename(p).replace(".content.json", ""): p for p in content_paths}
+    for row in rows:
+        path = by_slug.get(row["slug"])
+        if not path:
+            continue
+        try:
+            rep = voiceaudit.audit_one(path)
+        except Exception as e:  # noqa: BLE001
+            row["problems"].append(f"配音审计失败：{e}")
+            continue
+        issues = []
+        if rep["dead_tuning"]:
+            issues.append(f"mood_tuning 白写（{', '.join(rep['dead_tuning'])}）")
+        if all(r["mood"] == "-" for r in rep["shots"]):
+            issues.append("全片扁平（没有任何镜头带情绪）")
+        row["gates"]["配音"] = "warn" if issues else "ok"
+        if issues:
+            row["problems"] += [f"配音：{i}" for i in issues]
+        if issues and strict:
+            row["ok"] = False
+
+
 def add_loudness_gate(rows, out_dir, tol=1.2):
     """第 5 道门禁：横向响度。单条爆不爆由 loudaudit 之外的检查管，
     这里只问"和同批其他条比，这条是不是明显偏轻/偏响"。"""
@@ -150,6 +179,7 @@ def main():
     rows = [check_one(p, out_dir, args.strict) for p in paths]
 
     add_loudness_gate(rows, out_dir)
+    add_voice_gate(rows, paths, args.strict)
 
     if args.json:
         payload = {"total": len(rows), "go": sum(1 for r in rows if r["ok"]),
