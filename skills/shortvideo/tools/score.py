@@ -52,9 +52,18 @@ def _chars(text):
     return len(re.sub(r"\s", "", text or ""))
 
 
+_MOOD_BY_ID = {"hook": "hook", "rule": "rule", "insight": "explain",
+               "explain": "explain", "reveal": "reveal", "solve": "win", "win": "win"}
+
+
 def _shot_secs(shot):
-    """估时：配音（按 4.2 字/秒）× 情绪修正 + 留白 0.7s。"""
-    mood = (shot.get("mood") or "").lower()
+    """估时：配音（按 4.2 字/秒）× 情绪修正 + 留白 0.7s。
+
+    情绪和 make.py 一样按镜头 id 兜底推断——只认显式 mood 时，
+    省略 mood 的片子会被按"扁平语速"估长（实测 18 号估 38s、实拍 35.9s），
+    节奏维度因此系统性偏松。
+    """
+    mood = (shot.get("mood") or _MOOD_BY_ID.get(str(shot.get("id", "")).lower()) or "").lower()
     rate = {"hook": 5.0, "reveal": 4.6, "win": 4.4}.get(mood, RATE)
     return max(shot.get("min_dur", 4.0), _chars(shot["narration"]) / rate + 0.7)
 

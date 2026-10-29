@@ -444,8 +444,11 @@ def _clauses(text):
 
 
 # 序号/格式类字段不算"画面数值"；sub/note/label 是补充说明，允许口播晚一点再讲
+# 这些 key 的值是"文本内容"，参与画面上限/数字一致性检查。
+# 曾经 sub/note/label 被一并排除，导致数字写在 big.sub（最常见的强调位）时
+# "画面数字口播里没说"完全不检查——实测 sub 写 53 倍、口播念 21 倍，lint 仍 [ok]。
 _INDEX_KEYS = {"k", "at", "serial", "index", "digits", "per_line",
-               "sub", "note", "label", "footer", "cta",
+               "footer", "cta",
                # 背景水印是装饰层，不是"画面主张"，不参与画面/口播数字一致性检查
                #（约定：水印文字复用本镜旁白里已有的数字，别引入新数字）
                "ghost", "ghost_size", "ghost_color", "ghost_alpha", "ghost_y"}
@@ -764,8 +767,10 @@ def main():
     # 共享目录还让"同一句话"在不同片子里只合成一次。
     voice_cfg = dict(cfg.get("voice") or {})
     if voice_cfg.get("cache", True) is not False and not voice_cfg.get("cache_dir"):
+        # 注意别少算一级：tools -> shortvideo -> skills -> 仓库根
         voice_cfg["cache_dir"] = os.path.join(
-            os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))),
+            os.path.dirname(os.path.dirname(os.path.dirname(
+                os.path.dirname(os.path.abspath(__file__))))),
             ".audiocache")
     voice = tts.build_voice(voice_cfg)
     print(f"[voice] {voice.name}")
@@ -796,7 +801,10 @@ def main():
     for item, adur in zip(items, adurs):
         shot = cfg["shots"][len(timeline)]
         dur = max(shot.get("min_dur", 4.0), adur + lead + tail)
-        timeline.append({**shot, "start": cursor, "dur": dur,
+        # mood 必须一起进 timeline：BGM 的分段起伏靠它决定每段音量，
+        # 只把推断结果传给 tts 的话，_maybe_bgm 里 str(it.get("mood")) 全落 None，
+        # 于是每段都是 explain(low)，"钩子段比正文响 ~9dB" 静默失效。
+        timeline.append({**shot, "mood": item.get("mood"), "start": cursor, "dur": dur,
                          "wav": item["path"], "adur": adur})
         segs.append((cursor + lead, item["path"]))
         cursor += dur

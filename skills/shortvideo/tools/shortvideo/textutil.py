@@ -116,15 +116,48 @@ _NUM_TOKEN = re.compile(
     r"|[零〇一二两三四五六七八九十百千万亿]+")
 
 
+_CN_ALL_DIGITS = "零〇一二两三四五六七八九"
+
+
+def _cn_value(tok, nxt=""):
+    """单个中文数字 token 的数值。比 cn_to_num 多处理两种口语写法：
+
+    1. 量词尾缀：「五十三千帕」= 53 kPa，这里的"千"是单位前缀不是乘法
+       （中文里 53000 会念"五万三千"），旧实现给 3050。
+    2. 逐位年份：「一九五四年」= 1954，旧实现给 4。
+    3. 单独的"万/千"后面跟名词（「万米高空」）按 1000/10000 计。
+    """
+    if not tok:
+        return None
+    # 逐位读法：全部由数字字组成且长度 >1
+    if len(tok) > 1 and all(ch in _CN_ALL_DIGITS for ch in tok):
+        return float("".join(str(_CN_DIGIT[ch]) for ch in tok))
+    # 量词尾缀：「五十三千帕」= 53 kPa，"千"是单位前缀。
+    # 只有当被剥掉的头本身已经带单位（十/百/千/万）时才剥——
+    # 否则「三百度」会被剥成 3（那是 300，百 是乘数不是单位）。
+    if len(tok) > 1 and tok[-1] in "千百" and nxt and not nxt.isdigit():
+        head_txt = tok[:-1]
+        if len(head_txt) > 1 and any(u in head_txt for u in "十百千万亿"):
+            head = cn_to_num(head_txt)
+            if head is not None and head != 0:
+                return head
+    v = cn_to_num(tok)
+    if v == 0 and tok in "千百十万亿":
+        return float({"千": 1000, "百": 100, "十": 10, "万": 10000, "亿": 100000000}[tok])
+    return v
+
+
 def numbers_in(text):
     """抽出一段中英混排文字里的全部数值（中文数字也解析）。返回 set[float]。"""
+    text = str(text or "")
     out = set()
-    for m in _NUM_TOKEN.findall(str(text or "")):
-        tok = m.replace(",", "")
+    for m in _NUM_TOKEN.finditer(text):
+        tok = m.group(0).replace(",", "")
         if re.fullmatch(r"\d+(\.\d+)?", tok):
             out.add(float(tok))
             continue
-        v = cn_to_num(tok)
-        if v is not None:
+        nxt = text[m.end():m.end() + 1]
+        v = _cn_value(tok, nxt)
+        if v is not None and v != 0:      # 0 出现在口播里几乎都是解析噪声
             out.add(v)
     return out

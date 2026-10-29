@@ -31,6 +31,7 @@ import json
 import math
 import os
 import random
+import re
 import ssl
 import subprocess
 import sys
@@ -776,6 +777,14 @@ def _is_fatal_net_error(err):
     return any(h in txt for h in _FATAL_NET_HINTS)
 
 
+def _min_plausible(text):
+    """一句话最不可能短于多少秒：按 7 音节/秒 上限 + 0.25s 起停。"""
+    n = len(re.sub(r"\s", "", str(text or "")))
+    if not n:
+        return 0.0
+    return max(0.45, n / 7.0 * 0.6)
+
+
 def _fallback_silence(path, text, retries=0, err=None, verbose=True):
     """TTS 彻底失败时写等长静音，返回估算时长——永不抛异常。"""
     dur = estimate_duration(text)
@@ -1130,6 +1139,18 @@ class EdgeVoice:
             try:
                 _size, raw_words = await self._fetch(text, path, mood)
                 dur, head, _tail = await asyncio.to_thread(_trim_ex, path)
+                # 截断检测：edge-tts 偶尔不报错、只返回半截音频（实测一句话 0.22s，
+                # 还带着词时间戳，看起来"成功"）。这种音频一旦进缓存就会永久污染。
+                # 正常中文口播最快 7 音节/秒，按 60% 留足余量。
+                try:
+                    need = _min_plausible(text)
+                    if dur < need:
+                        raise RuntimeError(
+                            f"音频被截断（{dur:.2f}s < 预期下限 {need:.2f}s），重试")
+                except RuntimeError:
+                    raise
+                except Exception:  # noqa: BLE001  统计失败不影响主流程
+                    pass
                 words = shift_words(raw_words, head, dur) if self.words_enabled else []
                 await asyncio.to_thread(self._normalize_loudness, path, mood)
                 self._cache_store(path, dur, wav_c, meta_c, words if self.words_enabled else None)
