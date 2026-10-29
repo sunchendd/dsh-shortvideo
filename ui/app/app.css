@@ -433,3 +433,18 @@ input, textarea, select { font: inherit; color: inherit; }
 #fDeck .grp .ghead {
   font: 600 9px/1 var(--mono); color: var(--ink3); letter-spacing: .12em; margin-bottom: 6px;
 }
+
+/* 音色试听按钮
+   注意：绝对定位的按钮**不占网格单元**，如果还沿用 .asset 的两列网格，
+   文字会掉进 44px 那一格被压成一列。所以音色条单独用单列 + 左内边距。 */
+.asset { position: relative; }
+.asset.voice {
+  grid-template-columns: 1fr; padding-left: 54px; align-items: center;
+}
+.playbtn {
+  position: absolute; left: 4px; top: 50%; transform: translateY(-50%);
+  width: 40px; height: 40px; border-radius: 50%; background: var(--bg3);
+  color: var(--ink1); font-size: 12px; display: grid; place-items: center;
+  border: 1px solid var(--line2);
+}
+.playbtn:hover { background: var(--accent); color: #fff; border-color: var(--accent); }

@@ -666,20 +666,31 @@ async function openPanel(name, btn) {
       };
     });
   } else if (name === "voice") {
+    // 选音色必须能先听：看文字描述选出来的音色，八成不是想要的那个
     L.innerHTML = [
       ["yunxi", "云希 · 男声", "沉稳、适合硬核科普"],
       ["xiaoxiao", "晓晓 · 女声", "清晰、适合知识口播"],
       ["yunjian", "云健 · 男声", "厚重、适合叙事"],
     ].map(([k, n, d]) => `
-      <div class="asset ${S.proj.voice === k ? "on" : ""}" data-voice="${k}">
-        <div style="width:44px;height:44px;border-radius:22px;background:var(--bg3);display:grid;place-items:center">🔊</div>
-        <div><div class="t">${n}</div><div class="s">${d}</div></div>
-      </div>`).join("");
+      <div class="asset voice ${S.proj.voice === k ? "on" : ""}" data-voice="${k}">
+        <button class="playbtn" data-play="${k}" title="试听">▶</button>
+        <div><div class="t">${n}${S.proj.voice === k ? " ✓" : ""}</div>
+          <div class="s">${d}</div></div>
+      </div>`).join("") +
+      `<div class="meta" style="padding:8px 10px">点 ▶ 试听；点卡片切换音色（导出时生效）。</div>`;
+
+    L.querySelectorAll("[data-play]").forEach((b) => {
+      b.onclick = (e) => {
+        e.stopPropagation();
+        playVoiceSample(b.dataset.play, b);
+      };
+    });
     L.querySelectorAll("[data-voice]").forEach((el) => {
       el.onclick = () => {
         commit(() => { S.proj.voice = el.dataset.voice; });
         $("#fVoice").value = S.proj.voice;
         openPanel("voice", $('.rail button[data-panel="voice"]'));
+        toast("音色已切换：" + el.querySelector(".t").textContent.replace(" ✓", ""));
       };
     });
   } else if (name === "theme") {
@@ -732,6 +743,31 @@ const THEME_SWATCH = {
 };
 const themeSwatch = (k) => `background:${THEME_SWATCH[k] || "#333"};color:${
   ["porcelain", "rice-paper", "arctic"].includes(k) ? "#1b1b1b" : "#fff"};font:11px var(--sans)`;
+
+/* 试听：优先命中服务端缓存的样本；没有样本就如实说，不放静音糊弄。 */
+let _voiceAudio = null;
+async function playVoiceSample(key, btn) {
+  if (_voiceAudio) { _voiceAudio.pause(); _voiceAudio = null; }
+  const old = btn.textContent;
+  btn.textContent = "…";
+  try {
+    const r = await fetch(`/api/voice-sample?voice=${encodeURIComponent(key)}`);
+    if (!r.ok) {
+      const j = await r.json().catch(() => ({}));
+      toast(j.error ? "试听不可用：" + j.error.slice(0, 40) : "试听不可用");
+      btn.textContent = old;
+      return;
+    }
+    const blob = await r.blob();
+    _voiceAudio = new Audio(URL.createObjectURL(blob));
+    _voiceAudio.onended = () => { btn.textContent = "▶"; };
+    btn.textContent = "■";
+    await _voiceAudio.play();
+  } catch (e) {
+    toast("试听失败");
+    btn.textContent = old;
+  }
+}
 
 function closePanel() {
   $("#drawer").classList.remove("on");

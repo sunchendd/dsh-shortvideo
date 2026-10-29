@@ -420,6 +420,82 @@ def _qa_items(slug):
 
 
 
+
+
+# ---------------------------------------------------------------- 配音试听
+VOICE_SAMPLE_TEXT = "五十倍防晒，只多挡 1.3%。真正决定晒黑的，是你涂了多少。"
+_SAMPLE_CACHE = os.path.join(OUT, ".voice-samples")
+
+
+def _voice_sample(voice_key):
+    """合成（并缓存）一句试听音频。
+
+    选音色这件事，看文字描述没用——必须能听。所以给每个音色预生成同一句话，
+    落在 out/.voice-samples/ 下，之后秒开。网络不可用时返回 503，前端提示，
+    不假装成功（edge-tts 是云端服务，离线时确实合成不了）。
+    """
+    os.makedirs(_SAMPLE_CACHE, exist_ok=True)
+    key = "".join(c for c in str(voice_key or "yunxi") if c.isalnum() or c in "-_")[:32] or "yunxi"
+    path = os.path.join(_SAMPLE_CACHE, f"{key}.mp3")
+    if os.path.exists(path) and os.path.getsize(path) > 2000:
+        return path
+    code = (
+        "import asyncio, sys;"
+        "sys.path.insert(0, %r);"
+        "import edge_tts;"
+        "va = edge_tts.VoiceProfileMap if False else None;"
+        "async def go():\n"
+        "    c = edge_tts.Communicate(%r, %r)\n"
+        "    await c.save(%r)\n"
+        "asyncio.run(go())"
+    )
+    name = {"yunxi": "zh-CN-YunxiNeural",
+            "xiaoxiao": "zh-CN-XiaoxiaoNeural",
+            "yunjian": "zh-CN-YunjianNeural"}.get(key, "zh-CN-YunxiNeural")
+    script = f"""
+import asyncio, sys
+sys.path.insert(0, {TOOLS!r})
+import edge_tts
+async def go():
+    c = edge_tts.Communicate({VOICE_SAMPLE_TEXT!r}, {name!r}, rate="+2%")
+    await c.save({path!r})
+asyncio.run(go())
+"""
+    r = subprocess.run([PY, "-c", script], cwd=REPO, capture_output=True,
+                       text=True, timeout=180)
+    if r.returncode == 0 and os.path.exists(path) and os.path.getsize(path) >= 2000:
+        return path
+    # 云端 TTS 不通（离线/被墙）时，退到"从成片里剪一段"：
+    # 那本来就是同一个音色、同一套韵律参数读出来的，比放不出声诚实。
+    fallback = _sample_from_video(key, path)
+    if fallback:
+        return fallback
+    raise RuntimeError(((r.stdout or "") + (r.stderr or ""))[-300:] or "合成失败且没有可用成片")
+
+
+def _sample_from_video(voice_key, out_path):
+    """截取一条使用该音色的成片的 1.2s~4.6s，作为试听。"""
+    import imageio_ffmpeg
+    for slug in _slug_list():
+        try:
+            cfg = json.load(open(os.path.join(EX, f"{slug}.content.json"), encoding="utf-8"))
+        except Exception:  # noqa: BLE001
+            continue
+        preset = (cfg.get("voice") or {}).get("preset") or ""
+        if preset != voice_key:
+            continue
+        mp4 = os.path.join(OUT, slug, f"{slug}.mp4")
+        if not os.path.exists(mp4):
+            continue
+        ff = imageio_ffmpeg.get_ffmpeg_exe()
+        r = subprocess.run([ff, "-y", "-v", "error", "-ss", "1.2", "-t", "3.4",
+                            "-i", mp4, "-vn", "-c:a", "libmp3lame", "-b:a", "96k",
+                            out_path], capture_output=True, text=True, timeout=120)
+        if r.returncode == 0 and os.path.exists(out_path) and os.path.getsize(out_path) > 2000:
+            return out_path
+    return None
+
+
 def _deliver_info(slug):
     """导出完成后"交付"界面要的全部东西。
 
@@ -765,6 +841,20 @@ class Handler(BaseHTTPRequestHandler):
                                     "root": REPO})
         if path == "/api/item":
             return self._send(200, _detail(q.get("slug", [""])[0]) or {"error": "unknown"})
+        if path == "/api/voice-sample":
+            vk = q.get("voice", ["yunxi"])[0]
+            try:
+                fp = _voice_sample(vk)
+            except Exception as e:  # noqa: BLE001
+                return self._send(503, {"error": f"试听合成失败（{type(e).__name__}）：{e}"})
+            data = open(fp, "rb").read()
+            self.send_response(200)
+            self.send_header("Content-Type", "audio/mpeg")
+            self.send_header("Content-Length", str(len(data)))
+            self.send_header("Cache-Control", "max-age=86400")
+            self.end_headers()
+            self.wfile.write(data)
+            return
         if path == "/api/templates":
             return self._send(200, {"templates": _templates()})
         if path == "/api/deliver":
