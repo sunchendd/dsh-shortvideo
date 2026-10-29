@@ -1,0 +1,54 @@
+/* 批量工序表：和剪辑台共用 token，布局是"表格 + 侧边日志" */
+body.bt { display: grid; grid-template-columns: 1fr 340px; grid-template-rows: 48px 1fr; height: 100vh; overflow: hidden; }
+
+.btbar {
+  grid-column: 1 / -1; display: flex; align-items: center; gap: 12px;
+  padding: 0 14px; background: var(--bg1); border-bottom: 1px solid var(--line);
+}
+.bt-title { font: 650 13px/1 var(--sans); color: var(--ink1); letter-spacing: .02em; }
+.btbar .grow { flex: 1; }
+
+.btmain { overflow-y: auto; padding: 22px 26px 60px; }
+.btmain .lead {
+  margin: 0 0 18px; max-width: 720px; color: var(--ink2); font-size: 12px; line-height: 1.9;
+}
+.bthead, .btrow {
+  display: grid; grid-template-columns: 1fr 92px 92px 92px 92px 92px;
+  gap: 10px; align-items: center;
+}
+.bthead {
+  position: sticky; top: 0; z-index: 3; background: var(--bg0);
+  padding: 10px 0; border-bottom: 1px solid var(--line2);
+  font: 600 10px/1 var(--sans); letter-spacing: .14em; text-transform: uppercase; color: var(--ink3);
+}
+.bthead span:not(:first-child) { text-align: center; }
+.btrow { padding: 11px 0; border-bottom: 1px solid var(--line); cursor: default; }
+.btrow:hover { background: #ffffff05; }
+.btrow .t { font: 600 13px/1.4 var(--sans); color: var(--ink0); }
+.btrow .s { font: 10px/1.5 var(--mono); color: var(--ink3); margin-top: 2px; }
+
+.cell {
+  height: 30px; border-radius: 4px; border: 1px solid var(--line2);
+  display: flex; align-items: center; justify-content: center; gap: 5px;
+  font: 10px/1 var(--mono); color: var(--ink2); cursor: pointer; background: var(--bg1);
+}
+.cell:hover { background: var(--bg3); color: var(--ink0); }
+.cell.done { border-color: #2f6d4f66; color: var(--ok); background: #34d39910; }
+.cell.run { border-color: #b4751d66; color: var(--warn); background: #fbbf2410; animation: pulse 1.2s infinite; }
+.cell.bad { border-color: #a33e3e66; color: var(--bad); background: #f8717110; }
+@keyframes pulse { 50% { opacity: .55; } }
+.dot { width: 6px; height: 6px; border-radius: 50%; background: currentColor; }
+
+.btlog {
+  background: var(--bg1); border-left: 1px solid var(--line);
+  display: flex; flex-direction: column; overflow: hidden;
+}
+.btlog .lhead {
+  height: 40px; display: flex; align-items: center; justify-content: space-between;
+  padding: 0 12px; border-bottom: 1px solid var(--line);
+  font: 600 11px/1 var(--sans); color: var(--ink2); letter-spacing: .1em;
+}
+#logBody {
+  flex: 1; margin: 0; padding: 12px; overflow: auto;
+  font: 11px/1.75 var(--mono); color: var(--ink2); white-space: pre-wrap;
+}

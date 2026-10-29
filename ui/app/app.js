@@ -300,6 +300,7 @@ function renderInspector() {
   $("#fDur").value = sh.duration.toFixed(1);
   $("#fStart").value = sh.start.toFixed(2);
   $("#fNarr").value = sh.narration;
+  renderDeckFields(sh);
   const subs = splitSentences(sh.narration);
   const chars = sh.narration.replace(/[\s，。！？、；：""'']/g, "").length;
   const rate = chars / Math.max(0.5, sh.duration);
@@ -310,6 +311,80 @@ function renderInspector() {
     (bad ? `<div style="margin-top:6px;color:var(--bad)">偏快：删 1~2 字或把时长加到 ${(chars / 6).toFixed(1)}s</div>` : "");
 }
 
+/* 画面文字：每种镜头类型吃不同字段（big 吃 lines / compare 吃左右两组 /
+   stat 吃数值+单位 / cards 与 flow 吃条目）。这里按类型动态出表单，
+   改哪个字段就只回传哪个，后端做深合并。 */
+function renderDeckFields(sh) {
+  const d = sh.deck || {};
+  const box = $("#fDeck");
+  const inp = (key, label, val, ph = "") => `
+    <div class="dk"><label>${label}</label>
+      <input data-dk="${key}" value="${esc(val ?? "")}" placeholder="${esc(ph)}"></div>`;
+  const area = (key, label, val, rows = 2) => `
+    <div class="dk"><label>${label}</label>
+      <textarea data-dk="${key}" rows="${rows}">${esc(val ?? "")}</textarea></div>`;
+  let html = "";
+  if (sh.kind === "big") {
+    const lines = d.lines || [];
+    html += inp("lines.0", "第一行", lines[0] || "", "主角大字");
+    html += inp("lines.1", "第二行", lines[1] || "", "补充说明");
+    html += inp("sub", "副标", d.sub || "", "一句话解释");
+    html += inp("ghost", "背景水印字", d.ghost || "", "可选，如 1.3");
+  } else if (sh.kind === "compare") {
+    const L = d.left || {}, R = d.right || {};
+    html += `<div class="grp"><div class="ghead">左边</div>
+      ${inp("left.label", "标签", L.label)}${inp("left.value", "主数值", L.value)}${inp("left.note", "注释", L.note)}</div>`;
+    html += `<div class="grp"><div class="ghead">右边</div>
+      ${inp("right.label", "标签", R.label)}${inp("right.value", "主数值", R.value)}${inp("right.note", "注释", R.note)}</div>`;
+    html += inp("note", "底部结论", d.note);
+  } else if (sh.kind === "stat") {
+    html += inp("value", "数字", d.value, "2.7");
+    html += inp("unit", "单位", d.unit, "倍");
+    html += inp("label", "这数字是什么", d.label);
+    html += inp("note", "补充一句", d.note);
+  } else {
+    const items = d.items || [];
+    const n = sh.kind === "cards" ? 4 : 3;
+    for (let i = 0; i < n; i++) {
+      const it = items[i] || {};
+      html += `<div class="grp"><div class="ghead">第 ${i + 1} 条</div>
+        ${inp(`items.${i}.t`, "标题", it.t)}
+        ${inp(`items.${i}.d`, "说明", it.d)}</div>`;
+    }
+    html += inp("note", "底部结论", d.note);
+  }
+  box.innerHTML = html;
+  box.querySelectorAll("[data-dk]").forEach((el) => {
+    let t;
+    el.oninput = () => {
+      clearTimeout(t);
+      const val = el.value;
+      t = setTimeout(() => { patchDeck(sh, el.dataset.dk, val); }, 350);
+    };
+  });
+}
+
+/** 把 "left.label" / "items.0.t" 这种路径写回 deck 并保存。 */
+function patchDeck(sh, path, raw) {
+  const parts = path.split(".");
+  const deck = JSON.parse(JSON.stringify(sh.deck || {}));
+  let cur = deck;
+  for (let i = 0; i < parts.length - 1; i++) {
+    const k = parts[i];
+    if (cur[k] == null) cur[k] = /^\d+$/.test(parts[i + 1]) ? [] : {};
+    cur = cur[k];
+  }
+  const last = parts[parts.length - 1];
+  if (raw === "" && /^\d+$/.test(last)) return;
+  cur[last] = raw;
+  // lines 为空行时不留空串，保持数据干净
+  if (Array.isArray(deck.lines)) deck.lines = deck.lines.filter((x) => x && x.trim());
+  if (Array.isArray(deck.items)) deck.items = deck.items.filter((x) => x && (x.t || x.d));
+  beginEdit();
+  commit(() => { sh.deck = deck; sh.headline = (deck.lines || []).join(" / "); }, { undo: false });
+  requestFrame();
+}
+
 function splitSentences(s) {
   return (s || "").split(/(?<=[。！？；?])/).map((x) => x.trim()).filter(Boolean);
 }
@@ -318,8 +393,24 @@ function splitSentences(s) {
 function snapshot() {
   return {
     title: S.proj.title, theme: S.proj.theme, voice: S.proj.voice,
-    shots: S.proj.shots.map((s) => ({ id: s.id, narration: s.narration, duration: s.duration, kind: s.kind })),
+    shots: S.proj.shots.map((s) => ({
+      id: s.id, narration: s.narration, duration: s.duration, kind: s.kind, deck: s.deck,
+    })),
   };
+}
+
+/* 连续输入（打字、拖滑块）应该只产生一个撤销点。
+   机制：开一个 900ms 的窗口，窗口内第一次改动压栈，后续改动共用这个点。 */
+let _editWindow = 0;
+function beginEdit() {
+  const now = Date.now();
+  if (now - _editWindow > 900) {
+    S.undo.push(snapshot());
+    if (S.undo.length > 60) S.undo.shift();
+    S.redo = [];
+    updateUndoBtns();
+  }
+  _editWindow = now;
 }
 
 function commit(mutate, { save = true, undo = true } = {}) {
@@ -418,7 +509,7 @@ function bindUI() {
   $("#btnLib").onclick = () => { location.href = "/"; };
 
   // 标题
-  $("#titleInput").oninput = (e) => { S.proj.title = e.target.value; scheduleSave(); };
+  $("#titleInput").oninput = (e) => { beginEdit(); S.proj.title = e.target.value; scheduleSave(); };
   $("#titleInput").onblur = (e) => { commit(() => { S.proj.title = e.target.value; }, { undo: false }); };
 
   // 检查器字段
@@ -432,8 +523,9 @@ function bindUI() {
   $("#fNarr").oninput = (e) => {
     const v = e.target.value;
     clearTimeout(narrTimer);
+    beginEdit();
     narrTimer = setTimeout(() => {
-      commit(() => { S.proj.shots[S.sel].narration = v; });
+      commit(() => { S.proj.shots[S.sel].narration = v; }, { undo: false });
     }, 400);
   };
   $("#fTheme").onchange = (e) => {

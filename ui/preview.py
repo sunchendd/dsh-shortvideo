@@ -302,6 +302,8 @@ def _project_json(slug):
             "start": round(cursor, 2),
             "kind": deck.get("kind") or "big",
             "headline": " / ".join(deck.get("lines") or []) or deck.get("text") or "",
+            # deck 原样给编辑器：画面上的每一行字都要能改，不能只让改口播
+            "deck": deck,
             "emphasis": sh.get("emphasis") or [],
         })
         cursor += dur
@@ -361,6 +363,17 @@ def _save_project(slug, body):
         if "kind" in upd:
             d = deck.setdefault(sid, {})
             d["kind"] = str(upd["kind"])
+        if isinstance(upd.get("deck"), dict):
+            # 深合并：编辑器只回传改过的字段，其余原样保留
+            d = deck.setdefault(sid, {})
+            for k, v in upd["deck"].items():
+                if isinstance(v, dict) and isinstance(d.get(k), dict):
+                    d[k] = {**d[k], **v}
+                elif isinstance(v, list) and v and isinstance(v[0], dict) \
+                        and isinstance(d.get(k), list) and d[k] and isinstance(d[k][0], dict):
+                    d[k] = [{**old, **new} for old, new in zip(d[k], v)]
+                else:
+                    d[k] = v
     json.dump(cfg, open(path, "w", encoding="utf-8"), ensure_ascii=False, indent=2)
     PV.invalidate(slug)
     return True, "saved"
@@ -802,7 +815,7 @@ class Handler(BaseHTTPRequestHandler):
             j = _job(q.get("id", [""])[0])
             return self._send(200, j or {"status": "unknown"})
         if path == "/batch":
-            path = "/batch.html"
+            path = "/app/batch.html"
         if path in ("/app", "/app/"):
             path = "/app/editor.html"
         if path.startswith("/app/") or path == "/batch.html":

@@ -1,0 +1,38 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>shortvideo · 批量工序</title>
+<link rel="stylesheet" href="/app/app.css">
+<link rel="stylesheet" href="/app/batch.css">
+</head>
+<body class="bt">
+<header class="btbar">
+  <div class="brand"><span class="mark">S</span><span class="name">shortvideo</span></div>
+  <div class="sep"></div>
+  <a class="tbtn" href="/">← 片库</a>
+  <div class="bt-title">批量工序</div>
+  <div class="grow"></div>
+  <button class="tbtn" id="btnAll">跑全部待办</button>
+  <button class="tbtn primary" id="btnReload">刷新状态</button>
+</header>
+
+<main class="btmain">
+  <p class="lead">
+    每道工序都可以单独重跑。状态是<b>从产物推导</b>的：服务重启、手工跑过命令，状态都还在。
+    点格子就开跑，右上角是实时日志。
+  </p>
+  <div class="bthead" id="btHead"></div>
+  <div class="btrows" id="btRows"></div>
+</main>
+
+<aside class="btlog" id="btLog">
+  <div class="lhead"><b>日志</b><button class="tbtn" id="logClear">清空</button></div>
+  <pre id="logBody">选一格开始。</pre>
+</aside>
+
+<div class="toasts" id="toasts"></div>
+<script src="/app/batch.js"></script>
+</body>
+</html>

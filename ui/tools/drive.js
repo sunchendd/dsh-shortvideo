@@ -73,6 +73,10 @@ async function main() {
 
   await send("Page.enable");
   await send("Runtime.enable");
+  // --window-size 对新建的 target 不一定生效，用设备指标覆盖才可靠
+  await send("Emulation.setDeviceMetricsOverride", {
+    width: W, height: H, deviceScaleFactor: 1, mobile: false,
+  });
   await sleep(+(args.wait || 3000));
 
   const helpers = `
