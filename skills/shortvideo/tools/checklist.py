@@ -183,9 +183,11 @@ def add_loudness_gate(rows, out_dir, tol=1.2):
         st = loudaudit.stats_of(wav, os.path.join(build, "audio_bgm.wav"))
         if st:
             stats[r["slug"]] = st
-    if len(stats) < 3:          # 条数太少，中位数没有意义
+    if len(stats) < 3:          # 条数太少，中位数没有意义（--only 单条时走这里）
         for r in rows:
-            r["gates"]["响度"] = stats[r["slug"]]["voice"] if r["slug"] in stats else "—"
+            st = stats.get(r["slug"])
+            # 必须取整：原始值是 float，直接塞进 {:>7} 会撑爆列宽、把两列粘在一起
+            r["gates"]["响度"] = round(st["voice"], 1) if st else "—"
         return
     vals = sorted(v["voice"] for v in stats.values())
     med = vals[len(vals) // 2]

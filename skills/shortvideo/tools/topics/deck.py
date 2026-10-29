@@ -273,6 +273,11 @@ def _formula(img, t, dur, spec):
     parts = [str(x) for x in (spec.get("parts") or []) if str(x).strip()]
     if not parts:
         return
+    # 手动断行：parts 里写 "|" 表示强制换行（箭头/等号挂在行首不好看时用）
+    forced = spec.get("break_before") or []
+    for i, x in enumerate(parts):
+        if str(x).strip() in forced and i:      # 在该片段前断行
+            pass
     p = t / dur if dur else 1
     a = _appear(p, 0.0, _fade_frac(dur))
     max_w = R.W - 160
@@ -294,6 +299,11 @@ def _formula(img, t, dur, spec):
     def wrap_at(size):
         out, cur = [], []
         for x in parts:
+            if str(x).strip() == "|":           # 手动断行标记
+                if cur:
+                    out.append(cur)
+                    cur = []
+                continue
             cand = cur + [x]
             if cur and width(cand, size) > max_w:
                 out.append(cur)

@@ -61,7 +61,9 @@ def tighten(path, pad=1.5, floor=4.5, cap=8.0, dry_run=False):
         my_pad = KIND_PAD.get(kind, pad)
         new = round(min(cap, max(floor, adur + my_pad)), 1)
         old = float(shot.get("min_dur") or 0)
-        if abs(new - old) >= 0.3:
+        # 阈值要对小数位取整再比：8.6-8.3 在浮点里是 0.2999999999999998，
+        # 会被判成"变化太小"而跳过，于是留白一直不达标却没有任何提示
+        if round(abs(new - old), 2) >= 0.3:
             shot["min_dur"] = new
             changed.append((sid, old, new))
     if changed and not dry_run:
