@@ -171,6 +171,8 @@ def main():
     ap.add_argument("--out", default="out/summary.png")
     ap.add_argument("--style", default=None, choices=art.STYLES)
     ap.add_argument("--accent", default=None, help="强调色，如 FF2D55")
+    ap.add_argument("--variants", type=int, default=0,
+                    help="出 N 版（不同底图风格+强调色），便于做图文封面 A/B")
     args = ap.parse_args()
     raw = json.load(open(args.spec, encoding="utf-8"))
     if args.style:
@@ -178,6 +180,21 @@ def main():
     if args.accent:
         a = args.accent.lstrip("#")
         raw["accent"] = [int(a[i:i + 2], 16) for i in (0, 2, 4)]
+    if args.variants and args.variants > 0:
+        # 三版差异只改"底图风格 + 强调色"，文案完全一致——和视频变体同一个原则：控制变量
+        combos = [("aurora", [255, 45, 85]), ("mesh", [255, 212, 0]),
+                  ("rays", [58, 216, 240]), ("grid", [56, 224, 168])]
+        base, ext = os.path.splitext(args.out)
+        for i in range(args.variants):
+            style, accent = combos[i % len(combos)]
+            cfg = dict(raw)
+            cfg["style"] = args.style or style
+            cfg["accent"] = accent
+            path = f"{base}-v{i + 1}{ext}"
+            print(f"[ok] {build(cfg, path)}  {W}x{H}   {cfg['style']}/"
+                  f"#{accent[0]:02X}{accent[1]:02X}{accent[2]:02X}")
+        return
+
     print(f"[ok] {build(raw, args.out)}  {W}x{H}")
 
 

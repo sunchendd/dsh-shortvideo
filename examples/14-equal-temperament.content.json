@@ -54,7 +54,7 @@
     {
       "id": "rule",
       "mood": "rule",
-      "min_dur": 8.9,
+      "min_dur": 8.6,
       "narration": "音分是量音高的尺子，八度1200音分。三比二的五度，701.96音分。",
       "emphasis": [
         "701.96"
@@ -72,7 +72,7 @@
     {
       "id": "reveal",
       "mood": "reveal",
-      "min_dur": 8.9,
+      "min_dur": 8.6,
       "narration": "多出的23.46音分只能摊进12个半音：每个五度让出1.96音分。",
       "emphasis": [
         "23.46",

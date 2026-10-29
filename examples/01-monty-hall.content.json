@@ -42,7 +42,7 @@
     {
       "id": "rule",
       "mood": "rule",
-      "min_dur": 8.9,
+      "min_dur": 8.6,
       "narration": "规则是：你先指一扇。他再开一扇空门。然后只问一句，换不换。",
       "emphasis": [
         "空门"
@@ -51,7 +51,7 @@
     {
       "id": "insight",
       "mood": "explain",
-      "min_dur": 8.9,
+      "min_dur": 8.6,
       "narration": "直觉说，剩两扇，各一半。错。你指的那扇，一直是三分之一。",
       "emphasis": [
         "三分之一"

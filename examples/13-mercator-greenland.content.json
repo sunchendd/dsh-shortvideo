@@ -43,7 +43,7 @@
     {
       "id": "rule",
       "mood": "rule",
-      "min_dur": 8.9,
+      "min_dur": 8.6,
       "narration": "这张图1569年出生，专为航海：罗盘定死的方向，在图上是一条直线。",
       "emphasis": [
         "罗盘"
@@ -61,7 +61,7 @@
     {
       "id": "reveal",
       "mood": "reveal",
-      "min_dur": 9.0,
+      "min_dur": 8.6,
       "narration": "在72度那条线上，放大10.5倍。真实217万，图上撑成2270万。",
       "emphasis": [
         "10.5倍",

@@ -52,7 +52,7 @@
     {
       "id": "insight",
       "mood": "explain",
-      "min_dur": 8.4,
+      "min_dur": 8.1,
       "narration": "波长越短，被撞得越狠。散射强度和波长的四次方成反比。",
       "emphasis": [
         "四次方"

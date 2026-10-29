@@ -30,8 +30,11 @@ def wav_dur(path):
 
 # 动效密集的 kind 需要更多余量：bars/timeline/flow 要一条条长出来，
 # 余量不够会"画面还没长完就切走"。big/cards 只是文字入场，1.8s 够。
-KIND_PAD = {"bars": 2.4, "timeline": 2.4, "flow": 2.2, "digits": 2.2,
-            "stat": 2.2, "formula": 2.2, "bits": 2.2, "compare": 2.0}
+# 注意：渲染里的动画进度是"按比例"走的（p = t/dur），所以缩短镜头不会让动画演不完；
+# 余量的真正作用是给"最后一个元素出现后"留阅读时间。这里只给密集版式多 0.3s，
+# 给多了会让所有镜头都顶到 cap，反而让全片节奏变平。
+KIND_PAD = {"bars": 2.1, "timeline": 2.1, "flow": 2.0, "digits": 2.0,
+            "stat": 2.0, "formula": 2.0, "bits": 2.0, "compare": 1.9}
 
 
 def tighten(path, pad=1.5, floor=4.5, cap=8.0, dry_run=False):

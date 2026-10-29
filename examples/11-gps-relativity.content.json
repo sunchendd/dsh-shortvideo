@@ -53,7 +53,7 @@
     {
       "id": "insight",
       "mood": "explain",
-      "min_dur": 9.0,
+      "min_dur": 8.6,
       "narration": "卫星在2万公里高空，引力比地面弱；它又每秒飞3.9公里，速度会拉慢时间。",
       "emphasis": [
         "引力比地面弱",
@@ -63,7 +63,7 @@
     {
       "id": "reveal",
       "mood": "reveal",
-      "min_dur": 9.0,
+      "min_dur": 8.6,
       "narration": "两个相减，每天快38.5微秒。乘上光速，一天差11.5公里。",
       "emphasis": [
         "38.5微秒",

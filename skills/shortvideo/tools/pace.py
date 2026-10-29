@@ -31,6 +31,7 @@ RATE_WARN, RATE_BAD = 5.2, 5.8          # 正文
 HOOK_WARN, HOOK_BAD = 6.6, 7.2          # 钩子（钩子本来就该更快）
 INK_WARN = 0.018                        # 内容区墨量
 STATIC_WARN, STATIC_BAD = 3.5, 4.5      # 连续静止秒数
+PAIR_LONG = 8.6                         # 相邻两镜都 ≥ 这个秒数算"连排长镜头"
 
 
 def shot_wavs(build_dir):
@@ -128,6 +129,15 @@ def analyse(slug, content_path, video_path, fps=2.0):
                      "ink": round(ink * 100, 1), "static_s": round(static_s, 1),
                      "kind": kind, "risk": risk, "why": why})
         t0 += dur
+
+    # 连排长镜：单镜不超 9s 也可能"连着两个 8s+",体感就是一段长时间的慢段落
+    for a, b in zip(rows, rows[1:]):
+        if a["dur"] >= PAIR_LONG and b["dur"] >= PAIR_LONG:
+            msg = f"与相邻镜连排长镜头（{a['dur']:.1f}s+{b['dur']:.1f}s）"
+            for r in (a, b):
+                r["risk"] += 1
+                if msg not in r["why"]:
+                    r["why"].append(msg)
     return rows
 
 
