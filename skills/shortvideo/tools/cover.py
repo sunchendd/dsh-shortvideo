@@ -440,12 +440,13 @@ def build_covers(content, out_dir, frame_path=None, variants=None):
     c = _cfg(content)
     if variants is None:
         short = str((content or {}).get("format") or "").lower() in ("short", "15s", "quick")
-        variants = ("short", "f1", "9x16") if short else ("f1", "f3", "f6", "9x16")
-        if short:
-            secs = float((content or {}).get("seconds") or 0)
-            if not secs:
-                secs = round(sum(float(sh.get("min_dur") or 0) for sh in (content or {}).get("shots") or []))
-            c["seconds"] = secs
+        variants = ("short", "f1", "9x16") if short else ("short", "f1", "f3", "f6", "9x16")
+        # 长版也出一张 short 版式（大字 + 时长徽标）：实测同一片子
+        # short 版式综合分 103.5 vs f1 的 80.8——信息流是 240px 缩略图，字大就是硬道理。
+        secs = float((content or {}).get("seconds") or 0)
+        if not secs:
+            secs = round(sum(float(sh.get("min_dur") or 0) for sh in (content or {}).get("shots") or []))
+        c["seconds"] = secs
     made = []
     for v in variants:
         if v == "9x16":

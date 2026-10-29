@@ -115,11 +115,53 @@ def audit(path):
             "density": round(density * 100, 1), "flags": flags}
 
 
+def _score(r):
+    """综合分：达标是前提，然后比缩略图对比、字号、密度（信息量）。"""
+    s = r["rms"]                       # 缩略图对比
+    s += min(r["title_px"], 190) / 4   # 字号（到 190px 封顶）
+    s += min(r["density"], 9) * 1.2    # 密度（太满不好，9% 封顶）
+    if r["flags"]:
+        s -= 25
+    return round(s, 1)
+
+
+def pick(out_dir):
+    """每条片子挑一张最扛信息流的封面。
+
+    每个片子本来就出 3~4 个 3:4 版式（f1 大字报 / f3 / f6 / short）。
+    发之前该选哪张不是"看着顺眼"，而是按缩略图指标排。
+    """
+    import glob as _glob
+    dirs = sorted(d for d in _glob.glob(os.path.join(out_dir, "*"))
+                  if os.path.isdir(d) and os.path.exists(
+                      os.path.join(d, os.path.basename(d) + ".mp4")))
+    print(f"■ 封面选择建议（{len(dirs)} 条）")
+    print(f"  {'条目':<28}{'推荐':<12}{'综合分':>7}   其它候选")
+    for d in dirs:
+        cands = []
+        for name in ("cover_short.png", "cover_f1.png", "cover_f3.png", "cover_f6.png"):
+            p = os.path.join(d, name)
+            if os.path.exists(p):
+                r = audit(p)
+                cands.append((name.replace("cover_", "").replace(".png", ""), _score(r), r))
+        if not cands:
+            continue
+        cands.sort(key=lambda c: -c[1])
+        best, bs, br = cands[0]
+        others = "  ".join(f"{n}:{s}" for n, s, _ in cands[1:])
+        print(f"  {os.path.basename(d)[:27]:<28}{best:<12}{bs:>7}   {others}")
+        if br["flags"]:
+            print(f"       [!] 推荐的那张也有问题：{'；'.join(br['flags'])}")
+    return 0
+
+
 def main():
     ap = argparse.ArgumentParser(description="封面体检（按缩略图尺寸量）")
     ap.add_argument("--dir")
     ap.add_argument("--file")
     ap.add_argument("--glob", default="cover_short.png")
+    ap.add_argument("--pick", action="store_true",
+                    help="每条片子比较 3:4 版式（f1/f3/f6/short），推荐综合最好的一张")
     ap.add_argument("--json", action="store_true")
     args = ap.parse_args()
 
@@ -131,6 +173,9 @@ def main():
     if not files:
         print("[coveraudit] 没找到封面")
         return 1
+
+    if args.pick:
+        return pick(args.dir or "examples/out")
 
     rows = [audit(f) for f in files]
     if args.json:
