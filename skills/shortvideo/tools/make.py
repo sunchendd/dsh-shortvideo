@@ -430,6 +430,28 @@ def _clauses(text):
     return [c for c in re.split(r"[，。；：？！,;?!\s]+", text or "") if c.strip()]
 
 
+# 序号/格式类字段不算"画面数值"；sub/note/label 是补充说明，允许口播晚一点再讲
+_INDEX_KEYS = {"k", "at", "serial", "index", "digits", "per_line",
+               "sub", "note", "label", "footer", "cta"}
+
+
+def _deck_numbers(node, out):
+    """收集 deck 里的所有数字（画面文案里的数值；跳过序号/格式类字段）。"""
+    if isinstance(node, dict):
+        for k, v in node.items():
+            if str(k).lower() in _INDEX_KEYS:
+                continue
+            _deck_numbers(v, out)
+    elif isinstance(node, (list, tuple)):
+        for v in node:
+            _deck_numbers(v, out)
+    elif isinstance(node, (int, float)):
+        out.add(f"{node:g}")
+    elif isinstance(node, str):
+        for m in re.findall(r"\d+(?:\.\d+)?", node):
+            out.add(m.rstrip("0").rstrip(".") if "." in m else m)
+
+
 def lint_script(cfg, timeline):
     """开工前的脚本体检：返回 [(级别, 说明)]，级别 error/warn/ok。"""
     out = []
@@ -445,20 +467,24 @@ def lint_script(cfg, timeline):
         if len(head) > 13:
             out.append(("warn", f"钩子首句 {len(head)} 字（建议 ≤13 字），3 秒念不完：{head}"))
 
-    # 2) 每镜语速：以配音实际时长算"字/秒"。
+    from shortvideo.textutil import syllables
+
+    # 2) 每镜语速：以配音实际时长算"音节/秒"。
     #    正文舒适区 4.0~4.6；钩子镜头允许更快（前 3 秒本来就要"赶着抓人"），上限 6.2。
     for shot, item in zip(shots, timeline):
-        n = len(re.sub(r"\s", "", shot.get("narration", "")))
+        text = shot.get("narration", "")
+        n_char = len(re.sub(r"\s", "", text))
+        n_syl = syllables(text)
         adur = item.get("adur") or item["dur"]
-        density = n / adur if adur else 0
+        density = n_syl / adur if adur else 0
         is_hook = shot.get("id") == "hook"
-        hi_err, hi_warn = (6.2, 5.8) if is_hook else (5.4, 4.8)
+        hi_err, hi_warn = (6.6, 6.0) if is_hook else (5.8, 5.2)
         if density > hi_err:
-            out.append(("error", f"{shot.get('id')}: {density:.1f} 字/秒（{n}字/{adur:.1f}s）"
-                                  f"语速过快，建议压到 ≤{hi_warn}（删 1/6 字或加时长）"))
+            out.append(("error", f"{shot.get('id')}: {density:.1f} 音节/秒（{n_syl}音节 {n_char}字"
+                                  f"/{adur:.1f}s）语速过快，建议 ≤{hi_warn}（删 1/6 字或加时长）"))
         elif density > hi_warn:
-            out.append(("warn", f"{shot.get('id')}: {density:.1f} 字/秒偏快（正文舒适区 4.0~4.6）"))
-        if n > 38:
+            out.append(("warn", f"{shot.get('id')}: {density:.1f} 音节/秒偏快（正文舒适区 4.0~5.2）"))
+        if n_char > 38:
             out.append(("warn", f"{shot.get('id')}: {n} 字超单镜上限 38 字（字幕会顶满两行）"))
         if item["dur"] - adur < 1.0:
             out.append(("warn", f"{shot.get('id')}: 镜头留白仅 {item['dur'] - adur:.2f}s（建议 ≥1s，"
@@ -496,6 +522,23 @@ def lint_script(cfg, timeline):
     tail = (shots[-1].get("narration", "") if shots else "")
     if not re.search(r"(关注|收藏|评论|留言|私信|评论区)", tail):
         out.append(("warn", "结尾没有互动引导（关注/收藏/评论区），会拉低关注转化"))
+
+    # 7) 钩子镜画面数字 vs 口播数字：首 3 秒"眼睛看到 45、耳朵听到 36"最伤信任。
+    #    中文数字会先归一成数值再比（"零点一" == "0.1"），只报画面有、口播完全没提到的情况。
+    from shortvideo.textutil import numbers_in
+
+    if shots:
+        hook = shots[0]
+        spec = (cfg.get("deck") or {}).get(hook.get("id"))
+        if spec:
+            deck_nums = set()
+            _deck_numbers(spec, deck_nums)
+            spoken = numbers_in(hook.get("narration", ""))
+            stray = {n for n in deck_nums
+                     if not any(abs(float(n) - s2) < 0.011 for s2 in spoken)}
+            if stray and deck_nums:
+                out.append(("warn", f"钩子画面数字 {sorted(stray)} 口播里没说，"
+                                    f"检查首 3 秒是否自相矛盾"))
 
     return out or [("ok", "脚本体检通过")]
 
