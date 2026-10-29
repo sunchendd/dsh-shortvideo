@@ -705,7 +705,15 @@ function applySnapshot(snap) {
   S.proj.title = snap.title;
   S.proj.theme = snap.theme;
   S.proj.voice = snap.voice;
-  snap.shots.forEach((s, i) => Object.assign(S.proj.shots[i], s));
+  // 必须整表替换：按下标 Object.assign 只在"镜头数量不变"时才对，
+  // 删除/复制镜头之后长度变了，撤销就永远少一个（实测删 1 个 → 撤销仍是 4 个）。
+  S.proj.shots = snap.shots.map((s) => ({
+    ...s,
+    deck: s.deck ? JSON.parse(JSON.stringify(s.deck)) : {},
+    emphasis: s.emphasis || [],
+    start: 0,
+  }));
+  S.sel = Math.min(S.sel, S.proj.shots.length - 1);
   retime();
   $("#titleInput").value = S.proj.title;
   $("#fTheme").value = S.proj.theme;
