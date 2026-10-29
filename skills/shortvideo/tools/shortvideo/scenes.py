@@ -214,11 +214,22 @@ class SceneAPI:
         return runs
 
     @staticmethod
-    def caption(img, s, alpha=1.0, y=1645, size=50, emphasis=None,
+    def caption(img, s, alpha=1.0, y=None, size=None, emphasis=None,
                 hi_color=None, hi_scale=1.0):
-        """底部字幕卡。emphasis=[词...] 时这些词用强调色（可加粗放大）绘制。"""
+        """底部字幕卡。emphasis=[词...] 时这些词用强调色（可加粗放大）绘制。
+
+        坐标按 1080×1920 设计；导出小尺寸（快速预览 720×1280）时必须等比缩放，
+        否则 y=1645 直接落在画布外——**字幕整条消失**，而 checklist 只会报
+        "连续 N 秒字幕带为空"，很难想到是尺寸问题。
+        传 None 时按比例算；1080×1920 下结果与旧版逐像素一致（1645 / 50 / 880）。
+        """
         if not s or alpha <= 0.01:
             return
+        if y is None:
+            y = int(R.H * 1645 / 1920)
+        if size is None:
+            size = int(round(50 * R.W / 1080))
+        wrap_w = int(round(880 * R.W / 1080))
         s = R.sanitize(s, bold=True)
         emphasis = [R.sanitize(w, bold=True) for w in emphasis] if emphasis else emphasis
         a = round(R.clamp(alpha), 2)
@@ -229,7 +240,7 @@ class SceneAPI:
             key = (s, a, y, R.W, size, None)
             hit = _caption_cache.get(key)
             if hit is None:
-                lines = SceneAPI.wrap(s, size, 880, bold=True)
+                lines = SceneAPI.wrap(s, size, wrap_w, bold=True)
                 line_h = int(size * 1.42)
                 h = line_h * len(lines) + 44
                 layer, ox, oy = _layer(((R.W - 940) / 2, y - 22, (R.W + 940) / 2, y - 22 + h))
@@ -253,7 +264,7 @@ class SceneAPI:
         key = (plain, tuple(emphasis or ()), a, y, R.W, size, hi_scale)
         hit = _caption_cache.get(key)
         if hit is None:
-            lines = SceneAPI.wrap(plain, size, 880, bold=True)
+            lines = SceneAPI.wrap(plain, size, wrap_w, bold=True)
             line_h = int(size * 1.42)
             h = line_h * len(lines) + 44
             layer, ox, oy = _layer(((R.W - 940) / 2, y - 22, (R.W + 940) / 2, y - 22 + h))
@@ -623,15 +634,21 @@ class SceneAPI:
             return
         y = R.H - 104 if y is None else y     # 进度条在 1868，标识放它上方不打架
         x = R.W - 40 if x is None else x
-        f = R.font(24, bold=False)
+        # 字号/位置也随画布缩放（快速预览 720×1280 时 24px 会相对变大、贴边）
+        fs = max(14, int(round(24 * R.W / 1080)))
+        f = R.font(fs, bold=False)
         tw = f.getlength(text)
-        layer, ox, oy = _layer((x - tw - 24, y - 20, x, y + 20), pad=2)
+        # 这个标识是**合规要求**，浅色主题下白字白底等于没写。
+        # 按主题取墨色：深色底用白、浅色底用深墨。
+        ink = (18, 22, 28) if getattr(R, "LIGHT", False) else (255, 255, 255)
+        pad_y = int(round(20 * R.W / 1080))
+        layer, ox, oy = _layer((x - tw - fs, y - pad_y, x, y + pad_y), pad=2)
         d = ImageDraw.Draw(layer)
-        d.rounded_rectangle((x - tw - 24 - ox, y - 20 - oy, x - ox, y + 20 - oy),
-                            radius=20, fill=(255, 255, 255, int(26 * 255 * alpha)),
-                            outline=(255, 255, 255, int(60 * 255 * alpha)), width=1)
-        d.text((x - 12 - ox, y - oy), text, font=f,
-               fill=(255, 255, 255, int(210 * alpha)), anchor="rm")
+        d.rounded_rectangle((x - tw - fs - ox, y - pad_y - oy, x - ox, y + pad_y - oy),
+                            radius=pad_y, fill=ink + (int(26 * 255 * alpha),),
+                            outline=ink + (int(60 * 255 * alpha),), width=1)
+        d.text((x - fs // 2 - ox, y - oy), text, font=f,
+               fill=ink + (int(210 * alpha),), anchor="rm")
         _blend(img, layer, ox, oy)
 
     # ------------------------------------------------------------ 片头（0.6~0.9s 的品牌开场）

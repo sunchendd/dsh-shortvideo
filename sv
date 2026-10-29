@@ -15,8 +15,20 @@ set -euo pipefail
 
 SELF="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 ROOT="${SV_ROOT:-$SELF}"
-PY="${SV_PY:-$ROOT/.venv/bin/python}"
-[ -x "$PY" ] || PY="${SV_PY:-python3}"
+# 解释器：SV_PY > 仓库 .venv > 相邻的 shortvideo-lab/.venv（本机开发布局）> python3。
+# 关键不是"哪个存在"，而是"哪个装了 Pillow"——之前只看路径存在，
+# 结果落到系统 python3，跑 sv export 直接报缺依赖，而 .venv 明明就在隔壁。
+pick_py() {
+  local c
+  for c in "${SV_PY:-}" "$ROOT/.venv/bin/python" "$ROOT/../shortvideo-lab/.venv/bin/python" \
+           "$HOME/shortvideo-lab/.venv/bin/python" python3; do
+    [ -n "$c" ] || continue
+    command -v "$c" >/dev/null 2>&1 || [ -x "$c" ] || continue
+    if "$c" -c "import PIL, imageio_ffmpeg" >/dev/null 2>&1; then echo "$c"; return 0; fi
+  done
+  echo "python3"
+}
+PY="$(pick_py)"
 
 cmd="${1:-app}"
 shift || true
