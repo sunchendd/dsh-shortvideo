@@ -62,8 +62,20 @@ def _appear(p, start, dur=0.18):
     return R.clamp((p - start) / max(1e-6, dur))
 
 
-def _seq_at(i, n, p, span=(0.10, 0.78)):
-    """第 i/n 个元素的出现起点。"""
+def _fade_frac(dur, seconds=0.22):
+    """把"秒"换算成"镜头进度比例"：镜头越长，同一段动画占的比例越小。
+
+    直接用 0.14 这种固定比例，在 7 秒镜头里就是 1 秒的缓慢淡入——开头又是空画面。
+    """
+    return min(0.5, max(0.04, seconds / max(0.5, dur)))
+
+
+def _seq_at(i, n, p, span=(0.00, 0.50)):
+    """第 i/n 个元素的出现起点（默认：第一个 0.0 就出现，最晚 0.5 到场）。
+
+    早先的默认值是 (0.10, 0.78)：镜头开头 1~2 秒画面是空的（只剩字幕），
+    实测被 qa.py 判为"画面太空"，直接伤完播。所以第一个元素必须立刻可见。
+    """
     a, b = span
     return a + (b - a) * (i / max(1, n if n > 1 else 1))
 
@@ -145,7 +157,7 @@ def _bars(img, t, dur, spec):
     track_w = x1 - x0
     peak = max(range(n), key=lambda i: vals[i])
     for i, (it, v) in enumerate(zip(items, vals)):
-        a = _appear(p, _seq_at(i, n, p, (0.05, 0.55)))
+        a = _appear(p, _seq_at(i, n, p), _fade_frac(dur))
         if a <= 0:
             continue
         cy = top + row_h * i + row_h / 2
@@ -201,7 +213,7 @@ def _formula(img, t, dur, spec):
     if not parts:
         return
     p = t / dur if dur else 1
-    a = _appear(p, 0.10, 0.3)
+    a = _appear(p, 0.0, _fade_frac(dur))
     max_w = R.W - 160
 
     def mk(chunk, size):
@@ -282,7 +294,7 @@ def _bits(img, t, dur, spec):
     gx = R.W / 2 - (cell * cols + gap * (cols - 1)) / 2
     gy = int(R.H * 0.40) - (cell * rows + gap * (rows - 1)) / 2
     for i, it in enumerate(items):
-        a = _appear(p, _seq_at(i, n, p, (0.05, 0.7)))
+        a = _appear(p, _seq_at(i, n, p), _fade_frac(dur))
         if a <= 0:
             continue
         r_, c_ = divmod(i, cols)
@@ -309,7 +321,7 @@ def _digits(img, t, dur, spec):
     if not text:
         return
     p = t / dur if dur else 1
-    a = _appear(p, 0.05, 0.2)
+    a = _appear(p, 0.0, _fade_frac(dur))
     hl = spec.get("highlight") or ""
     cut = spec.get("cut")
     size = int(spec.get("size") or 64)
@@ -416,7 +428,7 @@ def _timeline(img, t, dur, spec):
         S.panel(img, (cx - r, y - r, cx + r, y + r), fill=col, alpha=1.0 if done else 0.5, radius=r)
         S.text(img, (cx, y), str(it.get("k", it.get("at", i + 1))), 30,
                fill=R.BG_BOT if done else R.DIM, bold=True, anchor="mm")
-        a = _appear(p, _seq_at(i, n, p, (0.05, 0.6)))
+        a = _appear(p, _seq_at(i, n, p), _fade_frac(dur))
         S.text(img, (cx, y + 74), str(it.get("t", "")), 38,
                fill=R.TEXT if done else R.DIM, bold=(i == cur), anchor="mm", alpha=max(a, 0.25))
         if it.get("d"):
@@ -437,7 +449,7 @@ def _flow(img, t, dur, spec):
     top = int(R.H * 0.40 - row_h * n / 2)
     bw = R.W - 300
     for i, it in enumerate(items):
-        a = _appear(p, _seq_at(i, n, p, (0.05, 0.62)))
+        a = _appear(p, _seq_at(i, n, p), _fade_frac(dur))
         if a <= 0:
             continue
         y = top + row_h * i

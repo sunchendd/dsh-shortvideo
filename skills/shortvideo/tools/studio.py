@@ -37,6 +37,19 @@ def _run(cmd, quiet=True):
     return r
 
 
+def qa_one(video_path, fps=1.0):
+    """调 qa.py 做画面体检；失败就返回 None（不阻塞出片流程）。"""
+    if not video_path or not os.path.exists(video_path):
+        return None
+    r = _run([PY, os.path.join(HERE, "qa.py"), "--video", video_path,
+              "--fps", str(fps), "--json"])
+    try:
+        data = json.loads(r.stdout)
+        return data[0] if data else None
+    except (json.JSONDecodeError, IndexError):
+        return None
+
+
 def score_one(content_path):
     r = _run([PY, os.path.join(HERE, "score.py"), "--content", content_path, "--json"])
     if r.returncode != 0:
@@ -74,8 +87,9 @@ def render_one(content_path, out_dir, jobs):
         _run([PY, os.path.join(HERE, "oneimage.py"), "--spec", specs[0], "--out", summary])
         if not os.path.exists(summary):
             summary = ""
+    qa = qa_one(mp4 if ok else "") or {}
     return {"slug": slug, "mp4": mp4 if ok else "", "summary": summary,
-            "video": facts, "secs": round(time.time() - t0, 1),
+            "video": facts, "qa": qa, "secs": round(time.time() - t0, 1),
             "log_tail": (r.stdout or "").strip().splitlines()[-6:]}
 
 
@@ -83,26 +97,32 @@ def write_report(rows, d, rendered):
     md = ["# 生产台账", "",
           f"生成时间：{time.strftime('%Y-%m-%d %H:%M')}　条目：{len(rows)}　"
           f"已出片：{sum(1 for r in rows if r['mp4'])}", "",
-          "| 条目 | 清单完成度 | 时长 | 分辨率 | 体积 | 峰值 | 封面 | 信息图 |",
-          "|---|---|---|---|---|---|---|---|"]
+          "| 条目 | 清单完成度 | 时长 | 体积 | 峰值 | 画面墨量 | 画面体检 | 封面 | 信息图 |",
+          "|---|---|---|---|---|---|---|---|---|"]
     for r in rows:
         v = r["video"]
         cov = "✅" if r["mp4"] and os.path.exists(os.path.join(os.path.dirname(r["mp4"]),
                                                               "cover_f1.png")) else "—"
-        md.append(f"| {r['slug']} | {r['score']} {r['grade'][0]} | {v.get('dur', '—')} | "
-                  f"{v.get('size', '—')} | {v.get('size_mb', '—')}MB | {v.get('peak_db', '—')}dB | "
+        q = r.get("qa") or {}
+        qa_flag = "✅" if q and not q.get("flags") else ("⚠" if q else "—")
+        md.append(f"| {r['slug']} | {r['score']} {r['grade'][0]} | {v.get('dur', '—')}s | "
+                  f"{v.get('size_mb', '—')}MB | {v.get('peak_db', '—')}dB | "
+                  f"{(q.get('body_avg') or 0) * 100:.1f}% | {qa_flag} | "
                   f"{cov} | {'✅' if r['summary'] else '—'} |")
     holes = [(r["slug"], e) for r in rows for e in (r.get("extra") or [])
              if not e.get("pass", False)]
-    if holes:
+    qa_holes = [(r["slug"], f) for r in rows for f in ((r.get("qa") or {}).get("flags") or [])]
+    if holes or qa_holes:
         md += ["", "## 待改进", ""]
-        for slug, e in holes:
-            md.append(f"- **{slug}** · {e['dim']}：{e['msg']}")
+    for slug, e in holes:
+        md.append(f"- **{slug}** · 清单·{e['dim']}：{e['msg']}")
+    for slug, f in qa_holes:
+        md.append(f"- **{slug}** · 画面：{f}")
     with open(os.path.join(d, "studio-report.md"), "w", encoding="utf-8") as f:
         f.write("\n".join(md) + "\n")
     with open(os.path.join(d, "studio-report.json"), "w", encoding="utf-8") as f:
         json.dump({"generated": time.time(), "items": rows}, f, ensure_ascii=False, indent=2)
-    return [(s, m) for s, m in holes]
+    return holes + qa_holes
 
 
 def write_index(rows, d):
@@ -267,7 +287,7 @@ def main():
             except json.JSONDecodeError:
                 pass
             summ = os.path.join(out_dir, slug + "-summary.png")
-            row.update({"mp4": existing, "video": v,
+            row.update({"mp4": existing, "video": v, "qa": qa_one(existing) or {},
                         "summary": summ if os.path.exists(summ) else "", "secs": 0})
             print(f"  {slug:<20} {row['score']:>5} {row['grade'][0]}  → 已存在，跳过渲染")
         elif args.render and (sc.get("score") or 0) >= args.from_score:

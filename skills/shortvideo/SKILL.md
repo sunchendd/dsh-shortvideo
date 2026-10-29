@@ -270,6 +270,30 @@ $PY $TOOLS/score.py --content content.json --video out/x.mp4
 它把本文件与 `docs/xhs-playbook.md` 的清单变成数字，改一版看一次分数即可知道有没有变好。
 **注意口径**：满分只代表"完全符合 playbook 清单"，不等于必爆——真实分发还看选题时机与账号权重。
 
+## 成片画面体检：`qa.py`
+
+```bash
+$PY $TOOLS/qa.py --video out/x.mp4        # 单条
+$PY $TOOLS/qa.py --dir examples           # 批量扫 out/*/*.mp4
+```
+
+抽帧算四个指标，抓"人眼要一帧帧看才能发现"的问题：
+`画面墨量`（内容区像素占比，太低=空镜）、`越界`（72px 安全区内的高亮像素，太高=内容贴边）、
+`亮度`（死黑帧）、`字幕`（连续 ≥1.5s 字幕带空 = 漏字幕）。
+`studio.py --render` 会自动跑一遍并把结果写进台账。
+
+阈值是**双向校准**过的：拿一条故意做成两镜全空的片子验证能抓（"内容区连续 8.0s 无内容"），
+再跑 9 条正常片验证不误报。调阈值前请照这个流程重做一次。
+
+## 封面一致性体检：`coveraudit.py`
+
+```bash
+$PY $TOOLS/coveraudit.py --dir examples    # 字段检查 + 拼一张 covers-f1.png
+```
+
+单条封面好看 ≠ 像同一个账号。这个工具横向比对栏目名、主标题行数、标签数、行动号召，
+并拼出一张 3 列封面墙（`examples/covers-f1.png`），一眼看出系列感有没有崩。
+
 ## 批量干活：`studio.py`
 
 ```bash
