@@ -1,0 +1,122 @@
+{
+  "format": "short",
+  "series_title": "18 秒速通",
+  "topic": "咖啡因不是提神是堵门",
+  "publish_title": "咖啡不提神，它只是把困意堵在门口",
+  "voice": {
+    "preset": "xiaoxiao",
+    "rate": "-12%"
+  },
+  "bgm": {
+    "style": "lofi",
+    "gain": -28.0
+  },
+  "transition": {
+    "type": "fade",
+    "dur": 0.2
+  },
+  "shots": [
+    {
+      "id": "hook",
+      "min_dur": 4.56,
+      "narration": "咖啡居然不提神，5 小时就减一半。",
+      "emphasis": [
+        "堵在门口"
+      ]
+    },
+    {
+      "id": "rule",
+      "min_dur": 3.82,
+      "narration": "困意来自腺苷，越攒越困。",
+      "emphasis": [
+        "腺苷"
+      ]
+    },
+    {
+      "id": "reveal",
+      "min_dur": 5.68,
+      "narration": "刚喝是 100%，5 小时后剩 50%。",
+      "emphasis": [
+        "5 小时"
+      ]
+    },
+    {
+      "id": "solve",
+      "min_dur": 6.0,
+      "narration": "下午喝的，夜里还剩 33%。评论区聊。",
+      "emphasis": [
+        "33%"
+      ]
+    }
+  ],
+  "deck": {
+    "hook": {
+      "kind": "big",
+      "lines": [
+        "咖啡不制造精神",
+        "只挡住困意"
+      ],
+      "emphasis": [
+        "挡住困意"
+      ]
+    },
+    "rule": {
+      "kind": "flow",
+      "items": [
+        {
+          "t": "腺苷累积",
+          "d": "越攒越困"
+        },
+        {
+          "t": "受体被占",
+          "d": "警报发不出"
+        }
+      ]
+    },
+    "reveal": {
+      "kind": "bars",
+      "items": [
+        {
+          "label": "刚喝完",
+          "v": 100,
+          "value": "100%"
+        },
+        {
+          "label": "5 小时后",
+          "v": 50,
+          "value": "50%"
+        },
+        {
+          "label": "10 小时后",
+          "v": 25,
+          "value": "25%"
+        }
+      ]
+    },
+    "solve": {
+      "kind": "stat",
+      "value": "33",
+      "unit": "%",
+      "label": "下午 3 点那杯，晚上 11 点还剩",
+      "note": "半衰期约 5 小时"
+    }
+  },
+  "cover": {
+    "kicker": "生活科学",
+    "serial": "短02",
+    "headline": [
+      "咖啡不提神",
+      "只堵困意"
+    ],
+    "highlight": [
+      "堵困意"
+    ],
+    "sub": "半衰期 5 小时，下午那杯晚上还在",
+    "tags": [
+      "#科普",
+      "#咖啡",
+      "#冷知识"
+    ],
+    "cta": "18 秒看懂"
+  }
+}

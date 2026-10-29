@@ -139,6 +139,10 @@ def _cards(img, t, dur, spec):
         if it.get("d"):
             S.text(img, (240, cy + row_h * 0.24), str(it["d"]), int(row_h * 0.24),
                    fill=R.DIM, bold=False, anchor="lm", alpha=a * 0.95)
+        # 全部卡片出完之后，一条细亮线在卡片区缓缓扫过，避免整段画面凝固
+        if spec.get("sweep", True) and p > 0.58:
+            _sweep_line(img, (150, y + 6, R.W - 120, y + 14), p,
+                        color=col, alpha=0.28, from_p=0.58)
     if spec.get("note"):
         _note(img, spec["note"], y=int(R.H * 0.80), alpha=_appear(p, 0.5))
 
@@ -190,6 +194,23 @@ def _bars(img, t, dur, spec):
 
     if spec.get("note"):
         _note(img, spec["note"], y=int(R.H * 0.70), alpha=_appear(p, 0.5))
+
+
+def _sweep_line(img, box, p, color=None, alpha=0.35, from_p=0.55):
+    """在 box 里画一道随时间横向移动的细亮线（8px 高）。
+
+    用途：内容元素出现完之后画面不要变成静止图。成本只有一次 panel 绘制，
+    肉眼几乎察觉不到"在动"，但同一镜头内的两帧不会像素一致。
+    """
+    x0, y0, x1, y1 = box
+    if x1 - x0 < 40:
+        return
+    sp = R.clamp((p - from_p) / max(0.01, 1.0 - from_p))
+    w = 140
+    x = x0 + sp * ((x1 - x0) + w) - w
+    left, right = max(x0, x), min(x1, x + w)
+    if right - left > 6:
+        S.panel(img, (left, y0, right, y1), fill=color or (255, 255, 255), alpha=alpha, radius=4)
 
 
 def _compare(img, t, dur, spec):

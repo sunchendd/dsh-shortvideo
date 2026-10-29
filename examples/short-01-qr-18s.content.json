@@ -9,12 +9,12 @@
   },
   "bgm": {
     "style": "lofi",
-    "gain": -26.0
+    "gain": -28.0
   },
   "shots": [
     {
       "id": "hook",
-      "min_dur": 5.5,
+      "min_dur": 5.0,
       "narration": "二维码烂掉三成，居然照样能扫。",
       "emphasis": [
         "三成"

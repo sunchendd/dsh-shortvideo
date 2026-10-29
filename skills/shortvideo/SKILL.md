@@ -340,6 +340,12 @@ $PY $TOOLS/make.py --content examples/01-x.content.json --topic deck --out examp
 - 用 `tighten.py --pad 1.0 --floor 3.2 --cap 6.0 --only short-` 收紧，
   别用长版那套（pad 1.8 / cap 8.6 会把短版又撑回 20s+）
 - 短版仍然要 ≥4 个镜头和互动引导，否则 `score.py` 会扣分
+- 短版的**留白下限是 0.7s**（长版 1.0s）：4 个镜头要在 18 秒里说完，多留就是浪费
+- 两处上限（`make.lint_script` 与 `score.SHORT_RANGE`）必须同值，曾出现 20 vs 22
+  不一致导致"score 说合格、lint 说超标"
+
+短版一镜 ≈ 12 个字。写超了就一定是 5.5+ 音节/秒，靠调 rate 是救不回来的
+（实测 -12% 只多 0.2s），只能删字。
 
 ## 节奏：`tighten.py` + `viz.py`
 

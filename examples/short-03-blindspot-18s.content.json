@@ -1,0 +1,114 @@
+{
+  "format": "short",
+  "series_title": "18 秒速通",
+  "topic": "视野里有个洞",
+  "publish_title": "你视野里有个洞，大脑一直帮你填",
+  "voice": {
+    "preset": "yunjian",
+    "rate": "-12%"
+  },
+  "bgm": {
+    "style": "lofi",
+    "gain": -28.0
+  },
+  "transition": {
+    "type": "fade",
+    "dur": 0.2
+  },
+  "shots": [
+    {
+      "id": "hook",
+      "min_dur": 4.3,
+      "narration": "5 厘米的洞，你居然看不见。",
+      "emphasis": [
+        "5 厘米"
+      ]
+    },
+    {
+      "id": "rule",
+      "min_dur": 4.7,
+      "narration": "视网膜那处没有感光细胞。",
+      "emphasis": [
+        "没有感光细胞"
+      ]
+    },
+    {
+      "id": "reveal",
+      "min_dur": 5.0,
+      "narration": "1.26 亿细胞，只接 100 万根线。",
+      "emphasis": [
+        "100 万"
+      ]
+    },
+    {
+      "id": "solve",
+      "min_dur": 4.5,
+      "narration": "剩下的是大脑猜的。评论区聊？",
+      "emphasis": [
+        "猜"
+      ]
+    }
+  ],
+  "deck": {
+    "hook": {
+      "kind": "stat",
+      "value": "5",
+      "unit": "厘米",
+      "label": "手臂伸直时，盲点的宽度"
+    },
+    "rule": {
+      "kind": "flow",
+      "items": [
+        {
+          "t": "留个出口",
+          "d": "神经纤维穿出去"
+        },
+        {
+          "t": "没有感光",
+          "d": "那块地方是空的"
+        }
+      ]
+    },
+    "reveal": {
+      "kind": "compare",
+      "left": {
+        "label": "感光细胞",
+        "value": "1.26 亿",
+        "note": "采集画面"
+      },
+      "right": {
+        "label": "神经纤维",
+        "value": "100 万",
+        "note": "传回大脑"
+      }
+    },
+    "solve": {
+      "kind": "big",
+      "lines": [
+        "你看到的画面",
+        "是大脑猜的"
+      ],
+      "emphasis": [
+        "猜的"
+      ]
+    }
+  },
+  "cover": {
+    "kicker": "视觉反常识",
+    "serial": "短03",
+    "headline": [
+      "视野里有个洞",
+      "大脑帮你填"
+    ],
+    "highlight": [
+      "有个洞"
+    ],
+    "sub": "盲点宽 5 厘米，你从没察觉",
+    "tags": [
+      "#科普",
+      "#视觉",
+      "#冷知识"
+    ],
+    "cta": "18 秒看懂"
+  }
+}

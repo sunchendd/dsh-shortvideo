@@ -509,11 +509,12 @@ def lint_script(cfg, timeline, degraded=()):
             out.append(("warn", f"{shot.get('id')}: {density:.1f} 音节/秒偏快（正文舒适区 4.0~5.2）"))
         if n_char > 38:
             out.append(("warn", f"{shot.get('id')}: {n} 字超单镜上限 38 字（字幕会顶满两行）"))
-        if item["dur"] - adur < 1.0:
-            out.append(("warn", f"{shot.get('id')}: 镜头留白仅 {item['dur'] - adur:.2f}s（建议 ≥1s，"
+        hold_min = 0.7 if str(cfg.get("format") or "").lower() in ("short", "15s", "quick") else 1.0
+        if item["dur"] - adur < hold_min:
+            out.append(("warn", f"{shot.get('id')}: 镜头留白仅 {item['dur'] - adur:.2f}s（建议 ≥{hold_min:g}s，"
                                 f"留给图形动效和呼吸）"))
 
-    # 3) 总时长：长版完播甜区 30~90s；短版（format="short"）10~20s，为完播/涨粉赛道
+    # 3) 总时长：长版完播甜区 30~90s；短版（format="short"）10~22s，为完播/涨粉赛道
     total = timeline[-1]["start"] + timeline[-1]["dur"] if timeline else 0
     short = str(cfg.get("format") or "").lower() in ("short", "15s", "quick")
     if short:
@@ -523,8 +524,8 @@ def lint_script(cfg, timeline, degraded=()):
                 out.append(("warn", f"{shot.get('id')}: 短版里单镜 {d:.1f}s 太长（≤6s）"))
         if total < 10:
             out.append(("warn", f"短版总时长 {total:.1f}s < 10s，钩子和答案挤在一起"))
-        elif total > 20:
-            out.append(("warn", f"短版总时长 {total:.1f}s > 20s，已经不是短版了"))
+        elif total > 22:      # 与 score.SHORT_RANGE 同值，改一处必须改两处
+            out.append(("warn", f"短版总时长 {total:.1f}s > 22s，已经不是短版了"))
     elif total < 30:
         out.append(("warn", f"总时长 {total:.1f}s < 30s，信息量可能不足以支撑完播"))
     elif total > 90:
