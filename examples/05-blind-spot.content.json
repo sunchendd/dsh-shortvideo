@@ -34,7 +34,7 @@
     {
       "id": "hook",
       "mood": "hook",
-      "min_dur": 5.4,
+      "min_dur": 5.8,
       "narration": "5 厘米的洞，就在你眼前。你居然从没看见。",
       "emphasis": [
         "5 厘米"
@@ -43,7 +43,7 @@
     {
       "id": "rule",
       "mood": "rule",
-      "min_dur": 8.4,
+      "min_dur": 8.3,
       "narration": "视网膜要留个出口，让 100 万根神经纤维穿出去。那儿没有感光细胞。",
       "emphasis": [
         "感光细胞"
@@ -52,7 +52,7 @@
     {
       "id": "insight",
       "mood": "explain",
-      "min_dur": 7.8,
+      "min_dur": 8.2,
       "narration": "视盘约 5 度宽，手臂伸直时就是 5 厘米。它离中心只有 15 度。",
       "emphasis": [
         "15 度"
@@ -61,7 +61,7 @@
     {
       "id": "reveal",
       "mood": "reveal",
-      "min_dur": 7.2,
+      "min_dur": 7.8,
       "narration": "1.26 亿个感光细胞，只接出 100 万根线。大脑在猜，不在拍。",
       "emphasis": [
         "100 万根线"
@@ -70,7 +70,7 @@
     {
       "id": "solve",
       "mood": "win",
-      "min_dur": 8.2,
+      "min_dur": 7.5,
       "narration": "拿张纸点两个点，闭一只眼盯住左边。右边那个会消失，评论区说结果。",
       "emphasis": [
         "会消失"

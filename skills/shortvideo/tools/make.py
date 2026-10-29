@@ -445,7 +445,10 @@ def _clauses(text):
 
 # 序号/格式类字段不算"画面数值"；sub/note/label 是补充说明，允许口播晚一点再讲
 _INDEX_KEYS = {"k", "at", "serial", "index", "digits", "per_line",
-               "sub", "note", "label", "footer", "cta"}
+               "sub", "note", "label", "footer", "cta",
+               # 背景水印是装饰层，不是"画面主张"，不参与画面/口播数字一致性检查
+               #（约定：水印文字复用本镜旁白里已有的数字，别引入新数字）
+               "ghost", "ghost_size", "ghost_color", "ghost_alpha", "ghost_y"}
 
 
 def _deck_numbers(node, out):

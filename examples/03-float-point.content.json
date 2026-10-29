@@ -43,7 +43,7 @@
     {
       "id": "rule",
       "mood": "rule",
-      "min_dur": 7.0,
+      "min_dur": 7.5,
       "narration": "电脑用二进制存小数。零点一写成二进制，是无限循环。",
       "emphasis": [
         "无限循环"
@@ -52,7 +52,7 @@
     {
       "id": "insight",
       "mood": "explain",
-      "min_dur": 8.6,
+      "min_dur": 8.9,
       "narration": "五十二位尾数装不下，只好截断。所以你存的零点一，早就不是零点一。",
       "emphasis": [
         "截断",

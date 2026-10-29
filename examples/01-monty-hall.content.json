@@ -33,7 +33,7 @@
     {
       "id": "hook",
       "mood": "hook",
-      "min_dur": 6.4,
+      "min_dur": 4.9,
       "narration": "三扇门只有一辆车。他开掉一扇空的，换吗？",
       "emphasis": [
         "换吗"
@@ -42,7 +42,7 @@
     {
       "id": "rule",
       "mood": "rule",
-      "min_dur": 7.2,
+      "min_dur": 8.3,
       "narration": "规则是：你先指一扇。他再开一扇空门。然后只问一句，换不换。",
       "emphasis": [
         "空门"
@@ -51,7 +51,7 @@
     {
       "id": "insight",
       "mood": "explain",
-      "min_dur": 8.6,
+      "min_dur": 8.9,
       "narration": "直觉说，剩两扇，各一半。错。你指的那扇，一直是三分之一。",
       "emphasis": [
         "三分之一"
@@ -60,7 +60,7 @@
     {
       "id": "reveal",
       "mood": "reveal",
-      "min_dur": 6.6,
+      "min_dur": 7.1,
       "narration": "另一扇从没变过，是三分之二。换门，赢面直接翻倍。",
       "emphasis": [
         "三分之二",
@@ -70,7 +70,7 @@
     {
       "id": "solve",
       "mood": "win",
-      "min_dur": 9.0,
+      "min_dur": 7.8,
       "narration": "记住一句话：换。信息没洗牌，概率就不会平分。评论区说说你会换吗。",
       "emphasis": [
         "换"

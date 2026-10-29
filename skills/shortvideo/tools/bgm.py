@@ -131,6 +131,24 @@ def build_bed(dur, intensity="mid", style="lofi", seed=0, master_fade=True):
         at = int(t0 * SR)
         if at >= n:
             break
+        if style == "pulse":
+            # pulse：四拍底鼓 + 八分贝斯 + 十六分踩镲 + 短和弦刺（科技/实验/机制类题材）
+            for bt in range(4):
+                _add(buf, _note(33, 0.16, "sub"), int((t0 + bt * BEAT) * SR), 0.20)
+            for k in range(8):
+                m = chord[0] - 12 + (12 if k % 4 == 3 else 0)
+                _add(buf, _note(m, BEAT * 0.45, "pluck"),
+                     int((t0 + k * BEAT / 2) * SR), 0.075)
+            for k in range(16):
+                _add(buf, _hat(), int((t0 + k * BEAT / 4) * SR),
+                     0.014 + (0.012 if k % 4 == 2 else 0.0))
+            for k in (0, 3, 6):
+                for j, midi in enumerate(chord):
+                    _add(buf, _note(midi + 12, BEAT * 0.28, "pluck"),
+                         int((t0 + k * BEAT / 2) * SR), 0.026 - j * 0.005)
+            b += 4
+            bar_i += 1
+            continue
         # pad：整小节铺底
         for j, midi in enumerate(chord):
             _add(buf, _note(midi, BAR * 1.05, "pad"), at, 0.10 - j * 0.012)
@@ -313,9 +331,20 @@ def main():
     ap.add_argument("--style", default="lofi", choices=STYLES)
     ap.add_argument("--seed", type=int, default=0)
     ap.add_argument("--mix", default=None, help="可选：与这个人声 wav 混合后输出")
+    ap.add_argument("--styles", default=None,
+                    help="对比模式：逗号分隔的若干风格，各生成一条 <out>.<style>.wav")
     ap.add_argument("--dynamics", default=None,
                     help="按镜头强度分段，如 hook:high,rule:low,reveal:mid")
     args = ap.parse_args()
+    if args.styles:
+        base = args.out.rsplit(".", 1)[0]
+        for st in [x.strip() for x in args.styles.split(",") if x.strip()]:
+            bed = build_bed(args.dur, args.intensity, st, args.seed)
+            path = f"{base}.{st}.wav"
+            _write_wav(path, bed)
+            print(f"[ok] {path}  {args.dur:.0f}s  style={st}")
+        return
+
     if args.dynamics:
         moods = [x.split(":") for x in args.dynamics.split(",") if ":" in x]
         per = args.dur / max(1, len(moods))

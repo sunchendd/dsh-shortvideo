@@ -34,7 +34,7 @@
     {
       "id": "hook",
       "mood": "hook",
-      "min_dur": 5.8,
+      "min_dur": 5.4,
       "narration": "冰刀压下去，冰点只降0.1度。那它凭什么这么滑？",
       "emphasis": [
         "0.1度",
@@ -44,7 +44,7 @@
     {
       "id": "rule",
       "mood": "rule",
-      "min_dur": 6.2,
+      "min_dur": 5.8,
       "narration": "先算压强：80公斤踩6平方厘米，大约1.3兆帕。",
       "emphasis": [
         "1.3兆帕"
@@ -53,7 +53,7 @@
     {
       "id": "insight",
       "mood": "explain",
-      "min_dur": 9.0,
+      "min_dur": 8.9,
       "narration": "1.3兆帕只降0.1度。要压化零下十度的冰，6平方厘米上得压8吨。",
       "emphasis": [
         "8吨"

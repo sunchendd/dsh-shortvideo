@@ -34,7 +34,7 @@
     {
       "id": "hook",
       "mood": "hook",
-      "min_dur": 5.4,
+      "min_dur": 4.5,
       "narration": "太阳光是七色的，天空为什么只留下蓝？",
       "emphasis": [
         "七色"
@@ -43,7 +43,7 @@
     {
       "id": "rule",
       "mood": "rule",
-      "min_dur": 6.6,
+      "min_dur": 7.4,
       "narration": "阳光是七色混成的白。穿进大气，一路撞上氮和氧的分子。",
       "emphasis": [
         "七色"
@@ -52,7 +52,7 @@
     {
       "id": "insight",
       "mood": "explain",
-      "min_dur": 8.2,
+      "min_dur": 7.5,
       "narration": "波长越短，被撞得越狠。散射强度和波长的四次方成反比。",
       "emphasis": [
         "四次方"
@@ -61,7 +61,7 @@
     {
       "id": "reveal",
       "mood": "reveal",
-      "min_dur": 7.2,
+      "min_dur": 7.8,
       "narration": "四百五十纳米对七百纳米，算出来近六倍。所以满天是被撞散的蓝。",
       "emphasis": [
         "近六倍",
@@ -71,7 +71,7 @@
     {
       "id": "solve",
       "mood": "win",
-      "min_dur": 9.0,
+      "min_dur": 8.6,
       "narration": "夕阳是同一件事的反面。蓝先散完，你才看见红。评论区说说你家乡的天。",
       "emphasis": [
         "反面",

@@ -285,6 +285,31 @@ $PY $TOOLS/score.py --content content.json --video out/x.mp4
 - `ghost`：给 still 很薄的镜头垫一个 0.42W 的背景水印字（`ghostfill.py` 可批量补，
   只复用旁白里字面存在的数字）
 
+## 节奏：`tighten.py` + `viz.py`
+
+镜头时长别手工写死。`min_dur` 越往后面越长（钩子 6.4s、收尾 9.0s）是最常见的节奏病，
+画成心电图一眼可见：
+
+```bash
+$PY $TOOLS/viz.py --dir examples          # → examples/rhythm.png 节奏心电图
+$PY $TOOLS/tighten.py --dir examples      # min_dur = clamp(实配音 + 1.8s, 4.5, 9.0)
+$PY $TOOLS/tighten.py --dir examples --dry-run   # 先看要改哪些
+```
+
+`tighten.py` 只动 `min_dur`（不动文案、不动配音），改完记得重渲。
+
+## BGM 两种风格
+
+```bash
+# lofi（默认）：pad 铺底 + 稀疏琶音 + 1/3 拍底鼓，适合叙事/生活类
+# pulse      ：四拍底鼓 + 八分贝斯 + 十六分踩镲，适合机制/实验/科技类
+$PY $TOOLS/bgm.py --dur 40 --styles lofi,pulse --out /tmp/bed.wav
+$PY $TOOLS/viz.py --bgm /tmp/bed.lofi.wav /tmp/bed.pulse.wav --out /tmp/cmp.png
+```
+
+实测起音密度：lofi 1.9 次/秒、pulse 3.1 次/秒（pulse 明显更"推"，但别配慢节奏讲解）。
+内容里用 `"bgm": {"style": "pulse"}` 指定。
+
 ## 成片画面体检：`qa.py`
 
 ```bash

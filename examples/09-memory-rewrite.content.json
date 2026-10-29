@@ -34,7 +34,7 @@
     {
       "id": "hook",
       "mood": "hook",
-      "min_dur": 5.8,
+      "min_dur": 6.3,
       "narration": "三成的人，记住了一地碎玻璃。其实一片都没有。",
       "emphasis": [
         "三成",
@@ -44,7 +44,7 @@
     {
       "id": "rule",
       "mood": "rule",
-      "min_dur": 8.6,
+      "min_dur": 8.8,
       "narration": "1974年，两组人看同一段车祸视频。一组问「撞毁」，一组问「碰到」。",
       "emphasis": [
         "同一段",
@@ -54,7 +54,7 @@
     {
       "id": "insight",
       "mood": "explain",
-      "min_dur": 9.0,
+      "min_dur": 8.9,
       "narration": "一周后再问：听「撞毁」的组，32%记得碎玻璃，另一组只有14%。",
       "emphasis": [
         "32%",
@@ -64,7 +64,7 @@
     {
       "id": "reveal",
       "mood": "reveal",
-      "min_dur": 6.4,
+      "min_dur": 6.8,
       "narration": "你以为在回放，其实在重录。每回想一次，就重写一次。",
       "emphasis": [
         "重录",

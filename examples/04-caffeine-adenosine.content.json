@@ -43,7 +43,7 @@
     {
       "id": "rule",
       "mood": "rule",
-      "min_dur": 8.8,
+      "min_dur": 6.9,
       "narration": "咖啡因长得像腺苷，先占住受体。腺苷进不去，警报发不出。",
       "emphasis": [
         "受体"
@@ -52,7 +52,7 @@
     {
       "id": "insight",
       "mood": "explain",
-      "min_dur": 7.6,
+      "min_dur": 6.9,
       "narration": "腺苷一点没少，只是堵在门口排队。咖啡因每 5 小时减一半。",
       "emphasis": [
         "排队"
@@ -61,7 +61,7 @@
     {
       "id": "reveal",
       "mood": "reveal",
-      "min_dur": 6.4,
+      "min_dur": 6.9,
       "narration": "所以半夜的你，其实困得很。困意没被删掉，只是被静音。",
       "emphasis": [
         "静音"
