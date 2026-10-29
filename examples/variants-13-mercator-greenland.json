@@ -1,0 +1,71 @@
+{
+  "base": "13-mercator-greenland.content.json",
+  "variants": [
+    {
+      "id": "num",
+      "label": "数字冲击",
+      "hook": "非洲面积是格陵兰的14倍。地图上看不出来。",
+      "hook_lines": [
+        "非洲",
+        "是格陵兰的14倍"
+      ],
+      "emphasis": [
+        "14倍"
+      ],
+      "publish_title": "非洲面积是格陵兰的14倍，地图看不出",
+      "cover": {
+        "headline": [
+          "非洲 = 14 倍",
+          "格陵兰"
+        ],
+        "highlight": [
+          "14 倍"
+        ]
+      }
+    },
+    {
+      "id": "ask",
+      "label": "提问式",
+      "hook": "你看的那张世界地图，面积全是错的？",
+      "hook_lines": [
+        "世界地图",
+        "面积全错？"
+      ],
+      "emphasis": [
+        "全是错的"
+      ],
+      "publish_title": "世界地图上的面积几乎全是错的",
+      "cover": {
+        "headline": [
+          "地图面积",
+          "全是错的"
+        ],
+        "highlight": [
+          "全是错的"
+        ]
+      }
+    },
+    {
+      "id": "cost",
+      "label": "代价恐惧",
+      "hook": "地图把非洲缩了 14 倍，你还信面积？",
+      "hook_lines": [
+        "缩了 14 倍",
+        "还信面积？"
+      ],
+      "emphasis": [
+        "14 倍"
+      ],
+      "publish_title": "地图把非洲缩了 14 倍，你还信面积",
+      "cover": {
+        "headline": [
+          "缩了 14 倍",
+          "还信面积？"
+        ],
+        "highlight": [
+          "14 倍"
+        ]
+      }
+    }
+  ]
+}

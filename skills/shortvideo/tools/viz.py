@@ -33,7 +33,10 @@ GREEN = (56, 224, 168)
 CYAN = (58, 216, 240)
 
 
-def rhythm(rows_by_video, out_path, w=1200, row_h=54):
+RATE_LO, RATE_HI = 3.2, 7.0     # 语速映射区间（音节/秒）
+
+
+def rhythm(rows_by_video, out_path, w=1200, row_h=62):
     """每条一条泳道；横条长度=镜头时长；颜色=风险（绿/黄/红）。"""
     slugs = list(rows_by_video)
     label_w = 250
@@ -43,7 +46,10 @@ def rhythm(rows_by_video, out_path, w=1200, row_h=54):
     f_title = R.font(30, bold=True)
     f_lbl = R.font(22, bold=True)
     f_num = R.font(18)
-    d.text((24, 20), "节奏心电图：每格 = 1 个镜头 · 条长 = 占全片时长比例 · 颜色 = 风险", font=f_title, fill=TXT)
+    d.text((24, 18), "节奏心电图：条长 = 时长占比 · 条上数字 = 时长 / 语速（音节每秒）· 颜色 = 风险",
+           font=f_title, fill=TXT)
+    d.text((24, 52), "绿 = 无风险 · 黄 = 1~2 分 · 红 = 3 分以上；钩子语速档 6.6、正文 5.2",
+           font=f_num, fill=DIM)
 
     # 每条泳道按自身总时长归一化（各条总长不同，用绝对秒数会画出画布）
     scale_w = w - label_w - 60

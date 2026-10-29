@@ -252,5 +252,9 @@
     "type": "fade",
     "dur": 0.24
   },
-  "publish_title": "二维码烂掉三成照样能扫，靠的是纠错码"
+  "publish_title": "二维码烂掉三成照样能扫，靠的是纠错码",
+  "bgm": {
+    "style": "pulse",
+    "gain": -25.5
+  }
 }

@@ -145,5 +145,9 @@
     "type": "fade",
     "dur": 0.24
   },
-  "publish_title": "零点一加零点二，为什么算出来不等于零点三"
+  "publish_title": "零点一加零点二，为什么算出来不等于零点三",
+  "bgm": {
+    "style": "pulse",
+    "gain": -25.5
+  }
 }

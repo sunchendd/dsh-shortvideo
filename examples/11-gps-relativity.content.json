@@ -148,5 +148,9 @@
     "type": "fade",
     "dur": 0.24
   },
-  "publish_title": "卫星上的钟每天快38微秒，不修导航就偏"
+  "publish_title": "卫星上的钟每天快38微秒，不修导航就偏",
+  "bgm": {
+    "style": "pulse",
+    "gain": -25.5
+  }
 }
