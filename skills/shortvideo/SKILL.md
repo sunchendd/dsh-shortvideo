@@ -721,6 +721,30 @@ $PY $TOOLS/checklist.py --dir examples --json            # 机器可读，接 CI
 四道门禁：清单完成度（score）→ 脚本体检（lint）→ 画面体检（qa）→ 节奏风险（pace）。
 任一 error 级问题即 NO-GO，退出码非 0，可直接串进 CI 或 pre-commit。
 
+## 只有 5 句话时：`draft.py`（从零到能过门禁的一条片）
+
+```bash
+$PY $TOOLS/draft.py --title "为什么手机屏幕在太阳下看不清" --kicker 生活物理 \
+   --theme arctic --voice xiaoxiao \
+   --lines "正午阳光下，手机屏幕亮度只有 1000 尼特……" "第二句" "第三句" "第四句" "第五句" \
+   --out examples/XX-slug.content.json
+```
+
+它替你写掉 content.json 里最难的部分：
+
+- **deck 类型**按镜头角色 + 内容猜：钩子只能 `big`；`rule` 允许 `big/flow/formula`；
+  `reveal` 才允许 `compare/stat`；`solve` 只能 `big/steps/list/cards`。
+  （不按角色限制时实测把"把屏幕侧过来 30 度"判成 `stat`，渲出一个大数字 30——语义全跑偏）
+- **时长**按音节数估（4.45 音节/秒 + 1.55s 呼吸），再交给 `tighten.py` 用真实配音收口
+- **封面**标题按 ≤6 字宽折行、副标按 token 边界截断（**不许切断数字**："…只有 100|0 尼特"就是这么来的）
+- **高亮**优先数字，没有数字就高亮标题末 3 字（"看不清"）
+- **emphasis** 每镜自动填 1~2 处（score 有这条分）
+- **钩子**缺信号词时补一句"为什么？"，**结尾**缺互动引导时补"你怎么看？评论区聊聊"
+- 顺带产出 `oneimage-XX.json`（一张图 spec），所以一条选题能同时发视频和图文
+
+实测一条陌生选题从 5 句话到 100/100：`draft → make → tighten → make → cover → oneimage`，
+全程约 2 分钟（含两次渲染）。
+
 ## 长短版一致性：`paircheck.py`
 
 ```bash

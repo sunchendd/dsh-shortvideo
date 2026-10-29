@@ -527,14 +527,17 @@ def _cover_completeness_warnings(cfg):
     把"实际画了几行"回报出来，跟配置行数对比，是精确相等判断。
     """
     cov = cfg.get("cover") or {}
-    want = len([x for x in (cov.get("headline") or []) if str(x).strip()])
-    if not want:
+    if not [x for x in (cov.get("headline") or []) if str(x).strip()]:
         return []
     try:
         import cover as C
     except Exception:  # noqa: BLE001
         return []
     c = C._cfg(cfg)          # noqa: SLF001
+    # 比的是 **_cfg 之后的**行数，不是原始配置行数：`_cfg` 会把 1~2 字的末行
+    # 并到上一行（"看不清"这种尾行单独一行是头重脚轻），那是正常设计。
+    # 拿原始 3 行跟绘制 2 行比会误报——这条误报是自己撞出来的（draft 生成的标题正好 3 行）。
+    want = len(c.get("headline") or [])
     try:
         C._variant_short(c)  # noqa: SLF001  （渲一张丢掉的图，只为拿 manifest）
     except Exception as e:  # noqa: BLE001

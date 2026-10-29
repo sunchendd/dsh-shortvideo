@@ -87,6 +87,17 @@ select{background:var(--panel2);border:1px solid var(--line);color:var(--text);
   border-radius:11px;font-size:13px;transition:.2s;z-index:80;pointer-events:none}
 .toast.on{opacity:1;transform:translate(-50%,0)}
 .empty{color:var(--faint);padding:60px 0;text-align:center}
+.modal{position:fixed;left:50%;top:50%;transform:translate(-50%,-46%) scale(.98);opacity:0;
+  pointer-events:none;width:min(560px,92vw);background:var(--panel);border:1px solid var(--line);
+  border-radius:16px;padding:22px 24px;z-index:60;transition:.18s;box-shadow:0 30px 80px rgba(0,0,0,.6)}
+.modal.on{opacity:1;transform:translate(-50%,-50%);pointer-events:auto}
+.modal label{display:block;font-size:12.5px;color:var(--dim);margin-bottom:11px}
+.modal input[type=text],.modal input:not([type]),.modal textarea,.modal select{
+  width:100%;margin-top:5px;background:var(--panel2);border:1px solid var(--line);
+  color:var(--text);border-radius:9px;padding:9px 11px;font:inherit;outline:none}
+.modal textarea{resize:vertical;line-height:1.6}
+.modal input:focus,.modal textarea:focus,.modal select:focus{border-color:var(--brand)}
+.row2{display:grid;grid-template-columns:1fr 1fr;gap:12px}
 </style>
 
 <header>
@@ -98,6 +109,7 @@ select{background:var(--panel2);border:1px solid var(--line);color:var(--text);
     <span class="chip" data-f="long">长版</span>
     <span class="spacer"></span>
     <span id="themefilter" class="bar" style="gap:6px"></span>
+    <button class="btn primary" id="btnNew">＋ 新建</button>
   </div>
 </header>
 
@@ -107,6 +119,30 @@ select{background:var(--panel2);border:1px solid var(--line);color:var(--text);
 </main>
 
 <div class="veil" id="veil"></div>
+<div class="modal" id="modal">
+  <h3 style="margin:0 0 4px;font-size:17px">新建一条片子</h3>
+  <p class="meta" style="margin:0 0 14px">写标题 + 5 句口播即可。画面类型、时长、封面、一张图会自动生成，之后可以再改。</p>
+  <label>标题<input id="nTitle" placeholder="例：为什么手机屏幕在太阳下看不清"></label>
+  <label>栏目名<input id="nKicker" placeholder="生活物理"></label>
+  <label>口播（每行一句，5 句；勾下面短版则 4 句）<textarea id="nLines" rows="6"
+    placeholder="正午阳光下，手机屏幕亮度只有 1000 尼特……&#10;屏幕不是不够亮，是被反光盖住了。&#10;……"></textarea></label>
+  <div class="row2">
+    <label>主题<select id="nTheme"></select></label>
+    <label>音色<select id="nVoice">
+      <option value="yunxi">云希 · 阳光邻家</option>
+      <option value="yunjian">云健 · 浑厚沉稳</option>
+      <option value="xiaoxiao">晓晓 · 活泼亲切</option>
+    </select></label>
+  </div>
+  <label style="flex-direction:row;align-items:center;gap:8px;display:flex">
+    <input type="checkbox" id="nShort" style="width:auto"> 短版（4 句，13~18 秒）
+  </label>
+  <div class="actions">
+    <button class="btn primary" id="nGo">生成并渲染</button>
+    <button class="btn" onclick="closeModal()">取消</button>
+  </div>
+  <div class="log" id="nLog"></div>
+</div>
 <aside class="drawer" id="drawer"></aside>
 <div class="toast" id="toast"></div>
 
@@ -228,7 +264,29 @@ async function open(slug){
     log.classList.add("on"); log.textContent = "启动…";
     const j = await (await fetch(url,{method:"POST",headers:{"Content-Type":"application/json"},
       body:JSON.stringify(body)})).json();
-    poll(j.job, log, () => { boot().then(()=>{
+    poll(j.job, log, () => { function closeModal(){ $("#modal").classList.remove("on"); $("#veil").classList.remove("on"); }
+$("#btnNew").onclick = () => {
+  const sel = $("#nTheme");
+  if (!sel.children.length){
+    sel.innerHTML = LIB.themes.map(t=>`<option value="${t.key}">${esc(t.name)}${t.light?" · 浅":""}</option>`).join("");
+  }
+  $("#nLog").classList.remove("on");
+  $("#modal").classList.add("on"); $("#veil").classList.add("on");
+};
+$("#nGo").onclick = async () => {
+  const title = $("#nTitle").value.trim();
+  const lines = $("#nLines").value.split("\n").map(s=>s.trim()).filter(Boolean);
+  if (!title || !lines.length) return toast("标题和口播都要填");
+  const log = $("#nLog"); log.classList.add("on"); log.textContent = "生成中…";
+  const r = await (await fetch("/api/new",{method:"POST",headers:{"Content-Type":"application/json"},
+    body:JSON.stringify({title, lines, kicker:$("#nKicker").value.trim()||null,
+      theme:$("#nTheme").value, voice:$("#nVoice").value, short:$("#nShort").checked})})).json();
+  if (r.error) return toast(r.error);
+  toast("已开始渲染：" + r.slug);
+  poll(r.job, log, async () => { await boot(); closeModal(); open(r.slug); });
+};
+
+boot().then(()=>{
   const h = decodeURIComponent((location.hash||"").replace("#",""));
   if (h) open(h);            // 带 #slug 打开就直接进详情
 }); });
@@ -259,6 +317,28 @@ document.querySelectorAll(".chip[data-f]").forEach(el => el.onclick = () => {
   document.querySelectorAll(".chip[data-f]").forEach(c=>c.classList.remove("on"));
   el.classList.add("on"); FILTER.kind = el.dataset.f; render();
 });
+function closeModal(){ $("#modal").classList.remove("on"); $("#veil").classList.remove("on"); }
+$("#btnNew").onclick = () => {
+  const sel = $("#nTheme");
+  if (!sel.children.length){
+    sel.innerHTML = LIB.themes.map(t=>`<option value="${t.key}">${esc(t.name)}${t.light?" · 浅":""}</option>`).join("");
+  }
+  $("#nLog").classList.remove("on");
+  $("#modal").classList.add("on"); $("#veil").classList.add("on");
+};
+$("#nGo").onclick = async () => {
+  const title = $("#nTitle").value.trim();
+  const lines = $("#nLines").value.split("\n").map(s=>s.trim()).filter(Boolean);
+  if (!title || !lines.length) return toast("标题和口播都要填");
+  const log = $("#nLog"); log.classList.add("on"); log.textContent = "生成中…";
+  const r = await (await fetch("/api/new",{method:"POST",headers:{"Content-Type":"application/json"},
+    body:JSON.stringify({title, lines, kicker:$("#nKicker").value.trim()||null,
+      theme:$("#nTheme").value, voice:$("#nVoice").value, short:$("#nShort").checked})})).json();
+  if (r.error) return toast(r.error);
+  toast("已开始渲染：" + r.slug);
+  poll(r.job, log, async () => { await boot(); closeModal(); open(r.slug); });
+};
+
 boot().then(()=>{
   const h = decodeURIComponent((location.hash||"").replace("#",""));
   if (h) open(h);            // 带 #slug 打开就直接进详情

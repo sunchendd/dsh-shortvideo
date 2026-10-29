@@ -29,7 +29,10 @@ SUBJECT_KEYWORDS = [
     # "blind" 会子串命中 "colorblind"，把 23 号色盲片吃成物理/光学——用更长的词
     ("视光学", ("myopia", "eye", "colorblind", "色盲", "色觉", "视锥", "石原")),
     ("物理/光学", ("rayleigh", "blindspot", "blind-spot", "盲点", "memory", "gps",
-                   "mercator", "ice")),
+                   # 别写 "screen"：它是 "sunscreen" 的子串，会把 19 号防晒片抢过来
+                   # （跟当年 "blind" 命中 "colorblind" 是同一类错）。
+                   # 也别写单字 "光"：太宽。用"物理"接栏目名、用双字词接内容。
+                   "mercator", "ice", "屏幕", "反光", "亮度", "物理")),
     ("化学/生物", ("caffeine", "adenosine", "enzyme", "baking", "soda", "小苏打", "碱面", "化学")),
     ("声学/听觉", ("loudness", "bass", "acoustic", "sound", "beat", "拍频", "音")),
     ("航空/结构", ("plane", "window", "stress")),
@@ -61,12 +64,20 @@ def topic_of(slug, content):
 
 
 def subject_of(slug, content):
-    cat = str((content.get("category") or content.get("kicker") or "")).lower()
+    """判学科：**slug 优先**，栏目名只做兜底。
+
+    顺序很重要——栏目名（cover.kicker，如"生活物理""反常识概率"）比学科宽，
+    放前面会把 22 号法拉第笼（kicker 写"生活物理"）从"微波/电磁"抢到"物理/光学"。
+    slug 里通常带具体关键词（faraday / monty / sunscreen），更准。
+    """
+    low = str(slug or "").lower()
+    for name, keys in SUBJECT_KEYWORDS:
+        if any(k in low for k in keys):
+            return name
+    cat = str((content.get("category") or content.get("kicker")
+               or (content.get("cover") or {}).get("kicker") or "")).lower()
     for name, keys in SUBJECT_KEYWORDS:
         if any(k in cat for k in keys):
-            return name
-    for name, keys in SUBJECT_KEYWORDS:
-        if any(k in slug.lower() for k in keys):
             return name
     return "其他"
 

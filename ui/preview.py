@@ -162,6 +162,53 @@ def _rerender_covers(slug, theme=None):
     return ok, "\n".join(log)
 
 
+def _next_slug(title, want=None):
+    """新条目命名：沿用 NN- 前缀，标题里的 ASCII 部分做后缀（中文留空则用 draft）。"""
+    if want:
+        return re.sub(r"[^A-Za-z0-9_.-]+", "-", str(want)).strip("-")[:40]
+    nums = []
+    for s in _slug_list():
+        m = re.match(r"(\d+)-", s)
+        if m:
+            nums.append(int(m.group(1)))
+    idx = (max(nums) + 1) if nums else 1
+    ascii_part = re.sub(r"[^a-z0-9]+", "-", str(title or "").lower()).strip("-")
+    return f"{idx:02d}-{ascii_part[:24] or 'draft'}"
+
+
+def _create(slug, req):
+    """新建一条：draft → 渲染 → tighten → 再渲染 → 封面 → 一张图。"""
+    log = []
+    content = os.path.join(EX, f"{slug}.content.json")
+    req_path = os.path.join("/tmp", f"req-{slug}.json")
+    json.dump(req, open(req_path, "w", encoding="utf-8"), ensure_ascii=False)
+
+    def run(args, tag, timeout=1800):
+        r = subprocess.run(args, cwd=REPO, capture_output=True, text=True, timeout=timeout)
+        out = (r.stdout or "") + (r.stderr or "")
+        log.append(f"[{tag}] rc={r.returncode}\n" + "\n".join(out.strip().splitlines()[-14:]))
+        return r.returncode == 0
+
+    if not run([PY, os.path.join(TOOLS, "draft.py"), "--from-json", req_path, "--out", content], "draft"):
+        return False, "\n".join(log)
+    mp4 = os.path.join(OUT, slug, f"{slug}.mp4")
+    os.makedirs(os.path.dirname(mp4), exist_ok=True)
+    if not run([PY, os.path.join(TOOLS, "make.py"), "--content", content, "--topic", "deck",
+                "--out", mp4, "--jobs", "2"], "render#1"):
+        return False, "\n".join(log)
+    run([PY, os.path.join(TOOLS, "tighten.py"), "--dir", EX, "--only", slug.split("-")[0] + "-"], "tighten")
+    run([PY, os.path.join(TOOLS, "make.py"), "--content", content, "--topic", "deck",
+         "--out", mp4, "--jobs", "2"], "render#2")
+    run([PY, "-c", ("import sys,json;sys.path.insert(0,%r);import cover;"
+                    "cfg=json.load(open(%r,encoding='utf-8'));cover.build_covers(cfg,%r,None)")
+         % (TOOLS, content, os.path.join(OUT, slug))], "covers")
+    spec = os.path.join(EX, f"oneimage-{slug}.json")
+    if os.path.exists(spec):
+        run([PY, os.path.join(TOOLS, "oneimage.py"), "--spec", spec,
+             "--out", os.path.join(OUT, slug, "summary.png")], "oneimage")
+    return True, "\n".join(log)
+
+
 def _start_job(kind, slug, extra=None):
     with _JOBS_LOCK:
         _JOB_SEQ[0] += 1
@@ -179,6 +226,8 @@ def _start_job(kind, slug, extra=None):
                 r = subprocess.run(args, cwd=REPO, capture_output=True, text=True, timeout=1800)
                 tail = (r.stdout or "")[-400:] + (r.stderr or "")[-400:]
                 ok = r.returncode == 0
+            elif kind == "new":
+                ok, tail = _create(slug, (extra or {}).get("req") or {})
             elif kind == "verify":
                 r = subprocess.run(["./verify.sh", slug], cwd=REPO,
                                    capture_output=True, text=True, timeout=1800)
@@ -286,6 +335,16 @@ class Handler(BaseHTTPRequestHandler):
             body = json.loads(self.rfile.read(n) or b"{}")
         except Exception:  # noqa: BLE001
             body = {}
+        if u.path == "/api/new":
+            title = str(body.get("title") or "").strip()
+            lines = [str(x).strip() for x in (body.get("lines") or []) if str(x).strip()]
+            if not title or not lines:
+                return self._send(400, {"error": "title 和 lines 都要有"})
+            slug = _next_slug(title, body.get("slug"))
+            req = {"title": title, "lines": lines, "kicker": body.get("kicker"),
+                   "theme": body.get("theme"), "voice": body.get("voice"),
+                   "short": bool(body.get("short"))}
+            return self._send(200, {"job": _start_job("new", slug, {"req": req}), "slug": slug})
         if u.path == "/api/theme":
             slug, theme = body.get("slug"), body.get("theme")
             if not slug:

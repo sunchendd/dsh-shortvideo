@@ -1,6 +1,6 @@
 # 投放排期
 
-共 32 条，每周 3 条，11 周发完（2026-10-29 起）
+共 33 条，每周 3 条，11 周发完（2026-10-29 起）
 
 | 周 | 日期 | 类型 | 学科 | 时长 | 标题 | 封面 |
 |---|---|---|---|---|---|---|
@@ -24,18 +24,19 @@
 | W7 | 2026-12-10 | 长版 | 生活经济 | 38.8s | 月亮每年溜走3.8厘米，问题出在潮汐 | `out/07-moon-recession/cover_short.png` |
 | W7 | 2026-12-12 | 长版 | 航空/结构 | 35.9s | 舷窗为什么不能是方的？尖角应力高21倍 | `out/18-plane-window/cover_short.png` |
 | W7 | 2026-12-14 | 长版 | 皮肤科学 | 36.8s | 50倍防晒只比30多挡1.3% | `out/19-spf-sunscreen/cover_short.png` |
-| W8 | 2026-12-17 | 长版 | 物理/光学 | 36.7s | 天空本来一片漆黑，蓝是空气撞出来的 | `out/02-rayleigh-blue/cover_short.png` |
+| W8 | 2026-12-17 | 长版 | 物理/光学 | 35.6s | 为什么太阳下看不清手机屏 | `out/24-screen-glare/cover_short.png` |
 | W8 | 2026-12-19 | 长版 | 编码/信息 | 34.6s | 身份证最后一位不是随便编的，它是算出来的 | `out/12-id-checksum/cover_short.png` |
 | W8 | 2026-12-21 | 长版 | 数学/概率 | 37.9s | 钢琴每个五度都短2音分，这是故意的 | `out/14-equal-temperament/cover_short.png` |
 | W9 | 2026-12-24 | 长版 | 化学/生物 | 39.6s | 小苏打和碱面差两千倍，蒸馒头别放错 | `out/20-baking-soda-vs-soda-ash/cover_short.png` |
 | W9 | 2026-12-26 | 长版 | 声学/听觉 | 36.3s | 两音只差四赫兹，为什么听见一下下的抖 | `out/21-beat-frequency/cover_short.png` |
 | W9 | 2026-12-28 | 长版 | 微波/电磁 | 35.8s | 手机进电梯就掉线，根本不是墙太厚 | `out/22-faraday-cage/cover_short.png` |
-| W10 | 2026-12-31 | 长版 | 物理/光学 | 37.9s | 换一个动词，三成人记住了不存在的碎玻璃 | `out/09-memory-rewrite/cover_short.png` |
+| W10 | 2026-12-31 | 长版 | 物理/光学 | 36.7s | 天空本来一片漆黑，蓝是空气撞出来的 | `out/02-rayleigh-blue/cover_short.png` |
 | W10 | 2027-01-02 | 长版 | 编码/信息 | 37.5s | 灰色128不是一半亮，它只发出两成的光 | `out/16-hex-gray-not-half/cover_short.png` |
-| W10 | 2027-01-04 | 长版 | 物理/光学 | 38.3s | 眼前有个洞，直径 5 厘米，你从没看见过 | `out/05-blind-spot/cover_short.png` |
+| W10 | 2027-01-04 | 长版 | 物理/光学 | 37.9s | 换一个动词，三成人记住了不存在的碎玻璃 | `out/09-memory-rewrite/cover_short.png` |
 | W11 | 2027-01-07 | 长版 | 编码/信息 | 40.1s | 一行中文占的空间，为什么是英文的3倍 | `out/15-utf8-chinese-bytes/cover_short.png` |
-| W11 | 2027-01-09 | 长版 | 物理/光学 | 38.5s | 非洲面积是格陵兰的14倍，地图看不出来 | `out/13-mercator-greenland/cover_short.png` |
-| W11 | 2027-01-11 | 长版 | 物理/光学 | 39.6s | 卫星上的钟每天快38微秒，不修导航就偏 | `out/11-gps-relativity/cover_short.png` |
+| W11 | 2027-01-09 | 长版 | 物理/光学 | 38.3s | 眼前有个洞，直径 5 厘米，你从没看见过 | `out/05-blind-spot/cover_short.png` |
+| W11 | 2027-01-11 | 长版 | 物理/光学 | 38.5s | 非洲面积是格陵兰的14倍，地图看不出来 | `out/13-mercator-greenland/cover_short.png` |
+| W11 | 2027-01-13 | 长版 | 物理/光学 | 39.6s | 卫星上的钟每天快38微秒，不修导航就偏 | `out/11-gps-relativity/cover_short.png` |
 
 ## 排期规则
 
