@@ -95,6 +95,7 @@ def _card(slug):
         "title": (cfg.get("title") or cfg.get("publish_title") or cfg.get("topic")
                   or " / ".join((cfg.get("cover") or {}).get("headline") or []) or slug),
         "theme": cfg.get("theme") or "midnight",
+        "cover_direction": cfg.get("cover_direction") or "",
         "format": "short" if str(cfg.get("format") or "").lower() == "short" else "long",
         "seconds": _duration(cfg),
         "subject": _subject(slug, cfg),
