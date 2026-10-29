@@ -20,3 +20,10 @@ studio-index.html
 
 # 配音缓存备份：网络/代理不可用时唯一能重渲的音频来源（edge-tts 是外部依赖）
 .audiocache/
+
+# 单文件过大：这个网络环境单次 git push 有体积上限（实测 >~1MB 的包会被 403 掐断），
+# 以下都是可再生成的示例图 / 可再下载的第三方数据集，保持本地可用、不进仓库。
+skills/ui-ux-pro-max/data/
+examples/covers-f1.png
+examples/variants/
+examples/rhythm.png
