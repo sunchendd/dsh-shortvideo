@@ -633,3 +633,49 @@ class SceneAPI:
         d.text((x - 12 - ox, y - oy), text, font=f,
                fill=(255, 255, 255, int(210 * alpha)), anchor="rm")
         _blend(img, layer, ox, oy)
+
+    # ------------------------------------------------------------ 片头（0.6~0.9s 的品牌开场）
+
+    @staticmethod
+    def intro(img, t, title="", sub="", dur=0.8, style="sweep"):
+        """片头动效：压暗 → 强调线扫过 → 栏目名砸入 → 整体上滑淡出。
+
+        位置很讲究：只占前 ~0.8s，盖住钩子镜的头两帧，让人先记住"这是谁的号"，
+        再听第一句话。次数多了就是账号的视觉签名。
+        """
+        if dur <= 0 or t < 0 or t > dur:
+            return
+        p = R.clamp(t / dur)
+        # 0~0.55 保持，0.55~1 淡出，且整体上移
+        fade = 1.0 if p < 0.58 else R.clamp(1 - (p - 0.58) / 0.42)
+        if fade <= 0.01:
+            return
+        lift = -int(R.ease_in_out(R.clamp((p - 0.58) / 0.42)) * 90)
+        cy = int(R.H * 0.44) + lift
+        # 压暗底
+        layer, ox, oy = _layer((0, 0, R.W, R.H), pad=0)
+        d0 = ImageDraw.Draw(layer)
+        d0.rectangle((0, 0, R.W, R.H), fill=(6, 9, 16, int(246 * fade)))
+        _blend(img, layer, ox, oy)
+        # 片头名下垫一块同色实底：钩子的大字不至于从片头字后面透出来
+        band_h = 150
+        SceneAPI.panel(img, (R.W / 2 - 430, cy - band_h / 2, R.W / 2 + 430, cy + band_h / 2),
+                fill=R.BG_TOP, alpha=0.98 * fade, radius=26)
+        # 强调线：从中间向两侧扫开（前 32%）
+        grow = R.ease_out(R.clamp(p / 0.32))
+        half = int(R.W * 0.34 * grow)
+        if half > 2:
+            ImageDraw.Draw(img, "RGBA").rectangle(
+                (R.W / 2 - half, cy + 74, R.W / 2 + half, cy + 84),
+                fill=tuple(R.ACCENT) + (int(235 * fade),))
+        # 栏目名：1.18 倍砸到 1.0 倍
+        scale = 1.18 - 0.18 * R.ease_out(R.clamp(p / 0.34))
+        if title:
+            size = int(92 * scale)
+            SceneAPI.kinetic_text(img, (R.W / 2, cy), title, size, fill=R.TEXT,
+                                  t=t - 0.04, dur=0.3, style="slam",
+                                  stroke=R.BG_BOT, stroke_w=5, shadow=0.85, alpha=fade)
+        if sub:
+            a = R.clamp((p - 0.26) / 0.2) * fade
+            SceneAPI.text(img, (R.W / 2, cy + 132), sub, 40, fill=R.ACCENT,
+                          bold=True, anchor="mm", alpha=a)

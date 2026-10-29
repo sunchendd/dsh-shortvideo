@@ -143,6 +143,83 @@ figcaption{{color:#8b9bb4;font-size:12px;margin-top:6px;text-align:center}}
     return path
 
 
+# ---------------------------------------------------------------- 封面 A/B 记录
+
+AB_FIELDS = ["slug", "cover", "posted_at", "impressions", "ctr", "likes", "saves",
+             "comments", "follows", "note"]
+
+
+def ab_path(d):
+    return os.path.join(d, "ab-log.csv")
+
+
+def ab_record(d, kv):
+    """记一行发布数据：--ab-record slug=01-x,cover=f1,impressions=12000,ctr=9.1,..."""
+    row = {k: "" for k in AB_FIELDS}
+    for pair in kv.split(","):
+        if "=" not in pair:
+            continue
+        k, v = pair.split("=", 1)
+        row[k.strip()] = v.strip()
+    if not row["slug"]:
+        print("[ab] 缺 slug，忽略")
+        return
+    if not row["posted_at"]:
+        row["posted_at"] = time.strftime("%Y-%m-%d %H:%M")
+    path = ab_path(d)
+    new = not os.path.exists(path)
+    with open(path, "a", encoding="utf-8") as f:
+        if new:
+            f.write(",".join(AB_FIELDS) + "\n")
+        f.write(",".join(str(row[k]).replace(",", "，") for k in AB_FIELDS) + "\n")
+    print(f"[ab] 已记录 {row['slug']} cover={row['cover']} ctr={row['ctr']} → {path}")
+
+
+def ab_report(d):
+    """按封面版式聚合点击率：积累几十条后就能看出"我们的账号吃哪种封面"。"""
+    path = ab_path(d)
+    if not os.path.exists(path):
+        print("[ab] 还没有 ab-log.csv，先用 --ab-record 记几条")
+        return {}
+    import csv
+    rows = []
+    with open(path, encoding="utf-8") as f:
+        for r in csv.DictReader(f):
+            try:
+                r["ctr"] = float(r["ctr"])
+            except (TypeError, ValueError):
+                continue
+            rows.append(r)
+    if not rows:
+        print("[ab] ab-log.csv 里没有可用的 ctr 数据")
+        return {}
+    by = {}
+    for r in rows:
+        by.setdefault(r["cover"] or "?", []).append(r)
+    print(f"\n■ 封面 A/B（{len(rows)} 条记录）")
+    print(f"  {'封面':<6}{'条数':>4}{'平均CTR':>9}{'最高':>8}{'平均互动率':>12}")
+    stat = {}
+    for cover, rs in sorted(by.items()):
+        ctr = sum(x["ctr"] for x in rs) / len(rs)
+        eng = []
+        for x in rs:
+            try:
+                imp = float(x["impressions"])
+            except (TypeError, ValueError):
+                continue
+            if imp > 0:
+                tot = sum(float(x.get(k) or 0) for k in ("likes", "saves", "comments", "follows"))
+                eng.append(tot / imp * 100)
+        e = f"{sum(eng) / len(eng):.2f}%" if eng else "—"
+        stat[cover] = {"n": len(rs), "ctr": round(ctr, 2), "max": max(x["ctr"] for x in rs),
+                       "eng": round(sum(eng) / len(eng), 2) if eng else None}
+        print(f"  {cover:<6}{len(rs):>4}{ctr:>8.2f}%{max(x['ctr'] for x in rs):>7.2f}%{e:>12}")
+    best = max(stat.items(), key=lambda kv: kv[1]["ctr"])
+    print(f"  目前最优版式：{best[0]}（平均 {best[1]['ctr']}%，样本 {best[1]['n']}）"
+          f"{'　样本还太少，结论不稳' if best[1]['n'] < 3 else ''}")
+    return stat
+
+
 def main():
     ap = argparse.ArgumentParser(description="批量：评分 → 出片 → 封面 → 信息图 → 台账")
     ap.add_argument("--dir", default=".")
@@ -150,11 +227,21 @@ def main():
     ap.add_argument("--jobs", type=int, default=3, help="每条片子并行分段数")
     ap.add_argument("--only", default="", help="只跑这些（逗号分隔的 slug 片段）")
     ap.add_argument("--from-score", type=float, default=0, help="低于该分数不出片")
+    ap.add_argument("--ab", action="store_true", help="看封面 A/B 汇总")
+    ap.add_argument("--ab-record", default=None,
+                    help="记一条发布数据：slug=..,cover=f1,impressions=..,ctr=..,likes=..,"
+                         "saves=..,comments=..,follows=..")
     ap.add_argument("--skip-existing", action="store_true",
                     help="成片已存在就跳过渲染（只更新台账/封面页）")
     args = ap.parse_args()
 
     d = os.path.abspath(args.dir)
+    if args.ab_record:
+        ab_record(d, args.ab_record)
+        return
+    if args.ab:
+        ab_report(d)
+        return
     files = sorted(glob.glob(os.path.join(d, "*.content.json")))
     if args.only:
         keys = [k.strip() for k in args.only.split(",") if k.strip()]

@@ -222,6 +222,28 @@ $PY $TOOLS/make.py --content content.json --topic topic_<name> --out out/<name>.
 例如浑厚男声不会用 +15% 语速），并做了响度对齐（-20dBFS 语音电平，避免五段连播电平跳变）。
 逐镜微调：`"mood_tuning": {"hook": {"rate": "+15%"}}`。试听：`$PY $TOOLS/voice_lab.py --preset all`。
 
+### 片头签名（默认开，0.8s）
+
+封面上的栏目名会**自动**做成片头：压暗 → 强调线扫开 → 栏目名砸入 → 上滑淡出，
+盖住钩子镜的前 0.8 秒。同一个名字重复出现在封面和片头，就是账号的视觉签名。
+
+```json
+"intro": {"title": "反常识概率", "sub": "每天一个", "dur": 0.8}   // 默认取 cover.kicker
+"intro": false                                                    // 关掉
+```
+
+### 封面 A/B 台账（发布后回填，越攒越准）
+
+```bash
+# 发布后记一行（ctr 是百分比数字，impressions 用来算互动率）
+$PY $TOOLS/studio.py --dir examples --ab-record "slug=01-x,cover=f1,impressions=12000,ctr=9.1,likes=310,saves=120,comments=40,follows=26"
+# 看汇总：哪种版式在这个账号上真的更吃香
+$PY $TOOLS/studio.py --dir examples --ab
+```
+
+数据落在 `<dir>/ab-log.csv`（slug,cover,posted_at,impressions,ctr,likes,saves,comments,follows,note）。
+样本 <3 时脚本会明说"结论不稳"，别拿一条数据下判断。
+
 ### 背景乐（默认开）与合规标识
 
 - 成片自动垫一层**程序化 BGM**（`tools/bgm.py`，A 小调 Am–F–C–G、96BPM、pad+琶音+轻鼓点，
