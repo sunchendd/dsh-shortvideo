@@ -1,0 +1,161 @@
+{
+  "title": "灰色不是一半亮度",
+  "subtitle": "6 位色号：128 只有 21.6% 的光",
+  "voice": {
+    "preset": "yunxi",
+    "mood_tuning": {
+      "hook": {
+        "rate": "-8%"
+      },
+      "rule": {
+        "rate": "-6%"
+      },
+      "explain": {
+        "rate": "-6%"
+      },
+      "reveal": {
+        "rate": "-12%"
+      }
+    }
+  },
+  "fps": 30,
+  "size": [
+    1080,
+    1920
+  ],
+  "lead_in": 0.15,
+  "tail": 0.55,
+  "cover": {
+    "kicker": "颜色反常识",
+    "serial": "16",
+    "headline": [
+      "灰色 128",
+      "不是一半亮"
+    ],
+    "highlight": [
+      "128"
+    ],
+    "sub": "六个字符里，三盏灯各占两位",
+    "tags": [
+      "#科普",
+      "#颜色",
+      "#冷知识"
+    ],
+    "cta": "看 21.6%"
+  },
+  "shots": [
+    {
+      "id": "hook",
+      "mood": "hook",
+      "min_dur": 5.8,
+      "narration": "屏幕上那个128，其实不是一半的亮度。它暗得多。",
+      "emphasis": [
+        "128"
+      ]
+    },
+    {
+      "id": "rule",
+      "mood": "rule",
+      "min_dur": 7.8,
+      "narration": "色号是6个字符，两位一组：前两位红，中间绿，最后蓝。",
+      "emphasis": [
+        "两位一组"
+      ]
+    },
+    {
+      "id": "insight",
+      "mood": "explain",
+      "min_dur": 7.8,
+      "narration": "每两位是一个0到255的十六进制数。80就是128。",
+      "emphasis": [
+        "80就是128"
+      ]
+    },
+    {
+      "id": "reveal",
+      "mood": "reveal",
+      "min_dur": 8.2,
+      "narration": "同一个128，屏幕上只发出21.6%的光。数字和亮度不是一回事。",
+      "emphasis": [
+        "21.6%"
+      ]
+    },
+    {
+      "id": "solve",
+      "mood": "win",
+      "min_dur": 8.0,
+      "narration": "想要一半亮度，编码得写188。你调色翻过车吗？评论区聊聊。",
+      "emphasis": [
+        "188"
+      ]
+    }
+  ],
+  "deck": {
+    "hook": {
+      "kind": "big",
+      "lines": [
+        "灰色 128",
+        "不是一半亮"
+      ],
+      "sub": "六个字符里，藏着三盏灯",
+      "style": "slam",
+      "ghost": "128"
+    },
+    "rule": {
+      "kind": "cards",
+      "items": [
+        {
+          "t": "6 个字符",
+          "d": "红绿蓝各两位"
+        },
+        {
+          "t": "两位一组",
+          "d": "十六进制，0 到 FF"
+        },
+        {
+          "t": "一组一盏灯",
+          "d": "256 级，由暗到亮"
+        }
+      ]
+    },
+    "insight": {
+      "kind": "digits",
+      "text": "80 80 80",
+      "size": 132,
+      "note": "三位都是八零，三盏灯一样亮"
+    },
+    "reveal": {
+      "kind": "stat",
+      "value": 21.6,
+      "unit": "%",
+      "digits": 1,
+      "label": "128 那一格，真正发出的光只有这么多",
+      "note": "128÷255=0.502，再按 gamma 2.2 换成 0.216"
+    },
+    "solve": {
+      "kind": "bars",
+      "items": [
+        {
+          "label": "编码 128",
+          "v": 21.6,
+          "value": "21.6% 光"
+        },
+        {
+          "label": "编码 188",
+          "v": 50,
+          "value": "50% 光"
+        }
+      ],
+      "note": "编码值不是亮度，中间隔着一条 gamma 曲线"
+    }
+  },
+  "transition": {
+    "type": "fade",
+    "dur": 0.24
+  },
+  "publish_title": "灰色128不是一半亮，它只发出两成的光",
+  "bgm": {
+    "style": "pulse",
+    "gain": -27.0
+  }
+}

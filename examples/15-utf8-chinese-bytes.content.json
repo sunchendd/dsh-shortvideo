@@ -1,0 +1,214 @@
+{
+  "title": "中文为什么占3个字节",
+  "subtitle": "UTF-8：字母 1 个字节，汉字 3 个",
+  "voice": {
+    "preset": "yunjian"
+  },
+  "fps": 30,
+  "size": [
+    1080,
+    1920
+  ],
+  "lead_in": 0.15,
+  "tail": 0.55,
+  "cover": {
+    "kicker": "编码反常识",
+    "serial": "15",
+    "headline": [
+      "中文文件",
+      "为什么大3倍"
+    ],
+    "highlight": [
+      "大3倍"
+    ],
+    "sub": "一个汉字 3 字节，一个字母 1 字节",
+    "tags": [
+      "#科普",
+      "#编码",
+      "#冷知识"
+    ],
+    "cta": "看差在哪"
+  },
+  "shots": [
+    {
+      "id": "hook",
+      "mood": "hook",
+      "min_dur": 6.2,
+      "narration": "一行中文存下来，占的空间是英文的3倍。字明明一样多。",
+      "emphasis": [
+        "3倍"
+      ]
+    },
+    {
+      "id": "rule",
+      "mood": "rule",
+      "min_dur": 7.6,
+      "narration": "这套规矩叫UTF-8。一个字母1个字节，一个汉字3个字节。",
+      "emphasis": [
+        "UTF-8"
+      ]
+    },
+    {
+      "id": "insight",
+      "mood": "explain",
+      "min_dur": 7.8,
+      "narration": "一个字节只有256个格子，汉字有两万多个，一个格子放不下。",
+      "emphasis": [
+        "256个格子"
+      ]
+    },
+    {
+      "id": "reveal",
+      "mood": "reveal",
+      "min_dur": 7.6,
+      "narration": "3个字节是24位，其中8位在打标记，真正装字的只有16位。",
+      "emphasis": [
+        "24位",
+        "16位"
+      ]
+    },
+    {
+      "id": "solve",
+      "mood": "win",
+      "min_dur": 8.6,
+      "narration": "记住中文3字节，英文1字节，emoji 4字节。你踩过哪些乱码？评论区聊聊。",
+      "emphasis": [
+        "评论区"
+      ]
+    }
+  ],
+  "deck": {
+    "hook": {
+      "kind": "bits",
+      "items": [
+        {
+          "label": "中",
+          "on": 1
+        },
+        {
+          "label": "中",
+          "on": 1
+        },
+        {
+          "label": "中",
+          "on": 1
+        },
+        {
+          "label": "文",
+          "on": 1
+        },
+        {
+          "label": "文",
+          "on": 1
+        },
+        {
+          "label": "文",
+          "on": 1
+        },
+        {
+          "label": "编",
+          "on": 1
+        },
+        {
+          "label": "编",
+          "on": 1
+        },
+        {
+          "label": "编",
+          "on": 1
+        },
+        {
+          "label": "码",
+          "on": 1
+        },
+        {
+          "label": "码",
+          "on": 1
+        },
+        {
+          "label": "码",
+          "on": 1
+        }
+      ],
+      "note": "四个汉字，占掉 12 个字节",
+      "ghost": "字节",
+      "ghost_y": 1150,
+      "ghost_size": 300
+    },
+    "rule": {
+      "kind": "compare",
+      "left": {
+        "label": "英文 a",
+        "value": "1 字节",
+        "note": "一个字符占一格"
+      },
+      "right": {
+        "label": "汉字 中",
+        "value": "3 字节",
+        "note": "一个字符占三格"
+      },
+      "note": "变长编码：汉字比字母多花两个字节"
+    },
+    "insight": {
+      "kind": "flow",
+      "items": [
+        {
+          "t": "一个字节 256 格",
+          "d": "8 个 0 和 1 的排列"
+        },
+        {
+          "t": "汉字两万多个",
+          "d": "一格装不下"
+        },
+        {
+          "t": "只好拆成 3 个字节",
+          "d": "拼起来才是同一个字"
+        }
+      ],
+      "note": "第 1 个字节的前缀是 1110"
+    },
+    "reveal": {
+      "kind": "bars",
+      "items": [
+        {
+          "label": "打标记",
+          "v": 8,
+          "value": "8 位"
+        },
+        {
+          "label": "装字",
+          "v": 16,
+          "value": "16 位"
+        }
+      ],
+      "note": "16 位能放下 65536 个位置"
+    },
+    "solve": {
+      "kind": "list",
+      "items": [
+        {
+          "t": "中文 3 字节",
+          "d": "1000 字就是 3 KB"
+        },
+        {
+          "t": "英文 1 字节",
+          "d": "同样的内容省三倍"
+        },
+        {
+          "t": "emoji 4 字节",
+          "d": "表情比汉字还贵"
+        }
+      ],
+      "note": "字数一样，字节数可以差三倍"
+    }
+  },
+  "transition": {
+    "type": "fade",
+    "dur": 0.24
+  },
+  "publish_title": "一行中文占的空间，为什么是英文的3倍",
+  "bgm": {
+    "style": "pulse",
+    "gain": -26.5
+  }
+}
