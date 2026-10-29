@@ -18,7 +18,7 @@ SRC_DIR="$REPO_DIR/skills/shortvideo"
 SKILLS_DIR="${DSH_SKILLS_DIR:-$HOME/.dsh/skills}"
 DEST_DIR="$SKILLS_DIR/shortvideo"
 # 角色技能（纯提示词，无依赖）：创意总监 / 短视频大师 / 一张图总结 / AI 画室
-ROLE_SKILLS=(xhs-creative-director shortvideo-master one-image-summary ai-art-studio)
+ROLE_SKILLS=(xhs-creative-director xhs-art-director shortvideo-master one-image-summary ai-art-studio ui-ux-pro-max brand banner-design design-system)
 VENV="$DEST_DIR/.venv"
 PIP_INDEX="${SHORTVIDEO_PIP_INDEX:-}"
 DO_DEPS=1

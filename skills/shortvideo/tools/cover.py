@@ -1,8 +1,10 @@
 """爆款封面生成（小红书视频封面只有 3:4 / 1:1 / 4:3，官方建议竖版 3:4）。
 
-依据 docs/xhs-playbook.md §3：
-  - 画布 1080x1440（3:4），MARGIN=72，主标题 84~132px（默认 120），描边 max(4, size/18)，
-    行距 1.14；底 #0E1116，强调红 #FF2D55，数字高亮黄 #FFD400
+依据 docs/xhs-playbook.md §3 + docs/visual-system.md：
+  - 画布 1080x1440（3:4），MARGIN=72，主标题 100~144px（刻度 h3/h2/h1），描边 max(4, size/18)，
+    行距 1.14；底 INK.850→INK.950（与视频同一条中性阶），品牌青 #3DE8FF，
+    高亮块琥珀 #FFC22E + 深字 #04060E，状态玫 #FF3D63（序号徽标/标注圈）
+  - 颜色与字号一律取 runtime.token（INK/BRAND/STATE/AMBER_SCALE/TS/LEADING），本文件不写死
   - 平台支持封面 A/B（最多 4 张，10 小时后按点击率选优）→ 一次产出 3 个差异化版式：
       F1 数字反差大字报（结论狠）/ F3 红圈标注截图式（有画面主体）/ F6 遮一半（制造信息缺口）
   - 再额外出 1 张 9:16，供视频首帧/主页头图复用
@@ -23,17 +25,26 @@ from PIL import Image, ImageDraw, ImageFilter
 from shortvideo import runtime as R
 from shortvideo import scenes as _scenes
 
-# 3:4 封面基线（playbook §3.1）
+# 3:4 封面基线（playbook §3.1）—— 颜色/字号全部取自 runtime 的 token
+# （唯一出处 docs/visual-system.md；这里不许再出现字面色值）
 W34, H34 = 1080, 1440
-MARGIN = 72
-SIZE_MAX, SIZE_MIN = 132, 84
-SUB_SIZE = 58
-LINE_SPACING = 1.14
-BG = (14, 17, 22)          # #0E1116
-FG = (255, 255, 255)
-ACCENT = (255, 45, 85)     # #FF2D55
-ACCENT2 = (255, 212, 0)    # #FFD400
-GREY = (154, 163, 174)     # #9AA3AE
+MARGIN = R.GUTTER                          # 72
+TS = R.TS                                  # 排版刻度
+LEAD = R.LEADING
+SPACE = R.SPACE
+SIZE_MAX, SIZE_MIN = TS["h1"], TS["h3"]    # 主标题 144 → 100（缩略图 32px → 22px）
+SUB_SIZE = TS["lead"]                      # 副标 68（240px 缩略图 ≈ 15px）
+# 副标色：中性浅灰（≈INK.250）。青色留给"结构"语义（栏目/时长/标签），
+# 不压主标题——青的亮度 0.659 是标题白 0.886 的 0.74 倍，台阶太浅会抢层级。
+SUB_INK = (206, 216, 232)
+LINE_SPACING = LEAD["title"]               # 1.14
+BG = R.INK["950"]          # 与视频底同一条中性阶的底端
+FG = R.INK["0"]            # 主标题
+ACCENT = R.BRAND["500"]    # 品牌青：栏目名/副标/序号环（不再是红）
+ACCENT2 = R.AMBER_SCALE["500"]   # 高亮块：每张封面唯一一处暖色
+GREY = R.INK["300"]        # 标签/次级文字（7.9:1）
+STATE = R.STATE["500"]     # 状态玫：序号徽标、F3 标注圈
+DARK = R.INK["950"]        # 亮底上的深字
 _PROBE = ImageDraw.Draw(Image.new("RGB", (1, 1)))
 
 
@@ -102,10 +113,24 @@ def _cfg(content):
 # ---------------------------------------------------------------- 基础件
 
 def _canvas(w, h, accent):
-    """深底 + 顶部强调色柔光 + 斜向细纹（缩略图里也有质感）。"""
-    img = Image.new("RGB", (w, h), BG)
+    """深底 + 强调色柔光 + 斜向细纹（缩略图里也有质感）。
+
+    底色用与视频同一套（INK.850→INK.950 竖向渐变 + 60px 点阵），
+    这样"视频里的一帧"和"同一条片子的封面"在信息流里是同一张脸，
+    而不是两种设计（旧封面是纯色 #0E1116，跟视频底一比就露馅）。
+    """
+    grad = Image.linear_gradient("L").resize((w, h))
+    img = Image.composite(Image.new("RGB", (w, h), BG),
+                          Image.new("RGB", (w, h), R.BG_TOP), grad)
+    d = ImageDraw.Draw(img)
+    for y in range(0, h, 60):
+        for x in range(0, w, 60):
+            d.point((x, y), fill=R.INK["700"])
     glow = R._glow_mask(int(min(w, h) * 0.62))  # noqa: SLF001
-    sprite = Image.new("RGBA", glow.size, accent + (255,))
+    # 光斑压到品牌色的 62% 亮度：两件事同时成立——
+    # ① 与视频底"深底 + 局部辉光"同一套做法；② 辉光不越过年检的"亮墨"阈值(L>140)，
+    #    否则它会被算成标题墨迹，把安全边距从 72 判成 27（青色辉光 L≈183 就踩过这个坑）。
+    sprite = Image.new("RGBA", glow.size, tuple(int(v * 0.62) for v in accent) + (255,))
     layer = Image.new("RGBA", (w, h), (0, 0, 0, 0))
     layer.paste(sprite, (int(w * 0.78 - glow.size[0] / 2), int(h * 0.06 - glow.size[1] / 2)), glow)
     layer = layer.filter(ImageFilter.GaussianBlur(int(min(w, h) * 0.02)))
@@ -117,53 +142,55 @@ def _canvas(w, h, accent):
     return img
 
 
-def _kicker(img, cx, y, text, accent, size=36):
+def _kicker(img, cx, y, text, accent, size=TS["label"]):
     f = R.font(size, bold=True)
     w = _PROBE.textlength(text, font=f) + 60
-    layer, ox, oy = _scenes._layer((cx - w / 2, y - 32, cx + w / 2, y + 32), pad=2)
+    pad = int(size * 0.66)                   # 胶囊内边距随字号走，不写死 32
+    layer, ox, oy = _scenes._layer((cx - w / 2, y - pad, cx + w / 2, y + pad), pad=2)
     d = ImageDraw.Draw(layer)
-    d.rounded_rectangle((cx - w / 2 - ox, y - 32 - oy, cx + w / 2 - ox, y + 32 - oy),
-                        radius=32, fill=accent + (34,), outline=accent + (210,), width=2)
+    d.rounded_rectangle((cx - w / 2 - ox, y - pad - oy, cx + w / 2 - ox, y + pad - oy),
+                        radius=pad, fill=accent + (34,), outline=accent + (210,), width=2)
     d.text((cx - ox, y - oy), text, font=f, fill=accent + (255,), anchor="mm")
     _paste(img, layer, ox, oy)
 
 
-def _tags(img, cx, y, tags, accent, size=34):
+def _tags(img, cx, y, tags, accent, size=TS["label"]):
     if not tags:
         return
     f = R.font(size, bold=True)
-    widths = [_PROBE.textlength(t, font=f) + 46 for t in tags]
-    x = cx - (sum(widths) + 20 * (len(tags) - 1)) / 2
+    pad, gap = int(size * 0.94), SPACE["sm"]
+    widths = [_PROBE.textlength(t, font=f) + pad for t in tags]
+    x = cx - (sum(widths) + gap * (len(tags) - 1)) / 2
+    half = int(size * 0.62)
     for t, w in zip(tags, widths):
-        layer, ox, oy = _scenes._layer((x, y - 30, x + w, y + 30), pad=2)
+        layer, ox, oy = _scenes._layer((x, y - half, x + w, y + half), pad=2)
         d = ImageDraw.Draw(layer)
-        d.rounded_rectangle((x - ox, y - 30 - oy, x + w - ox, y + 30 - oy), radius=30,
+        d.rounded_rectangle((x - ox, y - half - oy, x + w - ox, y + half - oy), radius=half,
                             fill=(255, 255, 255, 18), outline=(255, 255, 255, 64), width=1)
         d.text((x + w / 2 - ox, y - oy), t, font=f, fill=GREY + (255,), anchor="mm")
         _paste(img, layer, ox, oy)
-        x += w + 20
+        x += w + gap
 
 
 def _serial(img, w, n, accent, r=None):
-    """右上角序号徽标。
+    """右上角序号徽标（状态玫底 + 深字）。
 
-    两个曾经的真问题（队友在短版封面上报出来的）：
+    三个曾经的真问题（都在实测里被抓到过）：
       ① 字号写死成 r，而序号是「短05」这种 3 个字符——直接撑出圆外；
-      ② 黑字压在洋红圆上，缩略图里糊成一团，读不出来。
-    现在按实测宽度缩字号（圆内接方宽的 0.88），并按圆底色亮度选黑/白字。
+      ② 黑字压在洋红圆上，缩略图里糊成一团，读不出来；
+      ③ 白字压 #FF2D55 只有 3.65:1（<4.5）—— 现在改成深字压玫底 = 5.88:1。
+    所以：底色只用 STATE（品牌青不做"状态"），字色固定 INK.950，字号按实测宽度缩。
     """
     r = r or int(w * 0.052)
     d = ImageDraw.Draw(img, "RGBA")
     cx, cy = w - MARGIN - r, MARGIN + r
-    d.ellipse((cx - r, cy - r, cx + r, cy + r), fill=accent + (255,))
+    d.ellipse((cx - r, cy - r, cx + r, cy + r), fill=STATE + (255,))
     txt = str(n)
     size = int(r * 1.05)
     box = r * 2 * 0.68                       # 留足内边距（字形比 advance 宽一点）
     while size > 9 and R.font(size, bold=True).getlength(txt) > box:
         size -= 2
-    lum = 0.2126 * accent[0] + 0.7152 * accent[1] + 0.0722 * accent[2]
-    fg = (10, 12, 18, 255) if lum > 168 else (255, 255, 255, 255)
-    d.text((cx, cy), txt, font=R.font(size, bold=True), fill=fg, anchor="mm")
+    d.text((cx, cy), txt, font=R.font(size, bold=True), fill=DARK + (255,), anchor="mm")
 
 
 def _text_outline(img, xy, s, size, fill, stroke=None, anchor="mm", stroke_w=None, font=None):
@@ -213,32 +240,35 @@ def _variant_f1(c, w=W34, h=H34):
     """F1 数字反差大字报：主标题 1~3 行居中，副标一行强调色。"""
     accent, accent2 = c["accent"], c["accent2"]
     img = _canvas(w, h, accent)
-    _kicker(img, w / 2, MARGIN + 34, c["kicker"], accent, size=36)
+    _kicker(img, w / 2, MARGIN + 34, c["kicker"], accent, size=TS["label"])
     if c["serial"]:
         _serial(img, w, c["serial"], accent)
 
     lines = c["headline"]
     max_w = w - MARGIN * 2
-    hi = 120 if len(lines) <= 1 else (112 if len(lines) == 2 else 100)
+    hi = TS["h1"] if len(lines) <= 1 else (TS["h2"] if len(lines) == 2 else TS["h3"])
     size = min(_fit(ln, max_w, hi=hi, lo=SIZE_MIN)[0] for ln in lines)
     # 拆行优先于缩字：字被行长撑小时（实测 8 张封面掉到 86~88px，
     # 缩略图上明显偏小），把最长的一行拆成两行重新取字号，能大就大。
-    if size < 100 and len(lines) < 4:
+    if size < TS["h3"] and len(lines) < 4:
         worst = max(lines, key=lambda ln: R.font(size, bold=True).getlength(ln))
         pivot = _split_point(worst)
         if pivot:
             i = lines.index(worst)
             trial = lines[:i] + [worst[:pivot], worst[pivot:]] + lines[i + 1:]
-            t_hi = 112 if len(trial) == 2 else 100
+            t_hi = TS["h2"] if len(trial) == 2 else TS["h3"]
             t_size = min(_fit(ln, max_w, hi=t_hi, lo=SIZE_MIN)[0] for ln in trial)
             if t_size > size + 4:
                 lines, size = trial, t_size
     f = R.font(size, bold=True)
     line_h = int(size * LINE_SPACING)
     block_h = line_h * len(lines)
-    y = max(MARGIN + 120, int(h * 0.245) if len(lines) > 1 else int(h * 0.30))
-    if len(lines) <= 2:                      # 行少时整体视觉居中，别留大片空底
-        y = max(MARGIN + 120, int(h * 0.44 - block_h / 2))
+    # 垂直位置：把主标题块居中在"栏目名以下、标签以上"的可用区里。
+    # 旧写法按 h*0.245 / h*0.44 两档拍，2 行标题会在下半页留 500px 空底——
+    # 缩略图里那一片纯黑就是"这图没做完"的观感。
+    y = int(R.clamp(
+        ((MARGIN + 150) + (h - MARGIN - 140)) / 2 - block_h / 2,
+        MARGIN + 120, max(MARGIN + 120, h - MARGIN - 200 - block_h)))
     for ln in lines:
         hit = next((wd for wd in c["highlight"] if wd and ln.find(wd) >= 0), None)
         tw = f.getlength(ln)
@@ -254,7 +284,7 @@ def _variant_f1(c, w=W34, h=H34):
             before, after = ln[:k], ln[k + len(hit):]
             if before:
                 d.text((x0, y + line_h / 2), before, font=f, fill=FG + (255,), anchor="lm")
-            d.text((x0 + pre, y + line_h / 2), hit, font=f, fill=(17, 17, 17, 255), anchor="lm")
+            d.text((x0 + pre, y + line_h / 2), hit, font=f, fill=DARK + (255,), anchor="lm")
             if after:
                 d.text((x0 + pre + hw, y + line_h / 2), after, font=f,
                        fill=FG + (255,), anchor="lm")
@@ -263,12 +293,16 @@ def _variant_f1(c, w=W34, h=H34):
         y += line_h
 
     if c["sub"]:
-        sub_size, fsub = _fit(c["sub"], w - MARGIN * 2, hi=SUB_SIZE, lo=36)
-        _text_outline(img, (w / 2, y + int(h * 0.035)), c["sub"], sub_size, accent,
+        sub_size, fsub = _fit(c["sub"], w - MARGIN * 2, hi=SUB_SIZE, lo=TS["body"])
+        # 副标用中性浅灰而不是品牌青：青的亮度 0.659 是标题白的 0.74 倍，
+        # 台阶太浅——副标会和主标题抢层级（这正是设计系统自己诊断过的"无亮度台阶"）。
+        # 改后封面四层分明：白=主信息 / 琥珀=数字 / 浅灰=解释 / 青=结构（栏目·时长·标签）。
+        _text_outline(img, (w / 2, y + int(h * 0.035)), c["sub"], sub_size, SUB_INK,
                       anchor="mm", stroke_w=0, font=fsub)
-    _tags(img, w / 2, h - MARGIN - 54, c["tags"], accent)
+    _tags(img, w / 2, h - MARGIN - 58, c["tags"], accent, size=TS["label"])
     if c["cta"]:
-        _text_outline(img, (w / 2, h - MARGIN + 6), c["cta"], 40, FG, anchor="mm", stroke_w=0)
+        _text_outline(img, (w / 2, h - MARGIN + 4), c["cta"], TS["label"], FG,
+                      anchor="mm", stroke_w=0)
     return img
 
 
@@ -281,20 +315,21 @@ def _variant_short(c, w=W34, h=H34):
     accent, accent2 = c["accent"], c["accent2"]
     img = _canvas(w, h, accent)
     secs = c.get("seconds")
-    _kicker(img, w / 2, MARGIN + 34, c["kicker"], accent, size=38)
+    _kicker(img, w / 2, MARGIN + 34, c["kicker"], accent, size=TS["label"])
     if c["serial"]:                 # 系列序号保留：短版也要能"认出是同一个号"
         _serial(img, w, c["serial"], accent)
     # 时长徽标放在栏目名下方左侧：短版的卖点就是"几十秒看完"，
     # 但不能顶掉右上角的系列序号（那是账号识别）
     if secs:
         d = ImageDraw.Draw(img, "RGBA")
-        f = R.font(46, bold=True)
+        f = R.font(TS["label"], bold=True)
         label = f"{secs:g} 秒速通"
         tw = f.getlength(label)
+        bh = int(TS["label"] * 1.55)
         bx0, by0 = MARGIN, MARGIN + 84
-        d.rounded_rectangle([bx0, by0, bx0 + tw + 52, by0 + 76], radius=38,
+        d.rounded_rectangle([bx0, by0, bx0 + tw + 52, by0 + bh], radius=bh // 2,
                             fill=accent + (40,), outline=accent + (190,), width=3)
-        d.text((bx0 + 26, by0 + 38), label, font=f, fill=accent + (255,), anchor="lm")
+        d.text((bx0 + 26, by0 + bh // 2), label, font=f, fill=accent + (255,), anchor="lm")
 
     # 曾经写死 [:2]，把第 3 行**静默丢掉**：19/18/02/22 等 9 条片子的封面
     # 变成「五十倍防晒 / 只多挡」——核心数字整行消失，读不通。
@@ -303,10 +338,10 @@ def _variant_short(c, w=W34, h=H34):
     lines = c["headline"][:3]
     c["_headline_drawn"] = len(lines)      # 供 lint 比对"配置了几行 vs 画了几行"
     max_w = w - MARGIN * 2
-    hi = 176 if len(lines) <= 2 else 132
-    size = min(_fit(ln, max_w, hi=hi, lo=SIZE_MIN)[0] for ln in lines)
+    hi = TS["display"] if len(lines) <= 2 else TS["mega"] - 40
+    size = min(_fit(ln, max_w, hi=hi, lo=TS["h3"])[0] for ln in lines)
     f = R.font(size, bold=True)
-    line_h = int(size * 1.14)
+    line_h = int(size * LINE_SPACING)
     block_h = line_h * len(lines)
     y = int(h * 0.46 - block_h / 2)
     for ln in lines:
@@ -324,7 +359,7 @@ def _variant_short(c, w=W34, h=H34):
             before, after = ln[:k], ln[k + len(hit):]
             if before:
                 d.text((x0, y + line_h / 2), before, font=f, fill=FG + (255,), anchor="lm")
-            d.text((x0 + pre, y + line_h / 2), hit, font=f, fill=(17, 17, 17, 255), anchor="lm")
+            d.text((x0 + pre, y + line_h / 2), hit, font=f, fill=DARK + (255,), anchor="lm")
             if after:
                 d.text((x0 + pre + hw, y + line_h / 2), after, font=f,
                        fill=FG + (255,), anchor="lm")
@@ -333,12 +368,13 @@ def _variant_short(c, w=W34, h=H34):
         y += line_h
 
     if c["sub"]:
-        sub_size, fsub = _fit(c["sub"], w - MARGIN * 2, hi=56, lo=38)
-        _text_outline(img, (w / 2, y + int(h * 0.045)), c["sub"], sub_size, accent,
+        sub_size, fsub = _fit(c["sub"], w - MARGIN * 2, hi=SUB_SIZE, lo=TS["body"])
+        _text_outline(img, (w / 2, y + int(h * 0.045)), c["sub"], sub_size, SUB_INK,
                       anchor="mm", stroke_w=0, font=fsub)
-    _tags(img, w / 2, h - MARGIN - 54, c["tags"], accent)
+    _tags(img, w / 2, h - MARGIN - 58, c["tags"], accent, size=TS["label"])
     if c["cta"]:
-        _text_outline(img, (w / 2, h - MARGIN + 6), c["cta"], 44, FG, anchor="mm", stroke_w=0)
+        _text_outline(img, (w / 2, h - MARGIN + 4), c["cta"], TS["label"], FG,
+                      anchor="mm", stroke_w=0)
     return img
 
 
@@ -372,25 +408,29 @@ def _variant_f3(c, frame_path=None, w=W34, h=H34):
     # 否则双标题会互相打架（视频里已经有自己的大字）。
     title = c.get("f3_title") or ""
     if title:
-        size, f = _fit(title, w - MARGIN * 2, hi=104, lo=SIZE_MIN)
+        size, f = _fit(title, w - MARGIN * 2, hi=TS["h2"], lo=SIZE_MIN)
         d.text((MARGIN, MARGIN + 6), title, font=f, fill=FG + (255,), anchor="la",
                stroke_width=max(4, size // 18), stroke_fill=(0, 0, 0, 255))
-    _kicker(img, MARGIN + 150, MARGIN + 40, c["kicker"], accent, size=34)
+    _kicker(img, MARGIN + 170, MARGIN + 42, c["kicker"], accent, size=TS["label"])
 
-    # 红圈：默认落在画面中部偏右的"差异点"（可用 cover.ring 覆盖）
+    # 标注圈：默认落在画面中部偏右的"差异点"（可用 cover.ring 覆盖）
+    # 圈用 STATE（状态玫）而不是品牌青——视频里"被指出来/被点亮"就是这个色，
+    # 圈标签改深字压玫底：白字压 #FF2D55 只有 3.65:1，深字有 5.88:1。
     cx, cy, r = c["ring"] or (int(w * 0.62), int(h * 0.52), 170)
-    d.ellipse((cx - r, cy - r, cx + r, cy + r), outline=accent + (255,), width=10)
+    d.ellipse((cx - r, cy - r, cx + r, cy + r), outline=STATE + (255,), width=10)
     if c["ring_label"]:
         lab = c["ring_label"][:6]
-        f2 = R.font(64, bold=True)
+        f2 = R.font(TS["lead"], bold=True)
         tw = d.textlength(lab, font=f2)
+        bh = int(TS["lead"] * 1.5)
         bx, by = cx + r * 0.5, cy + r * 0.15
-        d.rounded_rectangle((bx, by, bx + tw + 44, by + 100), radius=16, fill=accent + (255,))
-        d.text((bx + 22, by + 50), lab, font=f2, fill=FG + (255,), anchor="lm")
+        d.rounded_rectangle((bx, by, bx + tw + 44, by + bh), radius=16, fill=STATE + (255,))
+        d.text((bx + 22, by + bh // 2), lab, font=f2, fill=DARK + (255,), anchor="lm")
 
     if c["sub"]:
-        _text_outline(img, (w / 2, h - MARGIN - 104), c["sub"], 48, FG, anchor="mm", stroke_w=0)
-    _tags(img, w / 2, h - MARGIN - 24, c["tags"], accent)
+        _text_outline(img, (w / 2, h - MARGIN - 104), c["sub"], TS["body"], FG,
+                      anchor="mm", stroke_w=0)
+    _tags(img, w / 2, h - MARGIN - 24, c["tags"], accent, size=TS["label"])
     return img
 
 
@@ -398,13 +438,13 @@ def _variant_f6(c, w=W34, h=H34):
     """F6 知识性好奇（遮一半）：关键字高亮黄块 + 其余 70% 白，制造"信息在封面外"。"""
     accent, accent2 = c["accent"], c["accent2"]
     img = _canvas(w, h, accent)
-    _kicker(img, w / 2, MARGIN + 34, c["kicker"], accent, size=36)
+    _kicker(img, w / 2, MARGIN + 34, c["kicker"], accent, size=TS["label"])
     if c["serial"]:
         _serial(img, w, c["serial"], accent)
 
     lines = c["headline"]
     max_w = w - MARGIN * 2
-    hi = 116 if len(lines) <= 1 else 108
+    hi = TS["h1"] if len(lines) <= 1 else TS["h2"]
     size = min(_fit(ln, max_w, hi=hi, lo=SIZE_MIN)[0] for ln in lines)
     f = R.font(size, bold=True)
     line_h = int(size * LINE_SPACING)
@@ -425,7 +465,7 @@ def _variant_f6(c, w=W34, h=H34):
             before, after = ln[:k], ln[k + len(hit):]
             if before:
                 d.text((x, y + line_h / 2), before, font=f, fill=FG + (178,), anchor="lm")
-            d.text((x + pre, y + line_h / 2), hit, font=f, fill=(17, 17, 17, 255), anchor="lm")
+            d.text((x + pre, y + line_h / 2), hit, font=f, fill=DARK + (255,), anchor="lm")
             if after:
                 d.text((x + pre + hw, y + line_h / 2), after, font=f, fill=FG + (178,), anchor="lm")
         else:
@@ -433,13 +473,13 @@ def _variant_f6(c, w=W34, h=H34):
         y += line_h
 
     if c["sub"]:
-        _text_outline(img, (w / 2, y + int(h * 0.045)), c["sub"], 50, accent,
+        _text_outline(img, (w / 2, y + int(h * 0.045)), c["sub"], TS["body"], accent,
                       anchor="mm", stroke_w=0)
     band_y = h - MARGIN - 160
     d.rounded_rectangle((MARGIN, band_y, w - MARGIN, band_y + 8), radius=4, fill=accent + (255,))
-    _text_outline(img, (w / 2, band_y + 74), c["cta"] or "点开看完整推导", 42, FG,
+    _text_outline(img, (w / 2, band_y + 74), c["cta"] or "点开看完整推导", TS["label"], FG,
                   anchor="mm", stroke_w=0)
-    _tags(img, w / 2, h - MARGIN + 6, c["tags"], accent)
+    _tags(img, w / 2, h - MARGIN + 6, c["tags"], accent, size=TS["label"])
     return img
 
 
