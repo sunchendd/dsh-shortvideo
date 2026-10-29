@@ -43,6 +43,10 @@
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><circle cx="12" cy="12" r="8"/><path d="M12 4v16a8 8 0 000-16z" fill="currentColor" stroke="none"/></svg>
       主题
     </button>
+    <button data-panel="deliver" title="查看成片与发布素材">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M12 3v12"/><path d="M7 10l5 5 5-5"/><path d="M4 20h16"/></svg>
+      交付
+    </button>
     <button data-panel="checks">
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M4 12l5 5L20 6"/></svg>
       检查
@@ -178,6 +182,43 @@
       <button class="tbtn" id="exCancel">关闭</button>
       <button class="tbtn primary" id="exGo">开始导出</button>
     </footer>
+  </div>
+</div>
+
+<!-- 交付面板：导出完成后落地的地方 -->
+<div class="scrim" id="deliverScrim">
+  <div class="modal result">
+    <header>
+      <h2 id="dlTitle">成片交付</h2>
+      <button class="tbtn" id="dlClose">×</button>
+    </header>
+    <div class="body result-body">
+      <div class="dleft">
+        <video id="dlVideo" controls playsinline preload="metadata"></video>
+        <div class="meta" id="dlStat">—</div>
+      </div>
+      <div class="dright">
+        <div class="field">
+          <label>发布标题（≤20 字）</label>
+          <input id="dlPubTitle" maxlength="30">
+          <div class="meta" id="dlTitleCount"></div>
+        </div>
+        <div class="field">
+          <label>话题</label>
+          <div class="chips" id="dlTopics"></div>
+        </div>
+        <div class="field">
+          <label>封面</label>
+          <div class="covers" id="dlCovers"></div>
+        </div>
+        <div class="dlbtns">
+          <a class="btn primary" id="dlDown" download>下载视频</a>
+          <a class="btn" id="dlDownSummary" download>下载一张图</a>
+          <button class="btn" id="dlRerun">重新导出</button>
+        </div>
+        <div class="meta" id="dlQA" style="margin-top:12px"></div>
+      </div>
+    </div>
   </div>
 </div>
 

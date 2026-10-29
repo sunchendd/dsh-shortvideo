@@ -550,6 +550,7 @@ function bindPanels() {
 }
 
 async function openPanel(name, btn) {
+  if (name === "deliver") { return openDeliver(false); }
   if (S.panel === name && $("#drawer").classList.contains("on")) return closePanel();
   S.panel = name;
   $$(".rail button").forEach((b) => b.classList.toggle("on", b === btn));
@@ -645,6 +646,58 @@ function closePanel() {
   S.panel = null;
 }
 
+/* ------------------------------------------------------------ 交付
+   导出完不是"结束了"，而是要拿到能直接发的东西：视频 + 封面 + 标题 + 话题。
+   这一屏就是交付清单，缺什么如实标出来。 */
+async function openDeliver(auto = false) {
+  const d = await jget(`/api/deliver?slug=${encodeURIComponent(S.slug)}`).catch(() => null);
+  if (!d) return toast("读不到交付信息");
+  if (!d.video) {
+    if (!auto) toast("还没有成片，先导出");
+    return;
+  }
+  $("#dlTitle").textContent = auto ? "导出完成" : "成片交付";
+  $("#dlVideo").src = d.video + "?v=" + Date.now();
+  $("#dlStat").textContent =
+    `${d.duration}s · ${d.size_mb}MB · ${S.proj.size[0]}×${S.proj.size[1]} · h264+aac`;
+  $("#dlPubTitle").value = d.publish_title || "";
+  const count = () => {
+    const n = $("#dlPubTitle").value.trim().length;
+    $("#dlTitleCount").innerHTML = `${n} 字 ` +
+      (n > 20 ? `<span style="color:var(--bad)">超过 20 字，信息流会被截断</span>` : "");
+  };
+  count();
+  $("#dlPubTitle").oninput = count;
+  $("#dlTopics").innerHTML = (d.topics && d.topics.length ? d.topics : d.tags || [])
+    .map((t) => `<span class="chip">${esc(t)}</span>`).join("") || `<span class="meta">没有话题，建议加 2~3 个</span>`;
+  $("#dlCovers").innerHTML = d.covers.map((c, i) => `
+    <label class="${i === 0 ? "on" : ""}" data-cover="${esc(c.url)}">
+      <input type="radio" name="cover" ${i === 0 ? "checked" : ""}>
+      <img src="${c.url}" alt=""><span>${esc(c.label)}</span>
+    </label>`).join("");
+  $("#dlCovers").querySelectorAll("label").forEach((l) => {
+    l.onclick = () => {
+      $("#dlCovers").querySelectorAll("label").forEach((x) => x.classList.remove("on"));
+      l.classList.add("on");
+      const a = $("#dlDown");
+    };
+  });
+  $("#dlDown").href = d.video;
+  const sum = $("#dlDownSummary");
+  if (d.summary) { sum.href = d.summary; sum.style.display = ""; } else { sum.style.display = "none"; }
+  const qa = d.qa || { items: [] };
+  const bad = (qa.items || []).filter((x) => !x.ok);
+  $("#dlQA").innerHTML = bad.length
+    ? `<span class="pill bad">${(qa.items.length - bad.length)}/${qa.items.length} 通过</span><div style="margin-top:6px">${
+        bad.map((x) => "· " + esc(x.name)).join("<br>")}</div>`
+    : (qa.items && qa.items.length ? `<span class="pill ok">质检全过</span>` : `<span class="pill">未跑质检</span>`);
+  $("#dlRerun").onclick = () => {
+    $("#deliverScrim").classList.remove("on");
+    $("#exportScrim").classList.add("on");
+  };
+  $("#deliverScrim").classList.add("on");
+}
+
 /* ------------------------------------------------------------ 质检 */
 async function runQA() {
   $("#qaBox").innerHTML = `<span class="pill">质检中…</span>`;
@@ -677,6 +730,7 @@ function bindExport() {
   $("#btnExport").onclick = () => { $("#exportScrim").classList.add("on"); updateExMeta(); };
   $("#btnQA").onclick = runQA;
   $("#exportClose").onclick = $("#exCancel").onclick = () => $("#exportScrim").classList.remove("on");
+  $("#dlClose").onclick = () => $("#deliverScrim").classList.remove("on");
   $("#exPreset").onchange = updateExMeta;
   $("#exGo").onclick = startExport;
 }
@@ -694,7 +748,8 @@ async function startExport() {
   $("#exGo").disabled = true;
   $("#exBar").style.width = "3%";
   $("#exLog").textContent = "启动渲染…";
-  const r = await jpost("/api/stage", { slug: S.slug, stage: "render" });
+  const r = await jpost("/api/stage", {
+    slug: S.slug, stage: "render", opts: { preset: $("#exPreset").value } });
   if (!r.job) { $("#exLog").textContent = "启动失败"; $("#exGo").disabled = false; return; }
   pollJob(r.job, (line) => {
     $("#exLog").textContent = line;
@@ -714,6 +769,7 @@ async function startExport() {
     toast("导出完成");
     _thumbCacheClear();
     renderTimeline();
+    setTimeout(() => openDeliver(true), 400);
   });
 }
 

@@ -339,3 +339,42 @@ input, textarea, select { font: inherit; color: inherit; }
 }
 .audioclip i { display: block; width: 2px; background: #34d399aa; border-radius: 1px; }
 .audioclip span { font: 9px/1 var(--mono); color: #34d399cc; margin-left: 4px; }
+
+/* ---------------------------------------------------------------- 交付面板 */
+.modal.result { width: 880px; max-width: 92vw; }
+.result-body {
+  display: grid; grid-template-columns: 300px 1fr; gap: 22px; padding: 18px;
+}
+.dleft video {
+  width: 100%; aspect-ratio: 9/16; background: #000; border-radius: 6px;
+  border: 1px solid var(--line2);
+}
+.dleft .meta { margin-top: 8px; font: 11px/1.6 var(--mono); color: var(--ink2); }
+.dright { display: flex; flex-direction: column; }
+.dlbtns { display: flex; gap: 8px; margin-top: 4px; }
+.dlbtns .btn { text-decoration: none; justify-content: center; }
+.chips { display: flex; flex-wrap: wrap; gap: 6px; }
+.chip {
+  font: 11px/1 var(--mono); padding: 5px 8px; border-radius: 999px;
+  background: var(--bg2); color: var(--ink1); border: 1px solid var(--line2);
+}
+.covers { display: flex; gap: 8px; flex-wrap: wrap; }
+.covers label {
+  position: relative; cursor: pointer; border: 1px solid var(--line2);
+  border-radius: 4px; overflow: hidden; width: 68px;
+}
+.covers label.on { border-color: var(--accent); box-shadow: 0 0 0 2px var(--accent-soft); }
+.covers img { display: block; width: 100%; height: 90px; object-fit: cover; object-position: top; }
+.covers span { display: block; font: 9px/1.6 var(--mono); color: var(--ink3); text-align: center; }
+.covers input { position: absolute; opacity: 0; }
+
+/* ---------------------------------------------------------------- 通用按钮 */
+.btn {
+  height: 34px; padding: 0 14px; border-radius: 5px; font-size: 13px;
+  color: var(--ink0); background: var(--bg2); border: 1px solid var(--line2);
+  display: inline-flex; align-items: center; gap: 6px; cursor: pointer;
+  text-decoration: none;
+}
+.btn:hover { background: var(--bg3); }
+.btn.primary { background: var(--accent); border-color: var(--accent); color: #fff; font-weight: 600; }
+.btn.primary:hover { background: #2f74e6; }

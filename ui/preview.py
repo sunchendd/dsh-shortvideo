@@ -380,6 +380,52 @@ def _qa_items(slug):
 
 
 
+
+
+def _deliver_info(slug):
+    """导出完成后"交付"界面要的全部东西。
+
+    用户拿到的不该只是一个 mp4：小红书发布要的是视频 + 封面 + 标题 + 话题。
+    这里一次性把四样凑齐，缺什么就如实标出来。
+    """
+    d = os.path.join(OUT, slug)
+    content = os.path.join(EX, f"{slug}.content.json")
+    info = {"slug": slug, "video": None, "covers": [], "summary": None,
+            "publish_title": "", "topics": [], "tags": [], "duration": 0.0,
+            "size_mb": 0.0, "qa": _qa_items(slug)}
+    cfg = {}
+    try:
+        cfg = json.load(open(content, encoding="utf-8"))
+    except Exception:  # noqa: BLE001
+        pass
+    info["publish_title"] = cfg.get("publish_title") or cfg.get("title") or slug
+    info["topics"] = cfg.get("topics") or []
+    info["tags"] = (cfg.get("cover") or {}).get("tags") or []
+    info["duration"] = round(sum(float(x.get("min_dur") or 0) for x in cfg.get("shots") or []), 1)
+
+    mp4 = os.path.join(d, f"{slug}.mp4")
+    if os.path.exists(mp4):
+        info["video"] = f"/files/{slug}/{slug}.mp4"
+        info["size_mb"] = round(os.path.getsize(mp4) / 1048576, 1)
+    for name, label in (("cover_short.png", "主封面 3:4"),
+                        ("cover_cinematic.png", "电影感"),
+                        ("cover_editorial.png", "编辑风"),
+                        ("cover_blueprint.png", "蓝图"),
+                        ("cover_9x16.png", "竖版 9:16")):
+        fp = os.path.join(d, name)
+        if os.path.exists(fp):
+            info["covers"].append({"name": name, "label": label, "url": f"/files/{slug}/{name}"})
+    if os.path.exists(os.path.join(d, "summary.png")):
+        info["summary"] = f"/files/{slug}/summary.png"
+    dlv = os.path.join(d, ".deliver.json")
+    if os.path.exists(dlv):
+        try:
+            info["deliver"] = json.load(open(dlv, encoding="utf-8"))
+        except Exception:  # noqa: BLE001
+            pass
+    return info
+
+
 def _project_meta(slug):
     """片库卡片要的最少信息：时长、镜数、主题、音色、有没有成片。
 
@@ -446,7 +492,7 @@ def _stage_status(slug):
     return st, detail
 
 
-def _run_stage(slug, stage):
+def _run_stage(slug, stage, opts=None):
     """跑一道工序，返回 (ok, 日志尾巴)。每道工序都是幂等的，可以反复重跑。"""
     d = os.path.join(OUT, slug)
     content = os.path.join(EX, f"{slug}.content.json")
@@ -459,9 +505,12 @@ def _run_stage(slug, stage):
                             "--out", content], cwd=REPO, capture_output=True, text=True, timeout=600)
         return r.returncode == 0, ((r.stdout or "") + (r.stderr or ""))[-1500:]
     if stage == "render":
-        r = subprocess.run([PY, os.path.join(TOOLS, "make.py"), "--content", content,
-                            "--topic", "deck", "--out", mp4, "--jobs", "2"],
-                           cwd=REPO, capture_output=True, text=True, timeout=3600)
+        preset = (opts or {}).get("preset") or "xhs"
+        cmd = [PY, os.path.join(TOOLS, "make.py"), "--content", content,
+               "--topic", "deck", "--out", mp4, "--jobs", "2"]
+        if preset == "draft":            # 快速预览：720x1280 / 24fps，约 1/3 耗时
+            cmd += ["--size", "720x1280", "--fps", "24"]
+        r = subprocess.run(cmd, cwd=REPO, capture_output=True, text=True, timeout=3600)
         return r.returncode == 0, ((r.stdout or "") + (r.stderr or ""))[-1500:]
     if stage == "assets":
         code = ("import sys,json;sys.path.insert(0,%r);import cover;"
@@ -521,7 +570,8 @@ def _start_job(kind, slug, extra=None):
             elif kind == "new":
                 ok, tail = _create(slug, (extra or {}).get("req") or {})
             elif kind == "stage":
-                ok, tail = _run_stage(slug, (extra or {}).get("stage") or "script")
+                ok, tail = _run_stage(slug, (extra or {}).get("stage") or "script",
+                                      (extra or {}).get("opts") or {})
             elif kind == "verify":
                 r = subprocess.run(["./verify.sh", slug], cwd=REPO,
                                    capture_output=True, text=True, timeout=1800)
@@ -612,6 +662,8 @@ class Handler(BaseHTTPRequestHandler):
                                     "root": REPO})
         if path == "/api/item":
             return self._send(200, _detail(q.get("slug", [""])[0]) or {"error": "unknown"})
+        if path == "/api/deliver":
+            return self._send(200, _deliver_info(q.get("slug", [""])[0]))
         if path == "/api/stage-status":
             slug = q.get("slug", [""])[0]
             return self._send(200, _qa_items(slug) or {"slug": slug, "items": [], "ok": None})
@@ -758,7 +810,8 @@ class Handler(BaseHTTPRequestHandler):
             slug, stage = body.get("slug"), body.get("stage")
             if not slug or stage not in [k for k, _, _ in STAGES]:
                 return self._send(400, {"error": "slug/stage 不对"})
-            return self._send(200, {"job": _start_job("stage", slug, {"stage": stage}),
+            return self._send(200, {"job": _start_job("stage", slug, {
+                "stage": stage, "opts": body.get("opts") or {}}),
                                     "slug": slug, "stage": stage})
         if u.path == "/api/render":
             slug = body.get("slug")

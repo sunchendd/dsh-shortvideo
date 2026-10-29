@@ -43,14 +43,6 @@ body.lib { overflow: auto; background: var(--bg0); }
   border-radius: 5px; padding: 8px 11px; font-size: 13px; color: var(--ink0);
 }
 .libtools input:focus { outline: none; border-color: var(--accent); }
-.btn {
-  height: 34px; padding: 0 14px; border-radius: 5px; font-size: 13px;
-  color: var(--ink0); background: var(--bg2); border: 1px solid var(--line2);
-  display: inline-flex; align-items: center; gap: 6px; cursor: pointer;
-}
-.btn:hover { background: var(--bg3); }
-.btn.primary { background: var(--accent); border-color: var(--accent); color: #fff; font-weight: 600; }
-.btn.primary:hover { background: #2f74e6; }
 
 /* 卡片网格 */
 .grid {
