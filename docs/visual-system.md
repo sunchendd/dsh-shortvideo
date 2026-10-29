@@ -232,11 +232,19 @@
 
 ## 5. 已知残留（说清楚，不藏）
 
-### 5.1 视频 deck 字号未迁移
+### 5.1 视频 deck 字号迁移 —— 已做（承载信息的两处）
 
-`topics/deck.py` / `shortvideo/scenes.py` 不在授权范围。现状字号 28/30/34/36/38/40/42/46/56/62/92，
-对应 `TS` 应为 `micro/caption/caption/label/caption/caption/caption/label/body/lead/h3`。
-**迁移规则**：≥48 的保持，<48 且承载信息的升到 `label`；纯装饰留 `micro`。
+按"≥48 保持 / <48 且承载信息升到 `label`(48) / 纯装饰留 `micro`"执行：
+
+| 位置 | 原 | 现 | 240px 缩略图 | 说明 |
+|---|---|---|---|---|
+| `deck._note`（9 类镜头共用的注脚） | 42 | **48** | 9.3px → **10.7px** | 加自动收缩：超宽时降到 40 兜底 |
+| `deck` 的 `caption` 调用 | 44 | **48** | 9.8px → 10.7px | 走 `TS["label"]` |
+| `scenes.caption`（口播字幕） | 50 | 50 | 11.1px | 本来就达标，不动 |
+| `scenes.tag`（装饰胶囊） | 34 | 34 | 7.6px | 纯装饰，留 `micro` 档 |
+| `scenes.disclosure`（AI 标识） | 24 | 24 | 5.3px | 平台合规小签，不动 |
+
+实测：全库 32 条 × 每镜注脚 **0 条**触发收缩，说明 48px 对现有文案都塞得下。
 
 ### 5.2 `scenes.py::grid(labels=…)` 的白字
 

@@ -42,12 +42,21 @@ def prepare(ctx):
 
 # ---------------------------------------------------------------- 工具
 
-def _note(img, text, y=None, size=42, alpha=1.0, color=None):
-    """镜头注脚：放在字幕区上方（y≈1430），字号比字幕小、颜色更淡。"""
+def _note(img, text, y=None, size=48, alpha=1.0, color=None):
+    """镜头注脚：放在字幕区上方（y≈1430），字号比字幕小、颜色更淡。
+
+    字号 42→48：42px 在 240px 信息流缩略图里只有 **9.3px**、笔画 0.78px，是糊的；
+    48px 对应 10.7px。9 个镜头种类共用这个入口，所以加**自动收缩**兜住长注脚，
+    宁可个别长句缩回 40，也不让短句跟着一起看不清。
+    """
     if not text or alpha <= 0.02:
         return
     y = int(R.H * 0.745) if y is None else y
-    S.text(img, (R.W / 2, y), str(text), size, fill=tuple(color or R.DIM),
+    text = str(text)
+    max_w = R.W - 2 * R.GUTTER
+    while size > 40 and R.font(size).getlength(text) > max_w:
+        size -= 2
+    S.text(img, (R.W / 2, y), text, size, fill=tuple(color or R.DIM),
            bold=False, anchor="mm", alpha=alpha)
 
 
@@ -473,7 +482,7 @@ def _digits(img, t, dur, spec):
             S.panel(img, (x - 3, y - size * 0.72, x + 3, y + size * 0.72),
                     fill=R.ACCENT, alpha=0.95 * a, radius=2)
     if spec.get("note"):
-        S.caption(img, str(spec["note"]), _appear(p, 0.5), y=int(R.H * 0.66), size=44)
+        S.caption(img, str(spec["note"]), _appear(p, 0.5), y=int(R.H * 0.66), size=R.TS["label"])
 
 
 def _stat(img, t, dur, spec):
