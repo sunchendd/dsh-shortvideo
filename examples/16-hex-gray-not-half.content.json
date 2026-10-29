@@ -170,5 +170,6 @@
   "bgm": {
     "style": "pulse",
     "gain": -27.0
-  }
+  },
+  "disclosure": "AI 语音合成配音；画面为程序化渲染"
 }

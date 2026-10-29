@@ -718,6 +718,29 @@ $PY $TOOLS/checklist.py --dir examples --json            # 机器可读，接 CI
 四道门禁：清单完成度（score）→ 脚本体检（lint）→ 画面体检（qa）→ 节奏风险（pace）。
 任一 error 级问题即 NO-GO，退出码非 0，可直接串进 CI 或 pre-commit。
 
+## 发布可行性：`publishcheck.py`（**内容好 ≠ 发得出去**）
+
+```bash
+$PY $TOOLS/publishcheck.py --dir examples
+$PY $TOOLS/publishcheck.py --content examples/19-spf-sunscreen.content.json
+```
+
+前面 12 道门禁验的是"内容好不好"，这一道验"文件会不会被平台卡住"：
+
+| 检查项 | 上限 | 依据 |
+|---|---|---|
+| 标题 | **≤20 字** | 超了平台直接截断 |
+| 正文 | ≤1000 字 | — |
+| 单文件 | ≤1GB | — |
+| 时长 | ≤15min | — |
+| 编码 | h264 + aac | 平台推荐 |
+| 画面 | 竖屏 9:16 或 3:4 | 否则加黑边 |
+| AI 标注 | `disclosure` 必有 | 平台合规要求 |
+| 导流红线 | 微信号/链接/扫码加… | 出现即限流 |
+
+第一次跑就抓出两个真问题：**21 条没有 `disclosure`（AI 标注）**、
+**2 条标题 21 字超限**（SPF 那两条）。全部补齐后 31/31 可直接发。
+
 ## 批量干活：`studio.py`
 
 ```bash
