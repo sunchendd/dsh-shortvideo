@@ -1,0 +1,204 @@
+{
+  "title": "两个音差四赫兹，为什么听见每秒四下的抖",
+  "subtitle": "两列波叠在一起，就有了拍音",
+  "publish_title": "两音只差四赫兹，为什么听见一下下的抖",
+  "kernel": "拍音频率是两列简谐波叠加的严格结果，不是估算：sin(2πf1t)+sin(2πf2t)=2cos(2π·(f1−f2)/2·t)·sin(2π·(f1+f2)/2·t)。包络（听感上的强弱起伏）频率 f_beat=|f1−f2|，载波音高取平均 (f1+f2)/2。取 f1=440 Hz、f2=444 Hz ⇒ f_beat=4 Hz，即每秒 4 次起伏；音高 442 Hz，不是 440 也不是 444。差值 1 Hz ⇒ 每秒 1 次；差值 0 ⇒ 起伏消失（这条恒等式在 f1=f2 处退化为单一正弦）。成立条件：①两音振幅相近（差太多时包络幅度浅到听不出）；②|f1−f2| 远小于临界带宽（约 1/3 倍频程），4 Hz 属于纯「脉动」区，差值再大到数十赫兹就变成粗糙音色而非可数拍音；③4 Hz 低于人耳可听频率下限（约 20 Hz），所以拍音本身不是「一个音」，是对响度的调制——这一点与 f_beat 的数值无关，任何 ≤20 Hz 的差值都成立。片中不给出「听觉上能接受的最大拍音数」这类依赖个体与调音标准的经验阈值，只说「抖得越快差得越远」。",
+  "refs": [
+    "简谐波叠加恒等式 sina+sinb=2cos((a−b)/2)sin((a+b)/2)：Halliday, Resnick & Walker《Fundamentals of Physics》第 17 章（Sound Waves）拍频 (beats) 一节",
+    "拍频定义 f_beat=|f1−f2| 及「拍是包络而非新音」：同上；另见 Kinsler《Fundamentals of Acoustics》第 2 章叠加原理",
+    "标准音高 A4 = 440 Hz：ISO 16:1975《Acoustics — Standard tuning frequency》",
+    "调律靠拍音的快慢与消失判断音准（aural tuning）：Piano Technicians Guild 调律教材；钢琴调律中八度与四五度的拍音数即「调律曲线」的判据",
+    "人耳可听频率下限约 20 Hz、听阈曲线：ISO 226:2003《Acoustics — Normal equal-loudness-level contours》与 GB/T 3241 相关听阈数据",
+    "拍音到粗糙感（roughness）的转变取决于临界带宽（约 1/3 倍频程）：Plomp & Levelt (1965), JASA 38:548"
+  ],
+  "voice": {
+    "preset": "yunxi",
+    "mood_tuning": {
+      "hook": {
+        "rate": "+8%"
+      },
+      "rule": {
+        "rate": "+2%"
+      },
+      "explain": {
+        "rate": "-2%"
+      },
+      "reveal": {
+        "rate": "+3%"
+      },
+      "win": {
+        "rate": "+6%"
+      }
+    }
+  },
+  "fps": 30,
+  "size": [
+    1080,
+    1920
+  ],
+  "lead_in": 0.15,
+  "tail": 0.55,
+  "disclosure": "AI 配音",
+  "bgm": {
+    "style": "lofi",
+    "gain": -28
+  },
+  "cover": {
+    "kicker": "声学",
+    "serial": "21",
+    "headline": [
+      "两个音一起响",
+      "为啥在抖？"
+    ],
+    "highlight": [
+      "抖"
+    ],
+    "sub": "差4赫兹，一秒抖四下",
+    "tags": [
+      "#声学",
+      "#冷知识",
+      "#调音"
+    ],
+    "cta": "看到最后 →"
+  },
+  "shots": [
+    {
+      "id": "hook",
+      "min_dur": 4.6,
+      "narration": "两个音一起响，你却听见一秒四下的抖。",
+      "emphasis": [
+        "一秒四下"
+      ],
+      "deck_hint": "两行大字砸入「两个音一起响／却在一秒四下地抖」，第二行黄底强调，右下角副标「这叫拍音」，背景水印 4",
+      "transition_in": {
+        "type": "fade",
+        "dur": 0.24
+      }
+    },
+    {
+      "id": "rule",
+      "min_dur": 8.2,
+      "narration": "频率差几赫兹，拍音就一秒抖几下。四百四十对四百四十四，差四赫兹。",
+      "emphasis": [
+        "四百四十对四百四十四"
+      ],
+      "deck_hint": "左右两栏对比大数字：左「音叉 A 440 赫兹」／右「音叉 B 444 赫兹」，中间竖线 + VS，下方注「差 4 赫兹 → 一秒抖 4 下」",
+      "transition_in": {
+        "type": "slide_up",
+        "dur": 0.24
+      }
+    },
+    {
+      "id": "insight",
+      "min_dur": 8.2,
+      "narration": "两列波叠在一起：波峰撞波峰就更响，峰撞谷就更轻，声音一鼓一鼓。",
+      "emphasis": [
+        "一鼓一鼓"
+      ],
+      "deck_hint": "竖向三级因果链：波峰撞波峰（振幅变大＝更响）→ 波峰撞波谷（互相抵消＝更轻）→ 一秒来回四次，声音一鼓一鼓",
+      "transition_in": {
+        "type": "fade",
+        "dur": 0.24
+      }
+    },
+    {
+      "id": "reveal",
+      "min_dur": 7.1,
+      "narration": "四赫兹其实不是一个能听见的音，你听见的是每秒四次的强弱。",
+      "emphasis": [
+        "每秒四次的强弱"
+      ],
+      "deck_hint": "巨型数字 4 + 单位「次/秒」，下方一行「你听见的是强弱起伏，不是音」，注释「4 赫兹低于人耳可听下限（约 20 赫兹）」",
+      "transition_in": {
+        "type": "slide_up",
+        "dur": 0.24
+      }
+    },
+    {
+      "id": "solve",
+      "min_dur": 8.2,
+      "narration": "抖得越快，说明差得越远；抖到听不出来，就调准了。评论区聊你调过什么。",
+      "emphasis": [
+        "抖到听不出来"
+      ],
+      "deck_hint": "三张卡片依次点亮：抖得快＝差得远（拍音是精度尺）／抖到听不出＝调准了／评论区说说你调过什么乐器",
+      "transition_in": {
+        "type": "fade",
+        "dur": 0.24
+      }
+    }
+  ],
+  "deck": {
+    "hook": {
+      "kind": "big",
+      "lines": [
+        "两个音一起响",
+        "却在一秒四下地抖"
+      ],
+      "sub": "这叫拍音",
+      "style": "slam",
+      "ghost": "4"
+    },
+    "rule": {
+      "kind": "compare",
+      "left": {
+        "label": "音叉 A",
+        "value": "440",
+        "note": "赫兹"
+      },
+      "right": {
+        "label": "音叉 B",
+        "value": "444",
+        "note": "赫兹"
+      },
+      "note": "差 4 赫兹 → 一秒抖 4 下"
+    },
+    "insight": {
+      "kind": "flow",
+      "items": [
+        {
+          "t": "波峰撞波峰",
+          "d": "振幅变大，那一下更响"
+        },
+        {
+          "t": "波峰撞波谷",
+          "d": "方向相反，互相抵消，更轻"
+        },
+        {
+          "t": "一秒来回四次",
+          "d": "于是声音一鼓一鼓地抖"
+        }
+      ],
+      "note": "拍音是两列波叠加的包络，不是第三样声音"
+    },
+    "reveal": {
+      "kind": "stat",
+      "value": 4,
+      "unit": "次/秒",
+      "label": "你听见的是强弱起伏，不是音",
+      "note": "4赫兹低于可听下限20赫兹"
+    },
+    "solve": {
+      "kind": "cards",
+      "items": [
+        {
+          "t": "抖得快 = 差得远",
+          "d": "拍音就是一把免费的精度尺"
+        },
+        {
+          "t": "抖到听不出 = 调准了",
+          "d": "两根弦完全同频，起伏才会消失"
+        },
+        {
+          "t": "评论区说说",
+          "d": "你调过什么乐器？吉他还是钢琴"
+        }
+      ],
+      "note": "耳朵比调音器更会抓「差多少」"
+    }
+  },
+  "transition": {
+    "type": "fade",
+    "dur": 0.24
+  }
+}

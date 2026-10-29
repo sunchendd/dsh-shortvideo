@@ -483,6 +483,76 @@ _MOOD_BY_ID = {"hook": "hook", "rule": "rule", "insight": "explain", "explain": 
                "reveal": "reveal", "solve": "win", "win": "win", "flat": "flat"}
 
 
+def _deck_text_warnings(cfg):
+    """deck 文案超宽检查：note/sub/label 是单行居中绘制，**超宽就会被左右切掉**。
+
+    实测：21 号第一版 note 写「4 赫兹低于人耳可听下限（约 20 赫兹），所以它自己听不见」，
+    成片里两端直接被裁，而 lint 完全没报——典型的静默失败。这里按各 kind 实际字号量一遍。
+    """
+    try:
+        from shortvideo import runtime as R
+        from topics import deck as D
+    except Exception:  # noqa: BLE001
+        return []
+    # 单行文本字段 -> (字号, 可用宽度比例)
+    SINGLE = {"note": 42, "sub": 46, "label": 40, "unit": 44, "text": 46}
+    pad = 48
+    out = []
+    for sid, spec in (cfg.get("deck") or {}).items():
+        if not isinstance(spec, dict):
+            continue
+        kind = str(spec.get("kind") or "")
+        for key, size in SINGLE.items():
+            if key == "text" and kind == "digits":
+                continue      # digits 会按 per_line 自动换行，不是单行
+            val = spec.get(key)
+            if not isinstance(val, str) or not val.strip():
+                continue
+            w = R.font(size, bold=False).getlength(val)
+            limit = R.W - pad * 2
+            if w > limit:
+                out.append(f"{sid}.{key} 文案超宽 {w:.0f}px > {limit}px，成片里会被左右切：{val[:18]}…")
+        # compare 的左右栏更窄：各占半屏
+        for side in ("left", "right"):
+            box = spec.get(side)
+            if isinstance(box, dict):
+                note = box.get("note")
+                if isinstance(note, str) and note.strip():
+                    w = R.font(34, bold=False).getlength(note)
+                    if w > R.W / 2 - pad * 2:
+                        out.append(f"{sid}.{side}.note 超宽 {w:.0f}px > {R.W/2-pad*2:.0f}px：{note[:14]}…")
+    return out
+
+
+def _glyph_warnings(cfg):
+    """扫描所有要渲染的文字，报出字体缺字形的字符（会静默渲染成 ? 或方框）。"""
+    try:
+        from shortvideo.runtime import missing_glyphs
+    except Exception:  # noqa: BLE001
+        return []
+    texts = []
+
+    def walk(node):
+        if isinstance(node, dict):
+            for v in node.values():
+                walk(v)
+        elif isinstance(node, list):
+            for v in node:
+                walk(v)
+        elif isinstance(node, str):
+            texts.append(node)
+
+    walk(cfg.get("deck") or {})
+    walk(cfg.get("cover") or {})
+    for shot in cfg.get("shots") or []:
+        walk(shot.get("caption"))
+    bad = {}
+    for t in texts:
+        for ch in missing_glyphs(t):
+            bad.setdefault(ch, t[:24])
+    return [f"字体缺字形 {ch!r}（会渲染成 ? 或方框）出现在「{where}」" for ch, where in bad.items()]
+
+
 def lint_script(cfg, timeline, degraded=()):
     """开工前的脚本体检：返回 [(级别, 说明)]，级别 error/warn/ok。
 
@@ -495,6 +565,12 @@ def lint_script(cfg, timeline, degraded=()):
     full = " ".join(s.get("narration", "") for s in shots)
     title = cfg.get("title") or ""
     cov = cfg.get("cover") or {}
+
+    # 0) 字体缺字形 / deck 文案超宽：都是静默失败，必须机器查
+    for msg in _glyph_warnings(cfg):
+        out.append(("warn", msg))
+    for msg in _deck_text_warnings(cfg):
+        out.append(("warn", msg))
 
     # 1) 钩子：前 3 秒必须交代完钩子，4.2 字/秒 × 3s ≈ 12.6 字
     if shots:

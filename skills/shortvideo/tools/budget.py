@@ -24,6 +24,13 @@ sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 from shortvideo.textutil import syllables  # noqa: E402
 
 # 工具侧的判定阈值（与 make.lint_script 一致）
+# 每种情绪的**实测**语速中位（130 个已渲染镜头，2026-10 统计）：
+#   hook 4.76 / rule 4.43 / explain 4.18 / reveal 4.37 / win 4.36
+# 之前所有情绪都用 4.6 估算，--mood 只改阈值不改时长，等于没算——
+# 结果钩子（实际 4.76）被低估 3%，explain（4.18）被高估 10%。
+MOOD_RATE = {"hook": 4.76, "rule": 4.43, "explain": 4.18, "reveal": 4.37, "win": 4.36}
+DEFAULT_RATE = 4.42
+
 LIMIT_BODY = 5.2        # 正文：偏快提醒
 LIMIT_BODY_HARD = 5.8   # 正文：不合格
 LIMIT_HOOK = 6.0        # 钩子：偏快提醒
@@ -39,12 +46,13 @@ def analyse(text, mood="rule", rate_pct=0.0):
     """
     n_syl = syllables(text)
     n_char = len("".join(str(text).split()))
+    base = MOOD_RATE.get(str(mood).lower(), DEFAULT_RATE)
     rows = []
     pairs = [("+0%", 0.0)]
     if rate_pct:
         pairs.append((f"{rate_pct:+g}%", rate_pct))
     for label, pct in pairs:
-        rate = 4.6 * (1 + pct / 100.0)
+        rate = base * (1 + pct / 100.0)
         dur = n_syl / rate if rate else 0
         rows.append({"rate": label, "secs": round(dur, 2),
                      "syl_per_s": round(n_syl / dur, 2) if dur else 0})

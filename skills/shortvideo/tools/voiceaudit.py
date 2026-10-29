@@ -111,7 +111,14 @@ def main():
                   f"{row['rate']:>7}{row['pitch']:>8}")
         if r["dead_tuning"]:
             print(f"  [!] mood_tuning 里这些情绪没有对应镜头，白写：{', '.join(r['dead_tuning'])}")
-        return 1 if r["dead_tuning"] else 0
+        # 单条模式也要给结论：原来只有 --dir 全库模式才打印"扁平 0 条"，
+        # 逐条验收时得额外跑一遍全库才知道有没有情绪
+        moods = {row["mood"] for row in r["shots"] if row["mood"] not in ("-", "")}
+        flat = not moods
+        print(f"\n  {'[!] 全片扁平：没有任何情绪（5 镜同一个调子）' if flat else f'情绪覆盖 {len(moods)} 种：' + '、'.join(sorted(moods))}")
+        print(f"  结论：{'❌ 扁平' if flat else '✅ 有情绪起伏'}"
+              f"{'｜mood_tuning 白写 ' + '/'.join(r['dead_tuning']) if r['dead_tuning'] else ''}")
+        return 1 if (r["dead_tuning"] or flat) else 0
 
     flat = [r for r in reports if all(s["mood"] == "-" for s in r["shots"])]
     dead = [(r["file"], r["dead_tuning"]) for r in reports if r["dead_tuning"]]

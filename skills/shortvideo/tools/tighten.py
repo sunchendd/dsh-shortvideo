@@ -91,8 +91,11 @@ def main():
             total += len(ch)
             old_sum = sum(o for _, o, _ in ch)
             new_sum = sum(n for _, _, n in ch)
+            # 符号必须能一眼看懂：变长写「+」、变短写「−」，原来一律写"共省 -0.4s"会看反
+            diff = new_sum - old_sum
+            verb = "共加" if diff > 0 else "共省"
             print(f"  {slug:<26}" + "  ".join(f"{s} {o:.1f}→{n:.1f}" for s, o, n in ch)
-                  + f"   （这几镜共省 {old_sum - new_sum:+.1f}s）")
+                  + f"   （这几镜{verb} {abs(diff):.1f}s）")
     print(f"\n{'[dry-run] 将' if args.dry_run else '[ok] 已'}调整 {total} 个镜头的 min_dur\n")
 
 

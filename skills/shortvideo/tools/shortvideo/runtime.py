@@ -6,6 +6,7 @@
   - 数学内核由题材包自己提供（先算对，再画对）
   - WSL/Linux 环境自适应：字体探测、ffmpeg 由 imageio-ffmpeg 提供
 """
+import hashlib
 import math
 import os
 
@@ -62,6 +63,38 @@ def font(size, bold=False, math=False):
     if key not in _cache:
         _cache[key] = ImageFont.truetype(_font_path, size)
     return _cache[key]
+
+
+_NOTDEF = {}
+
+
+def _glyph_sig(f, ch):
+    m = f.getmask(ch)
+    return hashlib.md5(bytes(m)).hexdigest()
+
+
+def missing_glyphs(text, size=80, bold=False):
+    """返回 text 里**字体缺字形**的字符列表。
+
+    原理：缺字形时 FreeType 回落到 .notdef（一个方框/空白），
+    所以拿私用区字符 U+E000 的掩码当"缺字形指纹"，逐个比对即可。
+
+    实测这套字体：₀（U+2080）缺，₁₂ 有；希腊字母 α~ω 全有。
+    静默失败很坑——`μ₀` 会渲染成 `μ?`，肉眼在缩略图上根本看不出来。
+    """
+    f = font(size, bold=bold)
+    key = (size, bold)
+    if key not in _NOTDEF:
+        _NOTDEF[key] = _glyph_sig(f, "\ue000")
+    ref = _NOTDEF[key]
+    seen, out = set(), []
+    for ch in str(text or ""):
+        if ch in seen or ch.isspace():
+            continue
+        seen.add(ch)
+        if _glyph_sig(f, ch) == ref:
+            out.append(ch)
+    return out
 
 
 def font_info():

@@ -77,7 +77,9 @@ def check_one(content_path, out_dir, strict=False):
         import pace
         rows = pace.analyse(slug, content_path, mp4)
         risk = sum(r["risk"] for r in rows)
-        row["gates"]["节奏"] = risk
+        # 列里显示 A/B/C 而不是裸数字：原来显示 risk 数（如 2），很容易被读成"2 分"
+        grade = "A" if risk <= 2 else ("B" if risk <= 5 else "C")
+        row["gates"]["节奏"] = f"{grade}({risk})"
         worst = sorted([r for r in rows if r["why"]], key=lambda r: -r["risk"])[:2]
         if risk > 5:
             row["problems"] += [f"节奏风险 {risk}：{r['shot']} {'；'.join(r['why'])}" for r in worst]
