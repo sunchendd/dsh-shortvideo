@@ -173,6 +173,10 @@
   },
   "publish_title": "月亮每年溜走3.8厘米，问题出在潮汐",
   "disclosure": "AI 语音合成配音；画面为程序化渲染",
-  "theme": "rice-paper",
-  "cover_direction": "editorial"
+  "theme": "porcelain",
+  "cover_direction": "editorial",
+  "bgm": {
+    "gain": -20,
+    "style": "lofi"
+  }
 }

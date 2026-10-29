@@ -14,7 +14,7 @@
         "rate": "-6%"
       },
       "reveal": {
-        "rate": "-12%"
+        "rate": "-8%"
       }
     }
   },
@@ -169,9 +169,9 @@
   ],
   "bgm": {
     "style": "pulse",
-    "gain": -27.0
+    "gain": -20
   },
   "disclosure": "AI 语音合成配音；画面为程序化渲染",
-  "theme": "midnight",
+  "theme": "porcelain",
   "cover_direction": "editorial"
 }

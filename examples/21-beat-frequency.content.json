@@ -41,7 +41,7 @@
   "disclosure": "AI 配音",
   "bgm": {
     "style": "lofi",
-    "gain": -28
+    "gain": -20
   },
   "cover": {
     "kicker": "声学",
@@ -201,6 +201,6 @@
     "type": "fade",
     "dur": 0.24
   },
-  "theme": "jade",
+  "theme": "rice-paper",
   "cover_direction": "cinematic"
 }

@@ -41,7 +41,7 @@
   "disclosure": "AI 配音",
   "bgm": {
     "style": "pulse",
-    "gain": -26
+    "gain": -20
   },
   "cover": {
     "kicker": "生活物理",
@@ -202,6 +202,6 @@
       "note": "评论区说说你电梯里掉几格"
     }
   },
-  "theme": "graphite",
+  "theme": "porcelain",
   "cover_direction": "editorial"
 }

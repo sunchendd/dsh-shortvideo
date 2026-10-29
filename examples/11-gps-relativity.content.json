@@ -10,7 +10,7 @@
     "38.5 μs/天 × c = 11.5 km/天，按等效测距误差折算"
   ],
   "voice": {
-    "preset": "yunjian"
+    "preset": "yunxi"
   },
   "fps": 30,
   "size": [
@@ -164,9 +164,9 @@
   "publish_title": "卫星上的钟每天快38微秒，不修导航就偏",
   "bgm": {
     "style": "pulse",
-    "gain": -25.5
+    "gain": -20
   },
   "disclosure": "AI 语音合成配音；画面为程序化渲染",
-  "theme": "midnight",
+  "theme": "arctic",
   "cover_direction": "blueprint"
 }

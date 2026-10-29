@@ -158,6 +158,10 @@
   },
   "publish_title": "月薪8000，通勤2小时，时薪只有36块",
   "disclosure": "AI 语音合成配音；画面为程序化渲染",
-  "theme": "noir-gold",
-  "cover_direction": "cinematic"
+  "theme": "rice-paper",
+  "cover_direction": "cinematic",
+  "bgm": {
+    "gain": -20,
+    "style": "lofi"
+  }
 }

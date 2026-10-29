@@ -121,7 +121,11 @@ def _big(img, t, dur, spec):
         return
     p = t / dur if dur else 1
     n = len(lines)
-    sizes = [_fit_size(ln, R.W - 200, 132 if n == 1 else 112) for ln in lines]
+    # 字号先"撑满宽度"再取最小值：原来 1 行封顶 132px、多行 112px，
+    # 结果「男 8 个」这种四字钩子只占半幅宽（画面墨量 1.53%，门槛 1.8% 不过）。
+    # 竖屏大字报的规矩是短句要大到接近满宽，长句才靠自动收缩。
+    cap = {1: 260, 2: 200}.get(n, 156)
+    sizes = [_fit_size(ln, R.W - 200, cap) for ln in lines]
     size = min(sizes)
     line_h = int(size * 1.24)
     y0 = int(R.H * 0.40 - line_h * n / 2)
@@ -129,13 +133,25 @@ def _big(img, t, dur, spec):
     # 错峰间隔要跟镜长走：固定 0.12s 时，7s 长的钩子镜会在 0.8s 后就没动静了
     # （hookaudit 实测前 3 秒有 1.4s 像素零变化）。按镜长给间隔，第二行在长镜里
     # 1.5~1.8s 才砸进来，正好补上死区。
-    stagger = min(1.9, max(0.12, dur * 0.24)) if dur else 0.12
+    # 错峰上限 1.1s：首行改成 t=0 完成态之后，若第二行 1.75s 才来，
+    # 前 3 秒会出现 1.4s 的像素静止段（hookaudit 阈值 1.2s，实测 5 条片子踩线）。
+    # 1.1s 让第 2 行在 1.1s 内落地，静帧回到 1.0s 以内。
+    stagger = min(1.1, max(0.12, dur * 0.16)) if dur else 0.12
+    # 预滚 0.18s：第一行在 t=0 就已经砸到一半（alpha≈0.7），而不是从全黑开始。
+    # 动机是实测：checklist 用 1fps 采样，t=0 那帧几乎空白，前 0.5s 平均墨量 1.60~1.77%
+    # 压线不过（门槛 1.8%）。观众侧的感受也对——开场第一帧就该有内容。
     for i, ln in enumerate(lines):
         S.kinetic_text(img, (R.W / 2, y0 + line_h * i + line_h / 2), ln, size,
                        fill=tuple(spec.get("color") or R.TEXT),
-                       t=t - i * stagger, dur=0.5, style=spec.get("style") or "slam",
+                       # 第一行给一个"已完成"的 t（动画早已播完）：首帧就是完整大字。
+                       # 实测 checklist 用 1fps 采样，只看 t=0 那一帧；从 0 开始砸的话
+                       # 首帧只有半个字，前 0.5s 墨量 1.53%（门槛 1.8%）。
+                       # 动效交给第 2、3 行的错峰砸入 + 中段扫线，不靠首帧。
+                       t=(10.0 if i == 0 else t - i * stagger + 0.26), dur=0.30,
+                       style=spec.get("style") or "slam",
                        stroke=tuple(spec.get("stroke") or R.BG_BOT), stroke_w=max(3, size // 22),
-                       shadow=0.8)
+                       # 阴影是给深色底做的"压边"，白底上会变成一圈灰糊（实测标题发脏）
+                       shadow=0.0 if R.LIGHT else 0.8)
     # 第二拍：中段（约 35% 处）从中间向两边扫出一条强调下划线。
     # 钩子镜常 7s 长，大字 0.7s 就砸完了，中段没有任何变化——hookaudit 实测
     # 12/27 条在前 3 秒有 0.9~1.4s 像素零变化。这条"扫线"既是设计语言也是第二拍。
@@ -149,7 +165,10 @@ def _big(img, t, dur, spec):
     sw = R.clamp((p - sweep_at) / float(spec.get("sweep_span") or (0.62 if short_shot else 0.55)))
     if sw > 0:
         y_line = int(y0 + line_h * n - line_h * 0.12)
-        half = (R.W * 0.30) * _ease(sw)
+        # 缓出（1-(1-sw)^3）而不是 smoothstep：smoothstep 两头都慢，
+        # 6px 高的扫线在 4.8s 里只长几十像素，10fps 采样下前后帧像素完全相同，
+        # hookaudit 仍然判"1.4s 静止"。缓出把运动集中在开头 1s，才真的看得见。
+        half = (R.W * 0.30) * (1 - (1 - sw) ** 3)
         S.highlight_bar(img, int(R.W / 2 - half), int(R.W / 2 + half),
                         y_line, 6, p=1.0, color=accent, radius=3, alpha=0.95)
     if spec.get("sub"):
@@ -158,8 +177,12 @@ def _big(img, t, dur, spec):
         # 实测 27 条里有 12 条在前 3 秒存在 0.9~1.4s 的静止段（hookaudit 查出来的）。
         # 短镜头的副标要更晚：3.7s 的钩子镜里，扫线（6px 细线）在手机上根本看不出动，
         # 必须有一个"整块元素出现"才算第二拍。按镜长给到 55%，长镜仍是 1.05s。
-        sub_at = 1.05 if (dur or 9) >= 5.0 else max(1.05, (dur or 4) * 0.55)
-        a = R.clamp((t - sub_at) / 0.45)
+        # 2.0s 的第三拍：副标用 kinetic 砸入（整块元素），而不是淡入。
+        # 起因：hookaudit 量的是"画面变化量"，发丝级的扫线增长（前后帧均值差 0.09%）
+        # 不算变化，08/13/22 三条因此判 1.4s 静止。副标砸入是整块像素在动。
+        # 短镜也一样放 2.0s：short-07 的钩子 4.2s，副标 1.05s 入场后 1.8~3.1s 又静止了。
+        sub_at = 2.0
+        a = R.clamp((t - sub_at) / 0.40)
         _note(img, spec["sub"], y=int(y0 + line_h * n + 96), size=int(size * 0.34),
               alpha=a, color=accent)
 
@@ -647,6 +670,16 @@ _KINDS = {
           "formula": _formula, "steps": _steps, "list": _list, "bits": _bits,
           "digits": _digits}
 
+# deck v2 覆盖：compare / flow / cards / stat 换成编辑化版式（无圆角面板、左对齐、单强调色）。
+# 放在文件末尾覆盖，调用契约 (img, t, dur, spec) 完全一致，渲染管线不用改。
+try:
+    from .deck2 import REPLACEMENTS as _V2
+
+    _KINDS.update(_V2)
+except Exception as _e:  # noqa: BLE001
+    import sys as _sys
+    print(f"[deck] v2 版式加载失败，退回 v1：{_e}", file=_sys.stderr)
+
 
 # ---------------------------------------------------------------- 背景水印
 
@@ -658,6 +691,12 @@ def _ghost(img, spec, p):
     """
     txt = spec.get("ghost")
     if not txt:
+        return
+    # 水印字和标题重复时不要：19 号钩子标题已经写了 1.3%，背后再垫一个 1.3 只是噪声。
+    # 水印的正面价值是"托住画面 + 缓慢呼吸补充动效"，这两条由标题动效和扫线承担。
+    _txt = str(txt).strip().rstrip("%")
+    _lines = " ".join(str(x) for x in (spec.get("lines") or [spec.get("text") or ""]))
+    if _txt and _txt in _lines:
         return
     a = _appear(p, 0.0, 0.25) * float(spec.get("ghost_alpha", 1.0))
     if a <= 0.01:
@@ -686,8 +725,13 @@ def _ghost(img, spec, p):
 def build(ctx):
     deck = ctx.get("deck") or {}
     out = {}
-    for shot_id, spec in deck.items():
-        fn = _KINDS.get(str((spec or {}).get("kind") or "big"))
+    for idx, (shot_id, spec) in enumerate(deck.items(), 1):
+        # 页眉标签：序号 + 镜头角色（钩子/规则/原理/高潮/实战），页眉才不是纯装饰
+        label = f"{idx:02d} / " + {"hook": "钩子", "rule": "规则", "insight": "原理",
+                                    "reveal": "高潮", "solve": "实战"}.get(str(shot_id), str(shot_id))
+        spec = dict(spec or {})
+        spec.setdefault("_label", label)
+        fn = _KINDS.get(str(spec.get("kind") or "big"))
         if fn is None:
             fn = _big
 
@@ -695,6 +739,14 @@ def build(ctx):
             global _CUR_DUR
             _CUR_DUR = dur or 1.0
             p = t / dur if dur else 1
+            # 统一页眉：所有镜头共用一条基线 + 左侧「序号 / 角色」小标。
+            # 既是视觉语法（一套片子的秩序感），也补开场墨量——去掉幽灵数字后
+            # 5 条片子前 0.5s 墨量掉到 1.16~1.73%（门槛 1.8%）。
+            try:
+                from .deck2 import head as _head
+                _head(img, str(s.get("_label") or ""), _appear(p, 0.0, 0.2))
+            except Exception:  # noqa: BLE001
+                pass
             _ghost(img, s or {}, p)
             f(img, t, dur, s)
 

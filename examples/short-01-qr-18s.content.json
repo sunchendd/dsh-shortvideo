@@ -17,7 +17,7 @@
   },
   "bgm": {
     "style": "lofi",
-    "gain": -28.0
+    "gain": -20
   },
   "shots": [
     {
@@ -121,6 +121,6 @@
     "dur": 0.2
   },
   "disclosure": "AI 语音合成配音；画面为程序化渲染",
-  "theme": "graphite",
+  "theme": "porcelain",
   "cover_direction": "editorial"
 }

@@ -31,7 +31,7 @@
   },
   "bgm": {
     "style": "lofi",
-    "gain": -28.0
+    "gain": -20
   },
   "transition": {
     "type": "fade",

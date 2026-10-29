@@ -18,16 +18,16 @@
     "preset": "yunxi",
     "mood_tuning": {
       "hook": {
-        "rate": "-12%"
+        "rate": "-8%"
       },
       "rule": {
-        "rate": "-22%"
+        "rate": "-8%"
       },
       "reveal": {
-        "rate": "-20%"
+        "rate": "-8%"
       },
       "win": {
-        "rate": "-20%"
+        "rate": "-8%"
       }
     }
   },
@@ -41,7 +41,7 @@
   "disclosure": "AI 配音",
   "bgm": {
     "style": "lofi",
-    "gain": -28
+    "gain": -20
   },
   "cover": {
     "kicker": "声学冷知识",
@@ -167,6 +167,6 @@
       "note": "评论区说说你调过什么乐器"
     }
   },
-  "theme": "jade",
+  "theme": "arctic",
   "cover_direction": "blueprint"
 }

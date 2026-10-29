@@ -170,6 +170,10 @@
   },
   "publish_title": "天空本来一片漆黑，蓝是空气撞出来的",
   "disclosure": "AI 语音合成配音；画面为程序化渲染",
-  "theme": "midnight",
-  "cover_direction": "blueprint"
+  "theme": "arctic",
+  "cover_direction": "blueprint",
+  "bgm": {
+    "gain": -20,
+    "style": "lofi"
+  }
 }

@@ -10,7 +10,7 @@
     "诱导性提问与「记忆再巩固」是两套机制，后者见 Nader et al., Nature 406, 2000"
   ],
   "voice": {
-    "preset": "yunjian"
+    "preset": "yunxi"
   },
   "fps": 30,
   "size": [
@@ -184,6 +184,10 @@
   },
   "publish_title": "换一个动词，三成人记住了不存在的碎玻璃",
   "disclosure": "AI 语音合成配音；画面为程序化渲染",
-  "theme": "arctic",
-  "cover_direction": "cinematic"
+  "theme": "rice-paper",
+  "cover_direction": "cinematic",
+  "bgm": {
+    "gain": -20,
+    "style": "lofi"
+  }
 }

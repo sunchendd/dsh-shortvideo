@@ -13,7 +13,7 @@
     "成人面部皮肤面积约 500–600 cm²（Lee et al. 体表面积与部位占比公式；不含颈部与耳后）"
   ],
   "voice": {
-    "preset": "yunjian",
+    "preset": "yunxi",
     "rate": "-18%"
   },
   "fps": 30,
@@ -26,7 +26,7 @@
   "disclosure": "AI 配音",
   "bgm": {
     "style": "lofi",
-    "gain": -25.0
+    "gain": -20
   },
   "cover": {
     "kicker": "护肤反常识",

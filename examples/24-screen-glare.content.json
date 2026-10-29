@@ -1,7 +1,7 @@
 {
   "title": "为什么手机屏幕在太阳下看不清",
   "subtitle": "",
-  "theme": "arctic",
+  "theme": "rice-paper",
   "voice": {
     "preset": "xiaoxiao"
   },
@@ -13,7 +13,10 @@
   "lead_in": 0.0,
   "tail": 0.4,
   "disclosure": "AI 语音合成配音；画面为程序化渲染",
-  "bgm": null,
+  "bgm": {
+    "gain": -20,
+    "style": "lofi"
+  },
   "cover": {
     "kicker": "生活物理",
     "serial": "",

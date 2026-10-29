@@ -10,7 +10,7 @@
     "math.isclose 默认 rel_tol=1e-09、abs_tol=0.0"
   ],
   "voice": {
-    "preset": "yunjian"
+    "preset": "yunxi"
   },
   "fps": 30,
   "size": [
@@ -161,9 +161,9 @@
   "publish_title": "零点一加零点二，为什么算出来不等于零点三",
   "bgm": {
     "style": "pulse",
-    "gain": -25.5
+    "gain": -20
   },
   "disclosure": "AI 语音合成配音；画面为程序化渲染",
-  "theme": "graphite",
+  "theme": "rice-paper",
   "cover_direction": "cinematic"
 }

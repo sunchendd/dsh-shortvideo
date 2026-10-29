@@ -99,6 +99,10 @@ from .themes import THEMES, theme_for_video  # noqa: E402
 
 _CURRENT_THEME = "midnight"
 LIGHT = False
+# 字幕卡底色：深色主题是深蓝半透明，浅色主题必须换成近白半透明，
+# 否则白底上会糊出一块灰药丸（实测浅色视频截图里字幕几乎看不见）。
+CAPTION_BG = (8, 12, 24)
+CAPTION_BG_A = 190
 
 
 def theme_names():
@@ -119,6 +123,9 @@ def set_theme(name):
     t = THEMES[key]
     _CURRENT_THEME = key
     LIGHT = bool(t["light"])
+    global CAPTION_BG, CAPTION_BG_A
+    CAPTION_BG = (255, 255, 255) if LIGHT else (8, 12, 24)
+    CAPTION_BG_A = 226 if LIGHT else 190
     INK = dict(t["ink"])
     BRAND = dict(t["brand"])
     STATE = dict(t["state"])
@@ -308,6 +315,7 @@ def background():
             d.point((x, y), fill=(26, 34, 54))
     _bg_cache = bg
     return bg.copy()
+
 
 
 def background_rgba():

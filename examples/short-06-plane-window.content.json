@@ -26,7 +26,7 @@
   "disclosure": "AI 配音",
   "bgm": {
     "style": "pulse",
-    "gain": -28
+    "gain": -20
   },
   "cover": {
     "kicker": "结构反常识",
@@ -163,6 +163,6 @@
     "type": "fade",
     "dur": 0.2
   },
-  "theme": "graphite",
+  "theme": "rice-paper",
   "cover_direction": "cinematic"
 }

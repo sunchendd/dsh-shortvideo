@@ -12,12 +12,12 @@
     "盲点填充（filling-in）实验：Ramachandran & Blakeslee, Phantoms in the Brain (1998)"
   ],
   "voice": {
-    "preset": "yunjian",
+    "preset": "yunxi",
     "rate": "-12%"
   },
   "bgm": {
     "style": "lofi",
-    "gain": -28.0
+    "gain": -20
   },
   "transition": {
     "type": "fade",
@@ -128,6 +128,6 @@
     "cta": "18 秒看懂"
   },
   "disclosure": "AI 语音合成配音；画面为程序化渲染",
-  "theme": "arctic",
+  "theme": "rice-paper",
   "cover_direction": "cinematic"
 }

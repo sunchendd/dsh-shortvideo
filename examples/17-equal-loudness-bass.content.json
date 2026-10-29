@@ -5,7 +5,7 @@
     "preset": "yunxi",
     "mood_tuning": {
       "hook": {
-        "rate": "+12%"
+        "rate": "+8%"
       },
       "explain": {
         "rate": "-6%"
@@ -209,6 +209,10 @@
     "耳道四分之一波长共振：f = c/(4L)，L = 2.5 cm、c = 343 m/s → 3.43 kHz；人耳最敏感区 2–5 kHz 即由此而来",
     "ISO 226:2003 表 1（α_f、L_U、T_f 的 29 个频点参数）+ 第 4.1 节计权公式；复算实现参考 PyDSM iso226（Sergio Callegari, BSD）"
   ],
-  "theme": "aubergine",
-  "cover_direction": "blueprint"
+  "theme": "arctic",
+  "cover_direction": "blueprint",
+  "bgm": {
+    "gain": -20,
+    "style": "lofi"
+  }
 }

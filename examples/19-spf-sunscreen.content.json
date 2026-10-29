@@ -2,10 +2,10 @@
   "title": "防晒倍数是个陷阱：涂量才是命门",
   "subtitle": "SPF50 比 SPF30 只多挡 1.3%，薄涂等于白涂",
   "voice": {
-    "preset": "yunjian",
+    "preset": "yunxi",
     "mood_tuning": {
       "hook": {
-        "rate": "+10%"
+        "rate": "+8%"
       },
       "rule": {
         "rate": "-8%"
@@ -17,7 +17,7 @@
         "rate": "+2%"
       },
       "win": {
-        "rate": "+10%"
+        "rate": "+8%"
       }
     }
   },
@@ -31,7 +31,7 @@
   "disclosure": "AI 配音",
   "bgm": {
     "style": "lofi",
-    "gain": -28
+    "gain": -20
   },
   "cover": {
     "kicker": "护肤反常识",

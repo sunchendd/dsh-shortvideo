@@ -17,7 +17,7 @@
   },
   "bgm": {
     "style": "lofi",
-    "gain": -28.0
+    "gain": -20
   },
   "transition": {
     "type": "fade",
@@ -126,6 +126,6 @@
     "cta": "17 秒看懂"
   },
   "disclosure": "AI 语音合成配音；画面为程序化渲染",
-  "theme": "midnight",
+  "theme": "porcelain",
   "cover_direction": "editorial"
 }

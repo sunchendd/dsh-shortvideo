@@ -1014,7 +1014,14 @@ def main():
     timeline, segs, cursor = [], [], 0.0
     for item, adur in zip(items, adurs):
         shot = cfg["shots"][len(timeline)]
-        dur = max(shot.get("min_dur", 4.0), adur + lead + tail)
+        # 镜头时长 = 配音时长 + lead/tail，**多余空场封顶 0.45s**。
+        # 原来 max(min_dur, ...) 直接吃配置里的 min_dur（7~8s），而配音只有 5~6s，
+        # 于是每镜尾部空 1.7~2.1s：19 号 36.8s 里有 15 段静音、四分之一是哑的。
+        # 观众感知就是"没人说话、画面也不动"——鬼片感的直接来源之一。
+        # 现在 min_dur 只作为"至少这么长"的下限参考，超过配音的部分最多 0.45s。
+        _need = adur + lead + tail
+        _authored = float(shot.get("min_dur", 4.0) or 4.0)
+        dur = max(2.6, min(max(_authored, _need), _need + 0.32))
         # mood 必须一起进 timeline：BGM 的分段起伏靠它决定每段音量，
         # 只把推断结果传给 tts 的话，_maybe_bgm 里 str(it.get("mood")) 全落 None，
         # 于是每段都是 explain(low)，"钩子段比正文响 ~9dB" 静默失效。

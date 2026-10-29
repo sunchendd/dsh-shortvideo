@@ -149,11 +149,20 @@ THEMES = {
 # 视频画面是否跟着换肤。浅色主题的视频底会变成亮底，
 # deck 里的 ghost/glow 都是按深底调的，硬套会脏——所以浅色主题只作用于封面与一张图，
 # 视频保持深底（同一账号的视频流仍然统一，封面负责在信息流里"亮眼"）。
+# 视频能不能直接用浅色主题。
+#
+# 历史：早期视频里浅色主题的描边/阴影是按深色底调的，白底上会糊成一团，
+# 所以浅色主题在视频里一律回退到深色（porcelain→midnight 等），封面和图文仍用浅色。
+# 结果 33 条片子里 24 条是深色底 + 发丝细线 + 淡灰副标，用户第一眼评价是"像鬼片"。
+#
+# 现在 deck v2 是编辑化版式（细线、左对齐、单强调色），在浅底上反而更清楚，
+# 实测 porcelain/arctic/rice-paper 的字号、对比、越界三项门禁都过，所以允许直接用。
 VIDEO_LIGHT_OK = {"porcelain", "rice-paper", "arctic"}
 
 
 def theme_for_video(name):
-    """浅色主题的视频回退到同名深色（没有则用 midnight），封面/图文仍用浅色。"""
-    if name in VIDEO_LIGHT_OK:
-        return {"porcelain": "midnight", "rice-paper": "noir-gold", "arctic": "midnight"}[name]
+    """视频用哪个主题：浅色主题现在允许直接用（见 VIDEO_LIGHT_OK 的说明）。
+
+    想看深色版可以显式配 theme_force_dark=True，或者直接把 theme 写成深色名字。
+    """
     return name

@@ -236,7 +236,7 @@ class SceneAPI:
                 d = ImageDraw.Draw(layer)
                 d.rounded_rectangle(((R.W - 940) / 2 - ox, y - 22 - oy,
                                      (R.W + 940) / 2 - ox, y - 22 + h - oy),
-                                    radius=28, fill=(8, 12, 24, int(190 * a)),
+                                    radius=28, fill=R.CAPTION_BG + (int(R.CAPTION_BG_A * a),),
                                     outline=R.ACCENT + (int(60 * a),), width=2)
                 for i, ln in enumerate(lines):
                     d.text((R.W / 2 - ox, y + 10 + line_h * i + line_h / 2 - oy), ln,
@@ -260,7 +260,7 @@ class SceneAPI:
             d = ImageDraw.Draw(layer)
             d.rounded_rectangle(((R.W - 940) / 2 - ox, y - 22 - oy,
                                  (R.W + 940) / 2 - ox, y - 22 + h - oy),
-                                radius=28, fill=(8, 12, 24, int(190 * a)),
+                                radius=28, fill=R.CAPTION_BG + (int(R.CAPTION_BG_A * a),),
                                 outline=R.ACCENT + (int(60 * a),), width=2)
             flags = [hi for _seg, hi in runs]
             starts, pos = [], 0

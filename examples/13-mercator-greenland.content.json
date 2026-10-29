@@ -188,6 +188,10 @@
     "等积投影（equal-area）对照：Mollweide、Albers 等积圆锥——面积不失真、角度才失真"
   ],
   "disclosure": "AI 语音合成配音；画面为程序化渲染",
-  "theme": "arctic",
-  "cover_direction": "editorial"
+  "theme": "porcelain",
+  "cover_direction": "editorial",
+  "bgm": {
+    "gain": -20,
+    "style": "lofi"
+  }
 }
