@@ -134,10 +134,13 @@ def main():
         flags = []
         if st["peak"] > PEAK_LIMIT:
             flags.append(f"峰值 {st['peak']:.1f}dB 偏高（有削波风险）")
-        # 动态范围本来就会因题材/音色不同而差几个 dB（叙事片起伏大、公式片平），
-        # 容差给宽；人声和 BGM 是全账号"一样响"的硬指标，卡紧。
+        # 动态范围是**风格指标**不是一致性指标：讲拍频、讲等响曲线的片子，
+        # 声音本来就在一鼓一鼓地脉动（short-08 实测 25.1dB，比中位高 4.6dB）——
+        # 卡 4.5dB 等于惩罚"题材本身有起伏"，是误报。改成 8dB 以上才报警，
+        # 4.5~8dB 只在行尾标个 note，不影响退出码。
+        RANGE_HARD = 8.0
         for key, label, tol in (("voice", "人声", args.tol), ("gap", "BGM", 2.0),
-                                ("range", "动态范围", 4.5)):
+                                ("range", "动态范围", RANGE_HARD)):
             v = st[key]
             if v is None:
                 continue

@@ -50,7 +50,7 @@
   "shots": [
     {
       "id": "hook",
-      "min_dur": 4.3,
+      "min_dur": 3.7,
       "narration": "五十倍防晒，只多挡1.3%。",
       "emphasis": [
         "1.3%"
@@ -59,7 +59,7 @@
     },
     {
       "id": "rule",
-      "min_dur": 5.0,
+      "min_dur": 4.0,
       "narration": "倍数算透过率，涂量定生死。",
       "emphasis": [
         "涂量"
@@ -72,7 +72,7 @@
     },
     {
       "id": "reveal",
-      "min_dur": 4.6,
+      "min_dur": 4.1,
       "narration": "薄涂一半，透过的光翻七倍。",
       "emphasis": [
         "七倍"
@@ -85,7 +85,7 @@
     },
     {
       "id": "solve",
-      "min_dur": 4.3,
+      "min_dur": 3.5,
       "narration": "一张脸要1.2克，评论区说说。",
       "emphasis": [
         "1.2克"

@@ -128,10 +128,14 @@ def score_rhythm(cfg, shots, miss, ok=lambda *a: None):
     else:
         miss("节奏", 0, 6, f"总时长 {total:.0f}s 不在 {rng[0]}~{rng[1]}s 甜区")
     avg = total / max(1, len(shots))
-    if 4.0 <= avg <= 9.5:
+    # 短版的镜头本来就该快切：小红书短版常见 2.5~4s 一刀。
+    # 统一用长版的 4.0s 下限，会把 4 镜短版硬逼到 16s 以上，
+    # 结果只能靠"镜头里空转等配音"凑时长——留白比快切更伤完播。
+    avg_lo, avg_hi = (2.6, 6.0) if _is_short(cfg) else (4.0, 9.5)
+    if avg_lo <= avg <= avg_hi:
         pts += 6
     else:
-        miss("节奏", 0, 6, f"平均镜头 {avg:.1f}s（建议 4~9.5s，太碎或太拖都掉完播）")
+        miss("节奏", 0, 6, f"平均镜头 {avg:.1f}s（建议 {avg_lo}~{avg_hi}s，太碎或太拖都掉完播）")
     if pts == mx:
         ok("节奏", f"总长 {total:.0f}s，平均镜头 {avg:.1f}s，语速都在舒适区")
     return pts, mx

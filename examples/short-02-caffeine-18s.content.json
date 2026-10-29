@@ -26,7 +26,7 @@
   "shots": [
     {
       "id": "hook",
-      "min_dur": 4.0,
+      "min_dur": 3.5,
       "narration": "咖啡居然不提神，5 小时就减一半。",
       "emphasis": [
         "堵在门口"
@@ -35,7 +35,7 @@
     },
     {
       "id": "rule",
-      "min_dur": 4.6,
+      "min_dur": 3.5,
       "narration": "困意来自腺苷，越攒越困。",
       "emphasis": [
         "腺苷"
@@ -44,7 +44,7 @@
     },
     {
       "id": "reveal",
-      "min_dur": 6.0,
+      "min_dur": 5.4,
       "narration": "刚喝是 100%，5 小时后剩 50%。",
       "emphasis": [
         "5 小时"
@@ -53,7 +53,7 @@
     },
     {
       "id": "solve",
-      "min_dur": 6.0,
+      "min_dur": 5.4,
       "narration": "下午喝的，夜里还剩 33%。评论区聊。",
       "emphasis": [
         "33%"

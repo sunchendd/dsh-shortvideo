@@ -70,7 +70,7 @@
     {
       "id": "hook",
       "mood": "hook",
-      "min_dur": 4.2,
+      "min_dur": 3.4,
       "narration": "电梯里只剩1格，不是墙太厚。",
       "emphasis": [
         "不是墙太厚"
@@ -84,7 +84,7 @@
     {
       "id": "rule",
       "mood": "rule",
-      "min_dur": 5.0,
+      "min_dur": 3.9,
       "narration": "是那层铁，把电场抹平了。",
       "emphasis": [
         "抹平"
@@ -98,7 +98,7 @@
     {
       "id": "reveal",
       "mood": "reveal",
-      "min_dur": 5.6,
+      "min_dur": 4.7,
       "narration": "一层铜皮就够：1微米多，波就没劲。",
       "emphasis": [
         "1微米多"
@@ -112,7 +112,7 @@
     {
       "id": "solve",
       "mood": "win",
-      "min_dur": 5.6,
+      "min_dur": 5.1,
       "narration": "靠门口站，别用金属壳。评论区聊。",
       "emphasis": [
         "别用金属壳"

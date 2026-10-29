@@ -69,7 +69,7 @@
     {
       "id": "hook",
       "mood": "hook",
-      "min_dur": 4.2,
+      "min_dur": 3.7,
       "narration": "两个音只差四赫兹，一秒抖四下。",
       "emphasis": [
         "一秒抖四下"
@@ -83,7 +83,7 @@
     {
       "id": "rule",
       "mood": "rule",
-      "min_dur": 4.6,
+      "min_dur": 3.7,
       "narration": "拍音的快慢，就是两个音的差。",
       "emphasis": [
         "两个音的差"
@@ -97,7 +97,7 @@
     {
       "id": "reveal",
       "mood": "reveal",
-      "min_dur": 5.2,
+      "min_dur": 4.3,
       "narration": "四赫兹不是音，是每秒四次的强弱。",
       "emphasis": [
         "每秒四次的强弱"
@@ -111,7 +111,7 @@
     {
       "id": "solve",
       "mood": "win",
-      "min_dur": 5.3,
+      "min_dur": 4.7,
       "narration": "抖到听不出，就调准了。评论区聊。",
       "emphasis": [
         "抖到听不出"

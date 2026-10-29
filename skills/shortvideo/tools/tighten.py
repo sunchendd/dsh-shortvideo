@@ -40,6 +40,11 @@ def wav_dur(path):
 KIND_PAD = {"bars": 2.1, "timeline": 2.1, "flow": 2.0, "bits": 2.0,
             "compare": 1.9, "stat": 1.6, "formula": 1.6, "digits": 1.6}
 
+# 短版（format=short）的留白要整体砍半：短版的卖点就是"不浪费一秒"，
+# 用长版的 pad 会把 3.1s 的配音撑成 5.1s 的镜头（净留白 2s），
+# 实测短版照长版 pad 收，4 镜里有 2 镜在空转。这里按比例压到 45%。
+SHORT_PAD_SCALE = 0.45
+
 
 def tighten(path, pad=1.5, floor=4.5, cap=8.0, dry_run=False):
     cfg = json.load(open(path, encoding="utf-8"))
@@ -47,6 +52,7 @@ def tighten(path, pad=1.5, floor=4.5, cap=8.0, dry_run=False):
     build = os.path.join(os.path.dirname(path), "out", slug, "build")
     changed = []
     deck = cfg.get("deck") or {}
+    is_short = str(cfg.get("format") or "").lower() in ("short", "15s", "quick")
     for i, shot in enumerate(cfg.get("shots") or []):
         sid = shot.get("id") or str(i)
         adur = wav_dur(os.path.join(build, f"{i:02d}_{sid}.wav"))
@@ -59,6 +65,8 @@ def tighten(path, pad=1.5, floor=4.5, cap=8.0, dry_run=False):
             continue
         kind = str((deck.get(sid) or {}).get("kind") or "big")
         my_pad = KIND_PAD.get(kind, pad)
+        if is_short:
+            my_pad = round(my_pad * SHORT_PAD_SCALE, 2)
         new = round(min(cap, max(floor, adur + my_pad)), 1)
         old = float(shot.get("min_dur") or 0)
         # 阈值要对小数位取整再比：8.6-8.3 在浮点里是 0.2999999999999998，

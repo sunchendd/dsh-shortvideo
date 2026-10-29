@@ -26,7 +26,7 @@
   "shots": [
     {
       "id": "hook",
-      "min_dur": 3.5,
+      "min_dur": 3.0,
       "narration": "微波炉加热不匀，差在6厘米。",
       "emphasis": [
         "6厘米"
@@ -35,7 +35,7 @@
     },
     {
       "id": "rule",
-      "min_dur": 4.4,
+      "min_dur": 3.3,
       "narration": "微波波长12厘米，叠成驻波。",
       "emphasis": [
         "驻波"
@@ -44,7 +44,7 @@
     },
     {
       "id": "reveal",
-      "min_dur": 5.0,
+      "min_dur": 3.8,
       "narration": "微波只进2厘米，深处靠导热。",
       "emphasis": [
         "2厘米"
@@ -53,7 +53,7 @@
     },
     {
       "id": "solve",
-      "min_dur": 3.4,
+      "min_dur": 3.0,
       "narration": "摊成薄层翻面，收藏这条。",
       "emphasis": [
         "薄层"

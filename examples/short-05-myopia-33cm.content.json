@@ -41,7 +41,7 @@
     {
       "id": "hook",
       "mood": "hook",
-      "min_dur": 3.9,
+      "min_dur": 3.4,
       "narration": "三百度近视，只能看清三十三厘米？",
       "emphasis": [
         "三十三厘米"
@@ -51,7 +51,7 @@
     {
       "id": "rule",
       "mood": "rule",
-      "min_dur": 4.6,
+      "min_dur": 3.4,
       "narration": "度数就是一百除以焦距的米数。",
       "emphasis": [
         "一百除以焦距"
@@ -61,7 +61,7 @@
     {
       "id": "reveal",
       "mood": "reveal",
-      "min_dur": 4.8,
+      "min_dur": 4.0,
       "narration": "六百度近视，远点只剩十七厘米。",
       "emphasis": [
         "十七厘米"
@@ -71,7 +71,7 @@
     {
       "id": "solve",
       "mood": "win",
-      "min_dur": 3.4,
+      "min_dur": 3.0,
       "narration": "摘镜量远点，评论区报数。",
       "emphasis": [
         "远点"

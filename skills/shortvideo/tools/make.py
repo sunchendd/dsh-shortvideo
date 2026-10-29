@@ -634,7 +634,9 @@ def lint_script(cfg, timeline, degraded=()):
         if n_char > 38:
             out.append(("warn", f"{shot.get('id')}: {n_char} 字超单镜上限 38 字（字幕会顶满两行）"))
         hold_min = 0.7 if str(cfg.get("format") or "").lower() in ("short", "15s", "quick") else 1.0
-        if item["dur"] - adur < hold_min:
+        # 留白比较必须先取整：3.70-3.00 在浮点里是 0.7000000000000002，
+        # 3.20-2.50 是 0.6999999999999999——同一个 0.7s 一会有事一会没事。
+        if round(item["dur"] - adur, 2) < hold_min:
             out.append(("warn", f"{shot.get('id')}: 镜头留白仅 {item['dur'] - adur:.2f}s（建议 ≥{hold_min:g}s，"
                                 f"留给图形动效和呼吸）"))
 
