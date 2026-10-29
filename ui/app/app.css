@@ -496,4 +496,11 @@ input, textarea, select { font: inherit; color: inherit; }
 
 /* 镜头增删 */
 .shotops { display: flex; gap: 8px; margin: 4px 0 12px; }
-.shotops .tbtn { flex: 1; justify-content: center; }
+/* 顶栏的 .tbtn 是"无边框文字按钮"，放进检查器会显得不可点，这里补成实体按钮 */
+.shotops .tbtn {
+  flex: 1; justify-content: center; height: 28px; border-radius: 4px;
+  border: 1px solid var(--line2); background: var(--bg1); color: var(--ink1);
+  font: 600 11px/1 var(--sans);
+}
+.shotops .tbtn:hover { background: var(--bg3); color: var(--ink0); border-color: var(--line3); }
+.shotops .tbtn:active { transform: translateY(1px); }
