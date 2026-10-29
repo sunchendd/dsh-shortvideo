@@ -45,8 +45,21 @@ else
 fi
 
 echo "==> 同步角色技能：${ROLE_SKILLS[*]}"
+DRIFT=0
 for role in "${ROLE_SKILLS[@]}"; do
   [ -d "$REPO_DIR/skills/$role" ] || continue
+  # 漂移检测：装好的 skill 若被直接改过（而不是改仓库副本），同步会把它冲掉。
+  # 实测代价：第 19 轮写的「短版」一节就这样静默消失了一整轮。
+  if [ -f "$SKILLS_DIR/$role/SKILL.md" ] && [ -f "$REPO_DIR/skills/$role/SKILL.md" ] \
+     && ! cmp -s "$SKILLS_DIR/$role/SKILL.md" "$REPO_DIR/skills/$role/SKILL.md"; then
+    if grep -qxF "$(cat "$REPO_DIR/skills/$role/SKILL.md")" "$SKILLS_DIR/$role/SKILL.md" 2>/dev/null; then
+      :
+    else
+      DRIFT=1
+      echo "    [!] $role/SKILL.md 与仓库不一致，已备份为 SKILL.md.bak（今后请改仓库副本）"
+      cp -f "$SKILLS_DIR/$role/SKILL.md" "$SKILLS_DIR/$role/SKILL.md.bak"
+    fi
+  fi
   mkdir -p "$SKILLS_DIR/$role"
   if command -v rsync >/dev/null 2>&1; then
     rsync -a --delete --exclude '__pycache__' "$REPO_DIR/skills/$role/" "$SKILLS_DIR/$role/"
@@ -55,6 +68,10 @@ for role in "${ROLE_SKILLS[@]}"; do
   fi
   echo "    $SKILLS_DIR/$role"
 done
+if [ "$DRIFT" = "1" ]; then
+  echo "    注意：检测到直接改装的副本，已覆盖。角色 skill 的正确改法是"
+  echo "          编辑仓库 skills/<role>/SKILL.md 后重跑 install.sh"
+fi
 
 if [ "$DO_DEPS" = "1" ]; then
   if [ ! -x "$VENV/bin/python" ]; then
