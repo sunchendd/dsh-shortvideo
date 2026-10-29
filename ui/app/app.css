@@ -493,3 +493,7 @@ input, textarea, select { font: inherit; color: inherit; }
   body.insp-open .canvaswrap { padding-right: 348px; }
   .canvaswrap { transition: padding-right .18s ease; }
 }
+
+/* 镜头增删 */
+.shotops { display: flex; gap: 8px; margin: 4px 0 12px; }
+.shotops .tbtn { flex: 1; justify-content: center; }

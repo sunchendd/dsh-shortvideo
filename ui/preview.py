@@ -359,7 +359,32 @@ def _save_project(slug, body):
     if "voice" in body and body["voice"]:
         cfg.setdefault("voice", {})["preset"] = str(body["voice"])
     deck = cfg.setdefault("deck", {})
-    by_id = {s["id"]: s for s in cfg.get("shots") or []}
+    shots = cfg.get("shots") or []
+    by_id = {s["id"]: s for s in shots}
+
+    # 结构编辑：order 给了就按它重排/新增/删除。
+    # 只靠"逐镜头更新"改不了镜头数量，用户想加一个镜头、删一个废镜头就必须走这条路。
+    if isinstance(body.get("order"), list) and body["order"]:
+        keep = [str(x.get("id")) for x in body["order"] if isinstance(x, dict) and x.get("id")]
+        for sid in list(by_id):
+            if sid not in keep:
+                deck.pop(sid, None)          # 删镜头连带删它的画面
+        rebuilt = []
+        for sid in keep:
+            shot = by_id.get(sid)
+            if shot is None:                 # 新增：前端只给 id 和最小字段
+                src = next((x for x in body["order"] if x.get("id") == sid), {})
+                shot = {"id": sid, "narration": str(src.get("narration") or ""),
+                        "min_dur": float(src.get("duration") or 4.0),
+                        "mood": str(src.get("mood") or "explain"),
+                        "emphasis": []}
+            rebuilt.append(shot)
+        cfg["shots"] = rebuilt
+        by_id = {s["id"]: s for s in rebuilt}
+        for upd in body.get("order"):
+            d = deck.setdefault(str(upd.get("id")), {})
+            if isinstance(upd.get("deck"), dict):
+                d.update(upd["deck"])
     for upd in body.get("shots") or []:
         sid = upd.get("id")
         shot = by_id.get(sid)

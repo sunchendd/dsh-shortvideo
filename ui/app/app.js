@@ -474,6 +474,46 @@ function patchDeck(sh, path, raw) {
   requestFrame();
 }
 
+/** 复制当前镜头：插在它后面，id 加后缀。 */
+function duplicateShot() {
+  const i = S.sel, src = S.proj.shots[i];
+  if (!src) return;
+  const id = `${src.id}-c${Date.now().toString(36).slice(-3)}`;
+  beginEdit();
+  const clone = {
+    id, narration: src.narration, duration: src.duration, kind: src.kind,
+    deck: JSON.parse(JSON.stringify(src.deck || {})), start: 0, emphasis: [],
+    headline: src.headline,
+  };
+  commit(() => {
+    S.proj.shots.splice(i + 1, 0, clone);
+    retime();
+  }, { undo: false });
+  S.sel = i + 1;
+  renderInspector();
+  renderTimeline();
+  requestFrame(true);
+  scheduleSave();
+  toast("已复制镜头");
+}
+
+/** 删除当前镜头。只剩一个时不允许——没有镜头的片子渲不出来。 */
+function deleteShot() {
+  if (S.proj.shots.length <= 1) return toast("至少留一个镜头");
+  const i = S.sel;
+  beginEdit();
+  commit(() => {
+    S.proj.shots.splice(i, 1);
+    retime();
+  }, { undo: false });
+  S.sel = Math.max(0, i - 1);
+  renderInspector();
+  renderTimeline();
+  requestFrame(true);
+  scheduleSave();
+  toast("已删除镜头");
+}
+
 function splitSentences(s) {
   return (s || "").split(/(?<=[。！？；?])/).map((x) => x.trim()).filter(Boolean);
 }
@@ -484,6 +524,10 @@ function snapshot() {
     title: S.proj.title, theme: S.proj.theme, voice: S.proj.voice,
     shots: S.proj.shots.map((s) => ({
       id: s.id, narration: s.narration, duration: s.duration, kind: s.kind, deck: s.deck,
+    })),
+    // order：服务端据此重排/新增/删除镜头（只发逐镜更新是改不了镜头数量的）
+    order: S.proj.shots.map((s) => ({
+      id: s.id, narration: s.narration, duration: s.duration, mood: s.mood, deck: s.deck,
     })),
   };
 }
@@ -570,6 +614,9 @@ async function doSave() {
     const r = await jpost("/api/project", {
       slug: S.slug, title: snap.title, theme: snap.theme, voice: snap.voice,
       shots: snap.shots,
+      // order 必须真的发出去：服务端靠它重排/增删镜头。
+      // （第一次只加进了 snapshot()，那是撤销用的本地快照，服务端根本没收到。）
+      order: snap.order,
     }, "POST");
     if (r.ok) {
       S.lastSaved = JSON.stringify(snap);
@@ -1008,6 +1055,9 @@ async function refreshQA() {
 
 /* ------------------------------------------------------------ 导出 */
 function bindExport() {
+  const dup = $("#btnDup"), del = $("#btnDel");
+  if (dup) dup.onclick = () => duplicateShot();
+  if (del) del.onclick = () => deleteShot();
   $("#btnExport").onclick = () => { $("#exportScrim").classList.add("on"); updateExMeta(); };
   // 窄屏（<1180px）检查器变抽屉，点顶栏"检查"开合
   const inspBtn = $("#btnInsp");
