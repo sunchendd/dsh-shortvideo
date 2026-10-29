@@ -115,3 +115,15 @@ body.lib { overflow: auto; background: var(--bg0); }
   padding: 8px 10px; font-size: 13px; color: var(--ink0);
 }
 .lines input:focus { outline: none; border-color: var(--accent); box-shadow: 0 0 0 3px var(--accent-soft); }
+
+/* 模板选择 */
+.tpls { display: grid; grid-template-columns: repeat(2, 1fr); gap: 8px; margin: 0 0 16px; }
+.tpl {
+  text-align: left; padding: 10px 12px; border-radius: 6px; cursor: pointer;
+  background: var(--bg0); border: 1px solid var(--line2); color: var(--ink1);
+}
+.tpl:hover { border-color: #4b5563; }
+.tpl.on { border-color: var(--accent); background: var(--accent-soft); color: var(--ink0); }
+.tpl b { display: block; font: 600 13px/1.4 var(--sans); color: var(--ink0); }
+.tpl span { display: block; font-size: 11px; line-height: 1.5; color: var(--ink2); margin-top: 3px; }
+.tpl em { display: block; font: 10px/1.6 var(--mono); color: var(--accent); font-style: normal; margin-top: 5px; }

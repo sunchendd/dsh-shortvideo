@@ -268,7 +268,11 @@ input, textarea, select { font: inherit; color: inherit; }
 .modal {
   width: 460px; background: var(--bg1); border: 1px solid var(--line2);
   border-radius: 10px; box-shadow: 0 24px 60px #000c; overflow: hidden;
+  /* 内容超过视口时要能滚：之前新建弹层选完模板会顶到屏幕外，连关闭按钮都看不到 */
+  max-height: 90vh; display: flex; flex-direction: column;
 }
+.modal .body { overflow-y: auto; }
+.modal header, .modal footer { flex: 0 0 auto; }
 .modal header {
   padding: 16px 18px 12px; border-bottom: 1px solid var(--line);
   display: flex; align-items: center; justify-content: space-between;

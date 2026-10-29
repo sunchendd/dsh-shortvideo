@@ -438,6 +438,44 @@ def _deliver_info(slug):
     return info
 
 
+
+
+# ---------------------------------------------------------------- 结构模板
+_TEMPLATES = None
+
+
+def _templates():
+    """读结构模板（决定"怎么讲"，不是"长什么样"）。"""
+    global _TEMPLATES
+    if _TEMPLATES is None:
+        path = os.path.join(TOOLS, "templates.json")
+        try:
+            _TEMPLATES = json.load(open(path, encoding="utf-8")).get("templates") or []
+        except Exception:  # noqa: BLE001
+            _TEMPLATES = []
+    return _TEMPLATES
+
+
+def _apply_template(slug, tid):
+    """把模板的镜头类型序列写进 content.json（新建项目的第二步）。"""
+    tpl = next((t for t in _templates() if t["id"] == tid), None)
+    if not tpl:
+        return False
+    path = os.path.join(EX, f"{slug}.content.json")
+    if not os.path.exists(path):
+        return False
+    cfg = json.load(open(path, encoding="utf-8"))
+    deck = cfg.setdefault("deck", {})
+    for i, kind in enumerate(tpl.get("kinds") or []):
+        shots = cfg.get("shots") or []
+        if i >= len(shots):
+            break
+        deck.setdefault(shots[i]["id"], {})["kind"] = kind
+    json.dump(cfg, open(path, "w", encoding="utf-8"), ensure_ascii=False, indent=2)
+    PV.invalidate(slug)
+    return True
+
+
 def _project_meta(slug):
     """片库卡片要的最少信息：时长、镜数、主题、音色、有没有成片。
 
@@ -596,6 +634,9 @@ def _start_job(kind, slug, extra=None):
             elif kind == "stage":
                 ok, tail = _run_stage(slug, (extra or {}).get("stage") or "script",
                                       (extra or {}).get("opts") or {})
+                tpl = (extra or {}).get("template")
+                if ok and tpl:
+                    _apply_template(slug, tpl)
             elif kind == "verify":
                 r = subprocess.run(["./verify.sh", slug], cwd=REPO,
                                    capture_output=True, text=True, timeout=1800)
@@ -686,6 +727,8 @@ class Handler(BaseHTTPRequestHandler):
                                     "root": REPO})
         if path == "/api/item":
             return self._send(200, _detail(q.get("slug", [""])[0]) or {"error": "unknown"})
+        if path == "/api/templates":
+            return self._send(200, {"templates": _templates()})
         if path == "/api/deliver":
             return self._send(200, _deliver_info(q.get("slug", [""])[0]))
         if path == "/api/stage-status":
@@ -826,8 +869,9 @@ class Handler(BaseHTTPRequestHandler):
                      "short": bool(body.get("short")), "at": time.strftime("%Y-%m-%d %H:%M:%S")}
             json.dump(brief, open(os.path.join(d, "brief.json"), "w", encoding="utf-8"),
                       ensure_ascii=False, indent=2)
-            return self._send(200, {"job": _start_job("stage", slug, {"stage": "script"}),
-                                    "slug": slug})
+            tpl = str(body.get("template") or "").strip()
+            return self._send(200, {"job": _start_job("stage", slug, {
+                "stage": "script", "template": tpl}), "slug": slug})
         if u.path == "/api/project" and not slug:
             return self._send(400, {"error": "slug required"})
         if u.path == "/api/stage":

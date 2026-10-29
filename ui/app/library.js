@@ -11,9 +11,10 @@ const THEMES = [
   ["noir-gold", "黑金"], ["aubergine", "茄紫"],
 ];
 
-const S = { all: [], filter: "all", q: "" };
+const S = { all: [], filter: "all", q: "", templates: [], tpl: null };
 
 async function boot() {
+  S.templates = (await (await fetch("/api/templates")).json().catch(() => ({ templates: [] }))).templates || [];
   const d = await (await fetch("/api/projects")).json();
   S.all = d.projects || [];
   $("#libSub").textContent =
@@ -113,19 +114,53 @@ function bind() {
 
 function openNew() {
   $("#newScrim").classList.add("on");
-  if (!$("#nLines").children.length) {
-    ["", "", "", "", ""].forEach((_, i) => addLine("", i));
-  }
+  renderTemplates();
+  if (!$("#nLines").children.length) fillLines(null);
   setTimeout(() => $("#nTitle").focus(), 60);
 }
 
-function addLine(v = "", i = null) {
+/** 模板卡：点了就换掉占位提示和视觉主题；示例文案可以选择一键填入。 */
+function renderTemplates() {
+  const box = $("#nTpls");
+  box.innerHTML = S.templates.map((t) => `
+    <button class="tpl ${S.tpl && S.tpl.id === t.id ? "on" : ""}" data-tpl="${t.id}">
+      <b>${esc(t.name)}</b><span>${esc(t.desc)}</span>
+      <em>点两次用示例填满 →</em>
+    </button>`).join("");
+  box.querySelectorAll("[data-tpl]").forEach((b) => {
+    b.onclick = () => {
+      const t = S.templates.find((x) => x.id === b.dataset.tpl);
+      const again = S.tpl && S.tpl.id === t.id;
+      S.tpl = t;
+      $("#nTheme").value = t.theme || "porcelain";
+      fillLines(t);
+      if (again) {
+        // 第二次点：把示例文案灌进去，用户可以照着改
+        const ins = [...$("#nLines").querySelectorAll("input")];
+        (t.example || []).forEach((v, i) => { if (ins[i]) ins[i].value = v; });
+        if (!$("#nTitle").value.trim() && t.example && t.example[0]) {
+          $("#nTitle").value = t.example[0].replace(/[。！？]$/, "");
+        }
+      }
+      renderTemplates();
+    };
+  });
+}
+
+function fillLines(t) {
+  const wrap = $("#nLines");
+  wrap.innerHTML = "";
+  const hints = (t && t.hints) || ["钩子：一句反直觉的话", "规则：为什么会这样", "原理：机制/数字", "高潮：最反常识的一点", "实战：怎么用"];
+  hints.forEach((h, i) => addLine("", i, h));
+}
+
+function addLine(v = "", i = null, hint = null) {
   const wrap = $("#nLines");
   const n = wrap.children.length;
   const row = document.createElement("div");
   row.className = "ln";
-  row.innerHTML = `<span>${(i ?? n) + 1}</span><input value="${esc(v)}" placeholder="${
-    ["钩子：一句反直觉的话", "规则：为什么会这样", "原理：机制/数字", "高潮：最反常识的一点", "实战：怎么用"][i ?? n] || "再补一句"}">`;
+  const ph = hint || (S.tpl && S.tpl.hints && S.tpl.hints[i ?? n]) || "再补一句";
+  row.innerHTML = `<span>${(i ?? n) + 1}</span><input value="${esc(v)}" placeholder="${esc(ph)}">`;
   wrap.appendChild(row);
   renumber();
 }
@@ -146,6 +181,7 @@ async function create() {
     body: JSON.stringify({
       title, lines, kicker: $("#nKicker").value.trim() || null,
       theme: $("#nTheme").value, voice: $("#nVoice").value,
+      template: S.tpl ? S.tpl.id : null,
     }),
   })).json();
   if (r.error) { warn.textContent = r.error; return; }
