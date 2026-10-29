@@ -3,7 +3,8 @@
 > 回答一个问题：**"小红书爆款科普短视频"这个目标，哪些做到了、拿什么证明？**
 > 每条都给可复现的命令或可点开的文件，不写"已完成"这种空话。
 
-审计时间：第 35 轮 · 全部数字来自本机实跑（2026-10-29 00:0x）
+审计时间：第 41 轮 · 全部数字来自本机实跑（2026-10-29 09:4x）
+**一键复现**：`./verify.sh`（13 道门禁，全库约 5 分钟；单条 15 秒）
 **诚实声明**：下面证明的是"达到可发布的工艺水位"，**不是"必然爆款"**。
 爆款取决于选题、账号权重、平台分发，这些不在本工具的证明范围内。
 
@@ -16,8 +17,8 @@
 | 音色 | Azure 神经音色 | 人格定位 | 片库用量 |
 |---|---|---|---|
 | `xiaoxiao` | zh-CN-XiaoxiaoNeural | 活泼亲切女主 | 6 条 |
-| `yunxi` | zh-CN-YunxiNeural | 阳光邻家男声 | **14 条** |
-| `yunjian` | zh-CN-YunjianNeural | 浑厚沉稳男声 | 7 条 |
+| `yunxi` | zh-CN-YunxiNeural | 阳光邻家男声 | **18 条** |
+| `yunjian` | zh-CN-YunjianNeural | 浑厚沉稳男声 | 8 条 |
 
 **"有感情"落在哪**：每音色 × 5 情绪（hook/rule/explain/reveal/win），实测参数：
 
@@ -58,10 +59,11 @@ python skills/shortvideo/tools/voiceaudit.py --dir examples # 全库扁平/白�
 
 ## ④ 支持生成创意并实现视频制作 — ✅
 
-**片库 27 条**（长版 22 / 短版 5），全部 `100/100 [S]`：
+**片库 32 条**（长版 23 / 短版 9），全部 `100/100 [S]`：
 
 ```bash
-python skills/shortvideo/tools/checklist.py --dir examples    # 27/27 GO（11 道门）
+./verify.sh                                  # 13 道门禁一次跑完
+python skills/shortvideo/tools/checklist.py --dir examples    # 32/32 GO
 python skills/shortvideo/tools/plan.py --dir examples --stats # 学科分布 / 长短配比
 ```
 
@@ -99,23 +101,35 @@ python skills/shortvideo/tools/plan.py --dir examples --stats # 学科分布 / �
 
 | 指标 | 值 | 怎么验 |
 |---|---|---|
-| 片库 | 27 条（长 22 / 短 5） | `checklist.py --dir examples` |
-| 分数 | 27/27 = 100.0 [S] | `score.py --content <file>` |
-| 门禁 | **11 道**，27/27 GO | 同上 |
-| 封面体检 | 27/27 通过（字号中位 118px、缩略图对比 39） | `coveraudit.py` |
-| 图文事实链 | 27/27 标题层数字都在口播里 | `graphicaudit.py` |
-| 响度一致 | 27/27 在人声中位 ±1.2dB | `loudaudit.py` |
-| 画面告警 | 27/27 无告警 | `qa.py --dir examples` |
-| 文档完整 | 27/27 有 kernel + refs + deck_hint | `brief.py --dir examples` |
-| 学科覆盖 | 10 类，最长 7 条占 26% | `plan.py --stats` |
-| 音色覆盖 | 3 种，扁平 0 条 | `voiceaudit.py --dir examples` |
-| 排期 | 27 条 / 9 周，同题长短同周 | `plan.py --out docs/publish-plan.md` |
+| 片库 | 32 条（长 23 / 短 9） | `checklist.py --dir examples` |
+| 分数 | 32/32 = 100.0 [S] | `score.py --content <file>` |
+| 门禁 | **13 道**，`./verify.sh` 全绿 | `./verify.sh` |
+| 封面体检 | 32/32 通过（字号中位 **159px**、缩略图对比 **52**） | `coveraudit.py` |
+| 图文事实链 | 32/32 标题层数字都在口播里 | `graphicaudit.py` |
+| 响度一致 | 32/32 在人声中位 ±1.2dB | `loudaudit.py` |
+| 画面告警 | 32/32 无告警 | `qa.py --dir examples` |
+| 文档完整 | 32/32 有 kernel + refs + deck_hint | `brief.py --dir examples` |
+| 学科覆盖 | **10 类，每类 ≥2 条**（最长 7/32） | `plan.py --stats` |
+| 音色覆盖 | 3 种（18/8/6），扁平 0 条 | `voiceaudit.py --dir examples` |
+| 发布可行性 | **32/32 可直接发**（标题≤20字、AI 标注齐） | `publishcheck.py` |
+| 前 3 秒 | 最长静帧中位 **0.7s**，32/32 达标 | `hookaudit.py` |
+| 排期 | 32 条 / 11 周，同题长短同周 | `plan.py --out docs/publish-plan.md` |
+
+## 24 小时里真正被修掉的方法论问题（比数字更重要）
+
+| 问题 | 犯了几次 | 最后怎么定的规矩 |
+|---|---|---|
+| 阈值按直觉拍，没看数据分布 | 5 次（静帧 0.8s、封面字号、动态范围、包边容差、盲点分类） | 先跑分布再定阈值，**两端都要验**：好样本不许误报，坏样本必须抓住 |
+| 浮点边界 | 3 次（0.2999…、0.6999…、1.2 ≥ 1.2） | 比较前先 `round(x, 2)` |
+| 正则/关键词子串误伤 | 3 次（手机→手、二维码→导流、colorblind→blind） | 关键词宁长不短；先跑全库看误报再上线 |
+| 单行文本被静默裁掉 | 3 次（compare note、note、items[].d） | 改成**渲一帧量像素**，不再猜布局常量 |
+| 只报错不定位 | 1 次（渲染撞上别人正在改的文件） | 渲染前 py_compile 预检 + 人话报错 |
 
 ## 还差什么（诚实清单）
 
 1. **没上过真实平台**：全部是工艺指标，完播率/涨粉率要真发出去才知道。
-2. **21 号的"可听下限 20 Hz"**仍是经验值（17 号的 34 dB 已按 ISO 226:2003 复算成立）。
-3. **薄弱学科**：航空/皮肤/视光各只有 1 条。
+2. 17 号的 34 dB 已按 ISO 226:2003 官方公式复算成立；21 号的「4 Hz 不给音高」理由已改为「响度调制」并附 ISO 226 听阈表（20 Hz 听阈 78.5 dB SPL）。
+3. ~~薄弱学科~~ → 已补齐，10 个学科每类 ≥2 条（第 39 轮）。
 4. **素材单一**：纯程序化视觉，没有人像、没有实拍；适合知识类，不适合生活方式类。
 5. **配音是 TTS**：情绪靠韵律参数模拟，真人语感、气口、笑声做不到。
 6. **选题没有数据闭环**：没有"从评论区/搜索词反推选题"的能力。
