@@ -40,7 +40,10 @@ def analyse(text, mood="rule", rate_pct=0.0):
     n_syl = syllables(text)
     n_char = len("".join(str(text).split()))
     rows = []
-    for label, pct in (("+0%", 0.0), (f"{rate_pct:+g}%", rate_pct)):
+    pairs = [("+0%", 0.0)]
+    if rate_pct:
+        pairs.append((f"{rate_pct:+g}%", rate_pct))
+    for label, pct in pairs:
         rate = 4.6 * (1 + pct / 100.0)
         dur = n_syl / rate if rate else 0
         rows.append({"rate": label, "secs": round(dur, 2),
