@@ -950,6 +950,10 @@ async function refreshQA() {
 /* ------------------------------------------------------------ 导出 */
 function bindExport() {
   $("#btnExport").onclick = () => { $("#exportScrim").classList.add("on"); updateExMeta(); };
+  // 窄屏（<1180px）检查器变抽屉，点顶栏"检查"开合
+  const inspBtn = $("#btnInsp");
+  if (inspBtn) inspBtn.onclick = () => document.body.classList.toggle("insp-open");
+
   $("#btnQA").onclick = runQA;
   $("#exportClose").onclick = $("#exCancel").onclick = () => $("#exportScrim").classList.remove("on");
   $("#dlClose").onclick = () => $("#deliverScrim").classList.remove("on");

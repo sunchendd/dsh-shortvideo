@@ -456,3 +456,40 @@ input, textarea, select { font: inherit; color: inherit; }
   letter-spacing: .06em; pointer-events: none; display: none;
 }
 .stage.live .livetag { display: block; }
+
+/* ---------------------------------------------------------------- 窄屏
+   1366/1280 的笔记本上，336px 的检查器会把画布挤到很小。
+   规矩：<1180px 检查器改成右侧抽屉（点顶栏"检查"打开），画布优先；
+   <900px 左轨收成一行按钮，时间线缩短半高。 */
+@media (max-width: 1180px) {
+  #app {
+    grid-template-columns: 56px 1fr;
+    grid-template-areas:
+      "top  top"
+      "rail canvas"
+      "time time";
+  }
+  .insp {
+    position: fixed; right: 0; top: 48px; bottom: 196px; width: 336px; z-index: 30;
+    transform: translateX(100%); transition: transform .18s ease;
+    box-shadow: -18px 0 40px #000000aa;
+  }
+  body.insp-open .insp { transform: none; }
+  #btnInsp { display: inline-flex; }
+}
+@media (min-width: 1181px) { #btnInsp { display: none; } }
+
+@media (max-width: 900px) {
+  #app { grid-template-rows: 48px 1fr 150px; }
+  .rail { padding: 6px 0; }
+  .rail button { font-size: 0; gap: 0; height: 38px; }
+  .rail button svg { width: 18px; height: 18px; }
+  .insp { bottom: 150px; width: min(92vw, 336px); }
+}
+
+/* 抽屉打开时把画布让出来，而不是压在画面上面（820px 宽时压上去几乎看不见内容） */
+@media (max-width: 1180px) {
+  /* 注意：容器叫 .canvaswrap（grid-area: canvas），不叫 .canvas —— 写错选择器就是静默失效 */
+  body.insp-open .canvaswrap { padding-right: 348px; }
+  .canvaswrap { transition: padding-right .18s ease; }
+}
