@@ -516,6 +516,35 @@ _MOOD_BY_ID = {"hook": "hook", "rule": "rule", "insight": "explain", "explain": 
                "reveal": "reveal", "solve": "win", "win": "win", "flat": "flat"}
 
 
+def _cover_completeness_warnings(cfg):
+    """封面文案完整性：**配置了却没画出来**的字段要报出来。
+
+    实测事故：cover.headline 配了 3 行，`_variant_short` 里写死 `[:2]`，
+    第三行被静默丢掉，9 条片子的封面变成「五十倍防晒 / 只多挡」——正好丢核心数字。
+    而 coveraudit 只量对比度/字号/密度，完全看不出来。
+
+    这里不比像素（试过按文字块高度猜行数，又是在猜几何）：直接让渲染器
+    把"实际画了几行"回报出来，跟配置行数对比，是精确相等判断。
+    """
+    cov = cfg.get("cover") or {}
+    want = len([x for x in (cov.get("headline") or []) if str(x).strip()])
+    if not want:
+        return []
+    try:
+        import cover as C
+    except Exception:  # noqa: BLE001
+        return []
+    c = C._cfg(cfg)          # noqa: SLF001
+    try:
+        C._variant_short(c)  # noqa: SLF001  （渲一张丢掉的图，只为拿 manifest）
+    except Exception as e:  # noqa: BLE001
+        return [f"封面渲染失败：{e}"]
+    drawn = c.get("_headline_drawn")
+    if drawn is not None and drawn < want:
+        return [f"封面 headline 配了 {want} 行，只画了 {drawn} 行——有行被静默丢弃"]
+    return []
+
+
 def _deck_edge_warnings(cfg, fps=30):
     """**量像素**判断 deck 文案有没有被裁：把每镜渲一帧，看亮像素有没有贴到左右边缘。
 
@@ -651,6 +680,8 @@ def lint_script(cfg, timeline, degraded=()):
     for msg in _deck_text_warnings(cfg):
         out.append(("warn", msg))
     for msg in _deck_edge_warnings(cfg):
+        out.append(("warn", msg))
+    for msg in _cover_completeness_warnings(cfg):
         out.append(("warn", msg))
 
     # 1) 钩子：前 3 秒必须交代完钩子，4.2 字/秒 × 3s ≈ 12.6 字

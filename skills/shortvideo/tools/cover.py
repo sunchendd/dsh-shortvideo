@@ -296,9 +296,15 @@ def _variant_short(c, w=W34, h=H34):
                             fill=accent + (40,), outline=accent + (190,), width=3)
         d.text((bx0 + 26, by0 + 38), label, font=f, fill=accent + (255,), anchor="lm")
 
-    lines = c["headline"][:2]
+    # 曾经写死 [:2]，把第 3 行**静默丢掉**：19/18/02/22 等 9 条片子的封面
+    # 变成「五十倍防晒 / 只多挡」——核心数字整行消失，读不通。
+    # 根因是 short 版式原本只给短版用，后来长版也用它（大字版缩略图对比高 25%），
+    # 于是任何 3 行标题的长版都中招。现在 3 行也画，基准字号相应下调。
+    lines = c["headline"][:3]
+    c["_headline_drawn"] = len(lines)      # 供 lint 比对"配置了几行 vs 画了几行"
     max_w = w - MARGIN * 2
-    size = min(_fit(ln, max_w, hi=176, lo=SIZE_MIN)[0] for ln in lines)
+    hi = 176 if len(lines) <= 2 else 132
+    size = min(_fit(ln, max_w, hi=hi, lo=SIZE_MIN)[0] for ln in lines)
     f = R.font(size, bold=True)
     line_h = int(size * 1.14)
     block_h = line_h * len(lines)
