@@ -103,6 +103,28 @@ PY=$SV/.venv/bin/python
 }
 ```
 
+## 四·五·二、选题分怎么算（`brief.py`，别再凭感觉打 19 分）
+
+四维打分是主观的。工具把它拆成**两个可复算的维度**：
+
+```bash
+PY=<shortvideo skill>/.venv/bin/python
+$PY <shortvideo skill>/tools/brief.py --dir examples        # 全库分布
+$PY <shortvideo skill>/tools/brief.py --content content.json
+$PY <shortvideo skill>/tools/brief.py --title "彩虹其实是圆的"   # 只评一个还没做的选题
+```
+
+| 维度 | 测什么 | 阈值 |
+|---|---|---|
+| **选题分**（反常识 + 痛点，各 5） | 标题有没有数字对比/反转结构；命中几类痛点（钱/时间/健康/身体/日常误会） | ≥6.5 |
+| **交付分**（可验证 + 可视化，各 5） | 有没有 `kernel`+`refs`；每镜有没有 `deck_hint` | ≥6.0 |
+
+**为什么必须分开**：混成一个分数会得出荒谬结论——好选题因为没写 kernel 被判"不该做"。
+实测全库选题分中位 7.5/10（选题质量其实不差），而交付分中位只有 1.5/10
+（24 条没有 kernel/refs）。**这是两个完全不同的问题，不能用一个分数表达。**
+
+代理指标的局限要认：它不等于真实爆款率，只是防止"凭感觉给 19 分"。
+
 ## 四·六、写文案前先算语速（`budget.py`）
 
 本 skill 的字数上限（钩子 ≤20、每镜 ≤26）和工具侧的判定（**音节/秒**）是两套口径，

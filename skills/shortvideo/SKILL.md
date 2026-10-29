@@ -395,6 +395,33 @@ graphicaudit.py --spec examples/oneimage-19-spf-sunscreen.json
 （通勤时薪的封面写「除以 176」，而旁白只说「22 天 × 8 小时」），已改成口播里有的「36 块」。
 `checklist.py` 第 10 道门。
 
+## 选题评分：`brief.py`（选题分 / 交付分，别混成一个数）
+
+```bash
+brief.py --dir examples                                   # 全库分布
+brief.py --content examples/19-spf-sunscreen.content.json  # 单条
+brief.py --title "彩虹其实是圆的"                           # 还没做的选题先估一下
+```
+
+- **选题分**（反常识 + 痛点，/10）：标题有没有数字对比/反转；命中几类痛点
+- **交付分**（可验证 + 可视化，/10）：有没有 `kernel`+`refs`；每镜有没有 `deck_hint`
+
+混成一个 20 分制会得出荒谬结论：好选题因为没写 kernel 被判"不该做"。
+实测全库 **选题分中位 7.5、交付分中位 1.5**——选题不差，是文档没落盘。
+
+## 补文档的护栏：`pydoc_guard.py`
+
+`kernel` / `refs` / `deck_hint` 是纯文档，加它们**不该改变任何一帧**。
+给一批老片子补文档时用指纹护栏证明这一点：
+
+```bash
+pydoc_guard.py --snapshot --out /tmp/before.json    # 改之前
+pydoc_guard.py --compare /tmp/before.json           # 改之后：成片指纹必须 0 变动
+```
+
+指纹只算会影响成片的字段（shots 去掉 deck_hint / deck / voice / cover / format…），
+所以"动了 narration"会被立刻抓出来。
+
 ## 封面体检：`coveraudit.py`（按 240px 缩略图量）
 
 信息流里封面只有约 240px 宽，很多"看着很满"的封面到流里就糊了。
