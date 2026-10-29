@@ -18,7 +18,10 @@ import json
 import sys
 
 # 这些字段变化会影响成片（或被工具读取参与判定）
-RENDER_KEYS = ("shots", "deck", "voice", "format", "seconds", "bgm", "cover",
+# 注意：这里**不能**包含 "shots"——shots 在下面单独处理（去掉 deck_hint 后再哈希）。
+# 早先把它放进来等于把 shots 哈希了两次：一次去了 deck_hint、一次原样带，
+# 于是"只加 deck_hint"也会让指纹变化，把所有补文档的人判成改坏了内容。
+RENDER_KEYS = ("deck", "voice", "format", "seconds", "bgm", "cover",
                "publish_title", "title", "kicker", "hook", "tags")
 DOC_KEYS = ("kernel", "refs")
 
