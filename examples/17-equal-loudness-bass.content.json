@@ -1,0 +1,198 @@
+{
+  "title": "同样的音量，低音为什么少 34 分贝",
+  "subtitle": "等响曲线：越小声，低频丢得越多",
+  "voice": {
+    "preset": "yunxi",
+    "mood_tuning": {
+      "hook": {
+        "rate": "+12%"
+      },
+      "explain": {
+        "rate": "-6%"
+      },
+      "reveal": {
+        "rate": "+3%"
+      },
+      "win": {
+        "rate": "+8%"
+      }
+    }
+  },
+  "fps": 30,
+  "size": [
+    1080,
+    1920
+  ],
+  "lead_in": 0.15,
+  "tail": 0.55,
+  "disclosure": "AI 配音",
+  "cover": {
+    "kicker": "听觉反常识",
+    "serial": "17",
+    "headline": [
+      "不是你耳机差",
+      "低音少34分贝"
+    ],
+    "highlight": [
+      "34分贝"
+    ],
+    "sub": "等响曲线：越小声，低频丢得越多",
+    "tags": [
+      "#科普",
+      "#声学",
+      "#耳机"
+    ],
+    "cta": "看到最后 →"
+  },
+  "shots": [
+    {
+      "id": "hook",
+      "mood": "hook",
+      "min_dur": 5.4,
+      "narration": "不是你耳机差。同一个音量，低音少 34 分贝。",
+      "emphasis": [
+        "34 分贝"
+      ]
+    },
+    {
+      "id": "rule",
+      "mood": "rule",
+      "min_dur": 7.2,
+      "narration": "同样响，1 千赫要 60 分贝，100 赫兹 79，40 赫兹 94。",
+      "emphasis": [
+        "94"
+      ],
+      "transition_in": {
+        "type": "fade",
+        "dur": 0.24
+      }
+    },
+    {
+      "id": "insight",
+      "mood": "explain",
+      "min_dur": 8.0,
+      "narration": "耳道 2.5 厘米，共振在 3.4 千赫：增益只给高频，低频没份。",
+      "emphasis": [
+        "3.4 千赫"
+      ],
+      "transition_in": {
+        "type": "slide_up",
+        "dur": 0.24
+      }
+    },
+    {
+      "id": "reveal",
+      "mood": "reveal",
+      "min_dur": 7.0,
+      "narration": "音量 80 方时差 25 分贝；降到 40 方，差 43 分贝。",
+      "emphasis": [
+        "43 分贝"
+      ],
+      "transition_in": {
+        "type": "fade",
+        "dur": 0.24
+      }
+    },
+    {
+      "id": "solve",
+      "mood": "win",
+      "min_dur": 8.6,
+      "narration": "小音量别怪没低音。想补就抬 60 赫兹那段。你会调低音吗？评论区说。",
+      "emphasis": [
+        "60 赫兹"
+      ],
+      "transition_in": {
+        "type": "slide_up",
+        "dur": 0.24
+      }
+    }
+  ],
+  "deck": {
+    "hook": {
+      "kind": "big",
+      "lines": [
+        "不是你耳机差",
+        "低音真的少 34 分贝"
+      ],
+      "sub": "同一个音量，低频先掉队",
+      "style": "slam",
+      "ghost": "34"
+    },
+    "rule": {
+      "kind": "bars",
+      "items": [
+        {
+          "label": "1 千赫",
+          "v": 60,
+          "value": "60 分贝"
+        },
+        {
+          "label": "100 赫兹",
+          "v": 79,
+          "value": "79 分贝"
+        },
+        {
+          "label": "40 赫兹",
+          "v": 94,
+          "value": "94 分贝"
+        }
+      ],
+      "note": "听着一样响，要的声压差一截"
+    },
+    "insight": {
+      "kind": "flow",
+      "items": [
+        {
+          "t": "耳道 2.5 厘米",
+          "d": "像一根短管"
+        },
+        {
+          "t": "共振在 3.4 千赫",
+          "d": "高频被顶上去"
+        },
+        {
+          "t": "低频拿不到增益",
+          "d": "只好加大声压"
+        }
+      ],
+      "note": "一头封死的短管，四分之一波长共振"
+    },
+    "reveal": {
+      "kind": "compare",
+      "left": {
+        "label": "音量 80 方",
+        "value": "25",
+        "note": "分贝差距"
+      },
+      "right": {
+        "label": "音量 40 方",
+        "value": "43",
+        "note": "分贝差距"
+      },
+      "note": "耳蜗小声时放大最狠，一声大就饱和"
+    },
+    "solve": {
+      "kind": "list",
+      "items": [
+        {
+          "t": "小音量没低音",
+          "d": "是耳朵，不是耳机"
+        },
+        {
+          "t": "想补就抬 60 赫兹",
+          "d": "EQ 里那一段"
+        },
+        {
+          "t": "低频回来再降音量",
+          "d": "耳朵也轻松一点"
+        }
+      ],
+      "note": "耳机没坏，是等响曲线偏心"
+    }
+  },
+  "transition": {
+    "type": "fade",
+    "dur": 0.24
+  },
+  "publish_title": "同样音量低音少34分贝，不是耳机坏了"
+}

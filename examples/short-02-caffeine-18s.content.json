@@ -26,7 +26,7 @@
     },
     {
       "id": "rule",
-      "min_dur": 4.7,
+      "min_dur": 3.9,
       "narration": "困意来自腺苷，越攒越困。",
       "emphasis": [
         "腺苷"
@@ -34,7 +34,7 @@
     },
     {
       "id": "reveal",
-      "min_dur": 6.0,
+      "min_dur": 5.7,
       "narration": "刚喝是 100%，5 小时后剩 50%。",
       "emphasis": [
         "5 小时"

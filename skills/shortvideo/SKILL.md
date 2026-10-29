@@ -319,6 +319,9 @@ $PY $TOOLS/score.py --content content.json --video out/x.mp4
 - `ghost`：给 still 很薄的镜头垫一个 0.42W 的背景水印字（`ghostfill.py` 可批量补，
   只复用旁白里字面存在的数字）
 
+> 遇到"改了没效果 / 生效了但更糟"，先看 [docs/pitfalls.md](../../docs/pitfalls.md)：
+> 按"坑的形式"分类（静默失效、方向反了、口径错了、规则不一致），比逐条试错快得多。
+
 ## 改稿的正确顺序（踩过坑）
 
 改完 narration 之后**不能直接跑 tighten**——它读的是 `<build>/NN_shot.wav` 的实际时长，
