@@ -445,7 +445,9 @@ def _stat(img, t, dur, spec):
     try:
         target = float(str(value).replace(",", ""))
         pct = _ease(R.clamp((p - 0.04) / 0.7))
-        shown = target * pct
+        # 从 60% 起数，而不是从 0：从 0 数起时前 0.5 秒屏幕上是"0"，钩子镜头等于空着。
+        # 60% 起数既保留"数字在跳"的感觉，首帧又有足够的信息量（实测开场墨量翻倍）。
+        shown = target * (0.60 + 0.40 * pct)
         text = (f"{shown:.{spec.get('digits', 2) if target % 1 else 0}f}"
                 if spec.get("count", True) else str(value))
         if spec.get("count", True) and target % 1 == 0:

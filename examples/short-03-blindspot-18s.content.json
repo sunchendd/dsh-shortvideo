@@ -51,10 +51,14 @@
   ],
   "deck": {
     "hook": {
-      "kind": "stat",
-      "value": "5",
-      "unit": "厘米",
-      "label": "手臂伸直时，盲点的宽度"
+      "kind": "big",
+      "lines": [
+        "眼前有个 5 厘米的洞",
+        "你从没看见"
+      ],
+      "emphasis": [
+        "5 厘米"
+      ]
     },
     "rule": {
       "kind": "flow",

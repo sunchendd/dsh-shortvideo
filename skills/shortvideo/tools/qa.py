@@ -28,7 +28,8 @@ CAPTION_BAND = (1600, 1740)    # 字幕所在纵向区间
 INK_MIN = 0.012                # 有内容的面积下限（1.2%）
 EDGE_MAX = 0.02                # 安全区外高亮像素上限
 LUMA_MIN = 10                  # 平均亮度过低的阈值
-CAP_MIN = 0.004                # 字幕带墨量下限
+CAP_MIN = 0.004
+HOOK_INK_MIN = 0.018       # 开场 0.5s 最低画面墨量（实测好片 ≥3%）                # 字幕带墨量下限
 BODY_MIN = 0.003               # 内容区墨量下限。单个巨型数字（stat）只有 ~0.5%，
                                # 真正全空的帧是 0.0~0.2%，所以卡在 0.3% 更准
 
@@ -142,6 +143,14 @@ def check_video(path, fps=2.0, keep_frames=False):
     # 开场空白：前 1.5 秒是决定划走的窗口，前 3 帧（t ≤ 1.0s）只要都没有内容就是硬伤。
     # 这条是"短镜头按比例出场"那次的直接产物：4.9s 镜头按 0.5 比例出场，
     # 第二个元素 2.5s 才到，前 1 秒几乎空白，而 qa 原来的"连续 1.5s"规则抓不到。
+    # 开场偏薄：前 0.5s 画面墨量太低 = "钩子还没画出来"。实测好片 3%~8%，
+    # 而从 0 起数的 stat 钩子 / 空卡片对比只有 0.6%，差一个数量级。
+    thin = [r for r in rows if r["t"] <= 0.5]
+    if thin:
+        avg = sum(r["body"] for r in thin) / len(thin)
+        if avg < HOOK_INK_MIN:
+            flags.append(f"开场偏薄：前 0.5s 平均画面墨量 {avg * 100:.2f}%"
+                         f"（<{HOOK_INK_MIN * 100:.1f}%，钩子画面还没出来）")
     head = [r for r in rows if r["t"] <= 1.0]
     if len(head) >= 2 and all(r["body"] < BODY_MIN for r in head):
         flags.append(f"开场空白：前 {head[-1]['t']:.1f}s 内容区无内容（首帧必须立刻有信息）")

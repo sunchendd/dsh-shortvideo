@@ -47,16 +47,14 @@
   ],
   "deck": {
     "hook": {
-      "kind": "compare",
-      "left": {
-        "label": "码面完整",
-        "note": "一扫就出"
-      },
-      "right": {
-        "label": "烂掉三成",
-        "note": "照样读出来"
-      },
-      "note": "版本1的码：26 个码字里 17 个是校验"
+      "kind": "big",
+      "lines": [
+        "烂掉三成",
+        "照样能扫"
+      ],
+      "emphasis": [
+        "三成"
+      ]
     },
     "rule": {
       "kind": "stat",
