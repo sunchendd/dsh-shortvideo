@@ -153,6 +153,37 @@ select{background:var(--raise);border:1px solid var(--line2);color:var(--text);o
 .check{display:flex;align-items:center;gap:9px;text-transform:none;letter-spacing:0;
   font-size:13px;color:var(--dim);margin-bottom:20px}
 .check input{width:auto;margin:0}
+
+.viewtoggle { display: flex; gap: 18px; margin-left: 28px; align-self: flex-end; }
+.viewtoggle button { background: none; border: 0; padding: 0 0 4px; color: var(--ink2);
+  font: 600 13px/1 var(--sans); letter-spacing: .04em; cursor: pointer; border-bottom: 2px solid transparent; }
+.viewtoggle button.on { color: var(--ink0); border-bottom-color: var(--ink0); }
+
+.wb { padding: 8px 0 80px; }
+.wbhead { display: grid; grid-template-columns: 1fr 420px; gap: 32px; align-items: start;
+  padding: 22px 0 20px; border-bottom: 1px solid var(--line); }
+.wbsub { color: var(--ink2); font-size: 13px; line-height: 1.7; margin: 8px 0 0; }
+.wblog { font: 12px/1.7 var(--mono); color: var(--ink2); background: var(--bg1);
+  border: 1px solid var(--line); padding: 12px 14px; max-height: 120px; overflow: auto;
+  white-space: pre-wrap; }
+.wbtable { margin-top: 4px; }
+.wbrow { display: grid; grid-template-columns: 1fr repeat(5, 132px); gap: 0;
+  align-items: center; border-bottom: 1px solid var(--line); padding: 14px 0; }
+.wbrow.head { padding: 12px 0 10px; }
+.wbrow.head div { font: 600 11px/1 var(--sans); letter-spacing: .16em; text-transform: uppercase;
+  color: var(--ink3); }
+.wbtitle { font-weight: 650; font-size: 15px; cursor: pointer; }
+.wbtitle:hover { text-decoration: underline; text-underline-offset: 3px; }
+.wbslug { font: 11px/1 var(--mono); color: var(--ink3); margin-top: 5px; letter-spacing: .04em; }
+.stg { display: flex; align-items: center; gap: 8px; background: none; border: 0; cursor: pointer;
+  padding: 6px 0; color: var(--ink2); font: 12px/1 var(--sans); }
+.stg .dot { width: 8px; height: 8px; border-radius: 50%; background: var(--line2);
+  box-shadow: inset 0 0 0 1px var(--line); }
+.stg.done .dot { background: #2f6d4f; box-shadow: none; }
+.stg.run .dot { background: #b4751d; animation: pulse 1s infinite; }
+.stg.fail .dot { background: #a33; box-shadow: none; }
+.stg:hover { color: var(--ink0); }
+@keyframes pulse { 50% { opacity: .35; } }
 </style>
 
 <header>
@@ -162,6 +193,10 @@ select{background:var(--raise);border:1px solid var(--line2);color:var(--text);o
       <h1>片库<span class="thin">　一次讲清一件事</span></h1>
     </div>
     <div class="right" id="sub">加载中…</div>
+    <div class="viewtoggle" id="viewtoggle">
+      <button data-v="library" class="on">片库</button>
+      <button data-v="workbench">工作台</button>
+    </div>
   </div>
   <div class="rule"></div>
 </header>
@@ -177,8 +212,20 @@ select{background:var(--raise);border:1px solid var(--line2);color:var(--text);o
   <button class="act" id="btnNew">＋ 新建一条</button>
 </div>
 
-<main><div class="grid" id="grid"></div><div class="empty" id="empty" style="display:none">
-  没有匹配的片子。换个关键词，或者点「＋ 新建一条」。</div></main>
+<main>
+  <div class="grid" id="grid"></div>
+  <div class="empty" id="empty" style="display:none">没有匹配的片子。换个关键词，或者点「＋ 新建一条」。</div>
+  <section class="wb" id="wb" style="display:none">
+    <div class="wbhead">
+      <div>
+        <div class="overline">制作工作台</div>
+        <p class="wbsub">每道工序可以单独重跑；状态由产物推导，服务重启也还在。</p>
+      </div>
+      <div class="wblog" id="wblog">选一道工序开始。</div>
+    </div>
+    <div class="wbtable" id="wbtable"></div>
+  </section>
+</main>
 
 <div class="veil" id="veil"></div>
 <aside class="drawer" id="drawer"></aside>
@@ -371,6 +418,62 @@ async function poll(id, log, done){
 }
 
 /* ---------------- 新建 ---------------- */
+
+// ---------------------------------------------------------------- 制作工作台
+let WB = { stages: [], projects: [] };
+let VIEW = "library";
+const STAGE_LABEL = { script: "创意脚本", render: "配音成片", assets: "封面物料",
+                      qa: "质检", deliver: "发布包" };
+
+function setView(v) {
+  VIEW = v;
+  $("#viewtoggle").querySelectorAll("button").forEach(b =>
+    b.classList.toggle("on", b.dataset.v === v));
+  $("#grid").style.display = v === "library" ? "" : "none";
+  $("#empty").style.display = "none";
+  $("#wb").style.display = v === "workbench" ? "" : "none";
+  document.querySelector(".tools").style.display = v === "library" ? "" : "none";
+  if (v === "workbench") loadWorkbench();
+}
+
+async function loadWorkbench() {
+  WB = await (await fetch("/api/projects")).json();
+  const head = `<div class="wbrow head"><div>项目</div>${
+    WB.stages.map(s => `<div title="${esc(s.desc)}">${esc(s.name)}</div>`).join("")}</div>`;
+  const rows = WB.projects.map(p => {
+    const cells = WB.stages.map(s => {
+      const st = p.stages[s.id] ? "done" : "";
+      return `<button class="stg ${st}" data-slug="${esc(p.slug)}" data-stage="${s.id}"
+        title="${esc(s.desc)}"><i class="dot"></i>${p.stages[s.id] ? "已完成" : "待运行"}</button>`;
+    }).join("");
+    return `<div class="wbrow"><div><div class="wbtitle" data-open="${esc(p.slug)}">${esc(p.title)}</div>
+      <div class="wbslug">${esc(p.slug)}</div></div>${cells}</div>`;
+  }).join("");
+  $("#wbtable").innerHTML = head + rows;
+}
+
+async function runStage(slug, stage, btn) {
+  btn.classList.add("run");
+  btn.innerHTML = `<i class="dot"></i>运行中`;
+  $("#wblog").textContent = `[${slug}] ${STAGE_LABEL[stage] || stage} 开始…`;
+  const r = await (await fetch("/api/stage", {
+    method: "POST", headers: {"Content-Type": "application/json"},
+    body: JSON.stringify({ slug, stage })
+  })).json();
+  if (!r.job) { $("#wblog").textContent = "启动失败：" + JSON.stringify(r); return; }
+  for (;;) {
+    await new Promise(res => setTimeout(res, 1200));
+    const j = await (await fetch("/api/job?id=" + r.job)).json();
+    if (j.log && j.log.length) $("#wblog").textContent =
+      `[${slug}] ${STAGE_LABEL[stage]}\n` + j.log.join("\n");
+    if (j.status === "done" || j.status === "fail") {
+      $("#wblog").textContent += `\n—— ${j.status === "done" ? "通过" : "失败"}（${j.elapsed || 0}s）`;
+      await loadWorkbench();
+      break;
+    }
+  }
+}
+
 function openModal(){
   const sel = $("#nTheme");
   if (!sel.children.length){
@@ -389,12 +492,14 @@ $("#nGo").onclick = async () => {
   const lines = $("#nLines").value.split("\n").map(s => s.trim()).filter(Boolean);
   if (!title || !lines.length) return toast("标题和口播都要填");
   const log = $("#nLog"); log.classList.add("on"); log.textContent = "生成中…";
-  const r = await (await fetch("/api/new", {method:"POST", headers:{"Content-Type":"application/json"},
+  const r = await (await fetch("/api/project", {method:"POST", headers:{"Content-Type":"application/json"},
     body: JSON.stringify({title, lines, kicker: $("#nKicker").value.trim() || null,
       theme: $("#nTheme").value, voice: $("#nVoice").value, short: $("#nShort").checked})})).json();
   if (r.error) return toast(r.error);
-  toast("已开始渲染：" + r.slug);
-  poll(r.job, log, async () => { await boot(); closeModal(); open(r.slug); });
+  toast("已建项目：" + r.slug + "（脚本工序在跑）");
+  poll(r.job, log, async () => {
+    await boot(); closeModal(); setView("workbench"); open(r.slug);
+  });
 };
 
 /* ---------------- 全局 ---------------- */
@@ -408,9 +513,21 @@ $("#veil").onclick = () => {
 };
 document.addEventListener("keydown", e => { if (e.key === "Escape"){ closeModal(); closeDrawer(); } });
 
+$("#viewtoggle").addEventListener("click", e => {
+  const b = e.target.closest("button[data-v]");
+  if (b) setView(b.dataset.v);
+});
+$("#wbtable").addEventListener("click", e => {
+  const stg = e.target.closest(".stg");
+  if (stg && stg.dataset.slug) return runStage(stg.dataset.slug, stg.dataset.stage, stg);
+  const t = e.target.closest("[data-open]");
+  if (t) open(t.dataset.open);
+});
+
 boot().then(() => {
   const h = decodeURIComponent((location.hash||"").replace("#",""));
   if (h) open(h);
+  if (INIT.get("view") === "workbench") setView("workbench");
 });
 </script>
 </html>

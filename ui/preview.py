@@ -31,6 +31,7 @@ import subprocess
 import sys
 import threading
 import time
+import hashlib
 import urllib.parse
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 
@@ -177,7 +178,11 @@ def _next_slug(title, want=None):
             nums.append(int(m.group(1)))
     idx = (max(nums) + 1) if nums else 1
     ascii_part = re.sub(r"[^a-z0-9]+", "-", str(title or "").lower()).strip("-")
-    return f"{idx:02d}-{ascii_part[:24] or 'draft'}"
+    # 中文标题没有 ASCII 可转写：原来一律退化成 "NN-draft"，33 个项目全叫 draft 分不清。
+    # 用标题的短哈希做后缀，既能区分又稳定（同一标题重复建项目会撞名，正好可以被 want 覆盖）。
+    if not ascii_part:
+        ascii_part = "topic-" + hashlib.sha1(str(title or "").encode("utf-8")).hexdigest()[:6]
+    return f"{idx:02d}-{ascii_part[:24]}"
 
 
 def _create(slug, req):
@@ -213,6 +218,115 @@ def _create(slug, req):
     return True, "\n".join(log)
 
 
+# ---------------------------------------------------------------- 制作工作台（工序）
+#
+# suncut 那种"制作工作台"的核心不是好看的页面，而是**一条可单独重跑的分步流水线**：
+# 每一步都能看到状态、能重跑、能看日志，出错停在那一步而不是全废。
+# 这里把出片拆成 5 道工序，每道对应仓库里真实存在的命令，状态由产物推导而不是记在内存里
+# （服务重启后状态还在，这点很重要）。
+STAGES = (
+    ("script", "创意脚本", "五句话 → content.json（含五段式 deck 与一张图 spec）"),
+    ("render", "配音成片", "edge-tts 配音 + Pillow 逐帧 + x264 编码"),
+    ("assets", "封面物料", "三流派封面 + 9:16 + 一张图"),
+    ("qa", "质检", "verify.sh 全部快门禁"),
+    ("deliver", "发布包", "publishcheck 清单 + 发布标题/话题"),
+)
+
+
+def _title_of(slug):
+    try:
+        cfg = json.load(open(os.path.join(EX, f"{slug}.content.json"), encoding="utf-8"))
+    except Exception:  # noqa: BLE001
+        return slug
+    return (cfg.get("title") or cfg.get("publish_title") or cfg.get("topic")
+            or slug)
+
+
+def _stage_status(slug):
+    d = os.path.join(OUT, slug)
+    content = os.path.join(EX, f"{slug}.content.json")
+    have_content = os.path.exists(content)
+    mp4 = os.path.join(d, f"{slug}.mp4")
+    covers = all(os.path.exists(os.path.join(d, n)) for n in
+                 ("cover_short.png", "cover_9x16.png", "summary.png"))
+    qa_mark = os.path.join(d, ".qa.json")
+    deliver_mark = os.path.join(d, ".deliver.json")
+    st = {
+        "script": bool(have_content),
+        "render": os.path.exists(mp4),
+        "assets": covers,
+        "qa": os.path.exists(qa_mark),
+        "deliver": os.path.exists(deliver_mark),
+    }
+    detail = {}
+    if os.path.exists(qa_mark):
+        try:
+            detail["qa"] = json.load(open(qa_mark, encoding="utf-8"))
+        except Exception:  # noqa: BLE001
+            detail["qa"] = {}
+    if os.path.exists(deliver_mark):
+        try:
+            detail["deliver"] = json.load(open(deliver_mark, encoding="utf-8"))
+        except Exception:  # noqa: BLE001
+            detail["deliver"] = {}
+    return st, detail
+
+
+def _run_stage(slug, stage):
+    """跑一道工序，返回 (ok, 日志尾巴)。每道工序都是幂等的，可以反复重跑。"""
+    d = os.path.join(OUT, slug)
+    content = os.path.join(EX, f"{slug}.content.json")
+    mp4 = os.path.join(d, f"{slug}.mp4")
+    if stage == "script":
+        brief = os.path.join(d, "brief.json")
+        if not os.path.exists(brief):
+            return False, f"没有 {brief}：脚本工序需要先有 brief（新建项目时写入）"
+        r = subprocess.run([PY, os.path.join(TOOLS, "draft.py"), "--from-json", brief,
+                            "--out", content], cwd=REPO, capture_output=True, text=True, timeout=600)
+        return r.returncode == 0, ((r.stdout or "") + (r.stderr or ""))[-1500:]
+    if stage == "render":
+        r = subprocess.run([PY, os.path.join(TOOLS, "make.py"), "--content", content,
+                            "--topic", "deck", "--out", mp4, "--jobs", "2"],
+                           cwd=REPO, capture_output=True, text=True, timeout=3600)
+        return r.returncode == 0, ((r.stdout or "") + (r.stderr or ""))[-1500:]
+    if stage == "assets":
+        code = ("import sys,json;sys.path.insert(0,%r);import cover;"
+                "cfg=json.load(open(%r,encoding='utf-8'));cover.build_covers(cfg,%r,None)")
+        r1 = subprocess.run([PY, "-c", code % (TOOLS, content, d)], cwd=REPO,
+                            capture_output=True, text=True, timeout=900)
+        spec = os.path.join(EX, f"oneimage-{slug}.json")
+        r2 = subprocess.run([PY, os.path.join(TOOLS, "summary2.py"), "--spec", spec,
+                             "--out", os.path.join(d, "summary.png")], cwd=REPO,
+                            capture_output=True, text=True, timeout=600) if os.path.exists(spec) else r1
+        ok = r1.returncode == 0 and r2.returncode == 0
+        return ok, ((r1.stdout or "") + (r1.stderr or "") + (r2.stderr or ""))[-1500:]
+    if stage == "qa":
+        r = subprocess.run(["./verify.sh", slug], cwd=REPO, capture_output=True,
+                           text=True, timeout=3600)
+        out = (r.stdout or "") + (r.stderr or "")
+        json.dump({"ok": r.returncode == 0, "at": time.strftime("%Y-%m-%d %H:%M:%S"),
+                   "tail": out[-1200:]}, open(os.path.join(d, ".qa.json"), "w", encoding="utf-8"),
+                  ensure_ascii=False, indent=2)
+        return r.returncode == 0, out[-1500:]
+    if stage == "deliver":
+        # publishcheck 的 --dir 是"父目录"口径，传单条目录会得到 0 条；
+        # 用 --content 才是单条检查（实测 --dir 单条目录输出「0/0 条可直接发」）。
+        r = subprocess.run([PY, os.path.join(TOOLS, "publishcheck.py"), "--content", content],
+                           cwd=REPO, capture_output=True, text=True, timeout=600)
+        out = (r.stdout or "") + (r.stderr or "")
+        try:
+            cfg = json.load(open(content, encoding="utf-8"))
+        except Exception:  # noqa: BLE001
+            cfg = {}
+        json.dump({"ok": r.returncode == 0, "at": time.strftime("%Y-%m-%d %H:%M:%S"),
+                   "publish_title": cfg.get("publish_title") or cfg.get("title"),
+                   "topics": cfg.get("topics") or [], "tail": out[-1200:]},
+                  open(os.path.join(d, ".deliver.json"), "w", encoding="utf-8"),
+                  ensure_ascii=False, indent=2)
+        return r.returncode == 0, out[-1500:]
+    return False, f"未知工序 {stage}"
+
+
 def _start_job(kind, slug, extra=None):
     with _JOBS_LOCK:
         _JOB_SEQ[0] += 1
@@ -232,6 +346,8 @@ def _start_job(kind, slug, extra=None):
                 ok = r.returncode == 0
             elif kind == "new":
                 ok, tail = _create(slug, (extra or {}).get("req") or {})
+            elif kind == "stage":
+                ok, tail = _run_stage(slug, (extra or {}).get("stage") or "script")
             elif kind == "verify":
                 r = subprocess.run(["./verify.sh", slug], cwd=REPO,
                                    capture_output=True, text=True, timeout=1800)
@@ -321,6 +437,17 @@ class Handler(BaseHTTPRequestHandler):
                                     "root": REPO})
         if path == "/api/item":
             return self._send(200, _detail(q.get("slug", [""])[0]) or {"error": "unknown"})
+        if path == "/api/projects":
+            rows = []
+            for slug in _slug_list():
+                st, detail = _stage_status(slug)
+                rows.append({"slug": slug, "title": _title_of(slug), "stages": st,
+                             "detail": detail,
+                             "done": sum(1 for v in st.values() if v)})
+            # 工作台是待办清单：没走完的排前面，走完的沉底
+            rows.sort(key=lambda r: (r["done"] == len(STAGES), r["done"], r["slug"]))
+            return self._send(200, {"stages": [{"id": a, "name": b, "desc": c} for a, b, c in STAGES],
+                                    "projects": rows})
         if path == "/api/job":
             j = _job(q.get("id", [""])[0])
             return self._send(200, j or {"status": "unknown"})
@@ -354,6 +481,29 @@ class Handler(BaseHTTPRequestHandler):
             if not slug:
                 return self._send(400, {"error": "slug required"})
             return self._send(200, {"job": _start_job("theme", slug, {"theme": theme})})
+        if u.path == "/api/project":
+            title = str(body.get("title") or "").strip()
+            lines = [str(x).strip() for x in (body.get("lines") or []) if str(x).strip()]
+            if not title or len(lines) < 3:
+                return self._send(400, {"error": "标题必填，句子至少 3 句（推荐 5 句）"})
+            slug = _next_slug(title, body.get("slug"))
+            d = os.path.join(OUT, slug)
+            os.makedirs(d, exist_ok=True)
+            # brief.json 是这条项目的"需求单"：脚本工序以后每次重跑都读它，
+            # 这样改一句话只需改 brief 再点重跑，不必记住命令行。
+            brief = {"title": title, "lines": lines, "kicker": body.get("kicker"),
+                     "theme": body.get("theme"), "voice": body.get("voice"),
+                     "short": bool(body.get("short")), "at": time.strftime("%Y-%m-%d %H:%M:%S")}
+            json.dump(brief, open(os.path.join(d, "brief.json"), "w", encoding="utf-8"),
+                      ensure_ascii=False, indent=2)
+            return self._send(200, {"job": _start_job("stage", slug, {"stage": "script"}),
+                                    "slug": slug})
+        if u.path == "/api/stage":
+            slug, stage = body.get("slug"), body.get("stage")
+            if not slug or stage not in [k for k, _, _ in STAGES]:
+                return self._send(400, {"error": "slug/stage 不对"})
+            return self._send(200, {"job": _start_job("stage", slug, {"stage": stage}),
+                                    "slug": slug, "stage": stage})
         if u.path == "/api/render":
             slug = body.get("slug")
             if not slug:
