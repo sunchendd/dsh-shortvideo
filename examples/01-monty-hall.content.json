@@ -146,10 +146,11 @@
     "solve": {
       "kind": "big",
       "lines": [
+        "记住一句话",
         "换"
       ],
-      "sub": "信息没洗牌，概率就不会平分",
-      "style": "pop"
+      "style": "rise",
+      "sub": "信息没洗牌，概率就不会平分"
     }
   },
   "transition": {

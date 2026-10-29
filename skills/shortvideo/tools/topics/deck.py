@@ -139,6 +139,8 @@ def _cards(img, t, dur, spec):
         if it.get("d"):
             S.text(img, (240, cy + row_h * 0.24), str(it["d"]), int(row_h * 0.24),
                    fill=R.DIM, bold=False, anchor="lm", alpha=a * 0.95)
+    if spec.get("note"):
+        _note(img, spec["note"], y=int(R.H * 0.80), alpha=_appear(p, 0.5))
 
 
 def _bars(img, t, dur, spec):
@@ -278,7 +280,8 @@ def _steps(img, t, dur, spec):
 
 def _list(img, t, dur, spec):
     _cards(img, t, dur, {"items": [{"t": x} if isinstance(x, str) else x
-                                   for x in (spec.get("items") or [])]})
+                                   for x in (spec.get("items") or [])],
+                         "note": spec.get("note")})
 
 
 def _bits(img, t, dur, spec):

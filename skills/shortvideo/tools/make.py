@@ -538,6 +538,16 @@ def lint_script(cfg, timeline, degraded=()):
     if not (cov.get("tags") or []):
         out.append(("warn", "封面还没配话题标签（建议 2~5 个）"))
 
+    # 高亮词别把词拆开：高亮后面紧跟"的/了/吗"这类虚词，视觉上会读成半截
+    for ln in (cov.get("headline") or []):
+        for hit in (cov.get("highlight") or []):
+            k = str(ln).find(str(hit))
+            if k < 0:
+                continue
+            tail = str(ln)[k + len(str(hit)):]
+            if tail and tail[0] in "的了吗呢吧啊地得":
+                out.append(("warn", f"封面高亮「{hit}」把「{tail}」留在了外面，建议高亮整句或补齐"))
+
     # 6) 结尾互动（CES 里关注权重最高）
     tail = (shots[-1].get("narration", "") if shots else "")
     if not re.search(r"(关注|收藏|评论|留言|私信|评论区)", tail):
