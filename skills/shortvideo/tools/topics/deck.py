@@ -42,6 +42,15 @@ def prepare(ctx):
 
 # ---------------------------------------------------------------- 工具
 
+def _note(img, text, y=None, size=42, alpha=1.0, color=None):
+    """镜头注脚：放在字幕区上方（y≈1430），字号比字幕小、颜色更淡。"""
+    if not text or alpha <= 0.02:
+        return
+    y = int(R.H * 0.745) if y is None else y
+    S.text(img, (R.W / 2, y), str(text), size, fill=tuple(color or R.DIM),
+           bold=False, anchor="mm", alpha=alpha)
+
+
 def _ease(p):
     return 1 - (1 - R.clamp(p)) ** 3
 
@@ -90,8 +99,8 @@ def _big(img, t, dur, spec):
                        shadow=0.8)
     if spec.get("sub"):
         a = _appear(p, 0.45)
-        S.caption(img, str(spec["sub"]), a, y=int(y0 + line_h * n + 90),
-                  size=int(size * 0.36), hi_color=accent)
+        _note(img, spec["sub"], y=int(y0 + line_h * n + 96), size=int(size * 0.34),
+              alpha=a, color=accent)
 
 
 def _cards(img, t, dur, spec):
@@ -155,14 +164,15 @@ def _bars(img, t, dur, spec):
             S.text(img, (x0 + 2 + fill_w + 18, cy + 8 + bh / 2), str(label), 40,
                    fill=col, bold=True, anchor="lm", alpha=a)
     if spec.get("note"):
-        S.caption(img, str(spec["note"]), _appear(p, 0.5), y=int(R.H * 0.76), size=44)
+        _note(img, spec["note"], y=int(R.H * 0.70), alpha=_appear(p, 0.5))
 
 
 def _compare(img, t, dur, spec):
     left, right = spec.get("left") or {}, spec.get("right") or {}
     p = t / dur if dur else 1
-    a1 = _appear(p, 0.05)
-    a2 = _appear(p, 0.35)
+    # 两栏尽快出现（只留一点点错峰），否则前半段画面是"半张脸"
+    a1 = _appear(p, 0.02)
+    a2 = _appear(p, 0.14)
     cy = int(R.H * 0.46)
     bw, bh = int(R.W * 0.38), int(R.H * 0.30)
     for side, box, a, col in (
@@ -178,10 +188,10 @@ def _compare(img, t, dur, spec):
         if side.get("note"):
             S.text(img, (x0 + bw / 2, y0 + bh * 0.85), str(side["note"]), 36,
                    fill=R.TEXT, bold=False, anchor="mm", alpha=a)
-    S.kinetic_text(img, (R.W / 2, cy), "VS", 64, fill=R.TEXT, t=t - 0.5, dur=0.4,
+    S.kinetic_text(img, (R.W / 2, cy), "VS", 64, fill=R.TEXT, t=t - 0.35, dur=0.4,
                    style="pop", stroke=R.BG_BOT, stroke_w=4, shadow=0.9)
     if spec.get("note"):
-        S.caption(img, str(spec["note"]), _appear(p, 0.6), y=int(R.H * 0.70), size=44)
+        _note(img, spec["note"], alpha=_appear(p, 0.6))
 
 
 def _formula(img, t, dur, spec):
@@ -228,7 +238,7 @@ def _formula(img, t, dur, spec):
     for i, ch in enumerate(lines):
         S.formula(img, R.W / 2, int(cy0 + i * size * 1.4), mk(ch, size), alpha=a)
     if spec.get("note"):
-        S.caption(img, str(spec["note"]), _appear(p, 0.45), y=int(R.H * 0.62), size=44)
+        _note(img, spec["note"], y=int(R.H * 0.66), alpha=_appear(p, 0.45))
 
 
 def _steps(img, t, dur, spec):
@@ -250,7 +260,7 @@ def _steps(img, t, dur, spec):
                fill=R.TEXT if on else R.DIM, bold=on, anchor="lm",
                alpha=1.0 if on else 0.55)
     if spec.get("note"):
-        S.caption(img, str(spec["note"]), _appear(p, 0.7), y=int(R.H * 0.80), size=44)
+        _note(img, spec["note"], alpha=_appear(p, 0.7))
 
 
 def _list(img, t, dur, spec):
@@ -285,7 +295,7 @@ def _bits(img, t, dur, spec):
                int(cell * 0.46), fill=R.ACCENT if on else R.DIM, bold=True,
                anchor="mm", alpha=a)
     if spec.get("note"):
-        S.caption(img, str(spec["note"]), _appear(p, 0.6), y=int(R.H * 0.66), size=44)
+        _note(img, spec["note"], y=int(R.H * 0.72), alpha=_appear(p, 0.6))
 
 
 def _digits(img, t, dur, spec):

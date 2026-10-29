@@ -35,9 +35,9 @@
       "id": "hook",
       "mood": "hook",
       "min_dur": 5.4,
-      "narration": "天空本来是黑的。蓝，是空气撞出来的。",
+      "narration": "太阳光是七色的，天空为什么只留下蓝？",
       "emphasis": [
-        "黑的"
+        "七色"
       ]
     },
     {
@@ -71,8 +71,8 @@
     {
       "id": "solve",
       "mood": "win",
-      "min_dur": 8.6,
-      "narration": "夕阳是同一件事的反面。光走的路更长，蓝先散完，你才看见红。",
+      "min_dur": 9.0,
+      "narration": "夕阳是同一件事的反面。蓝先散完，你才看见红。评论区说说你家乡的天。",
       "emphasis": [
         "反面",
         "红"
@@ -176,5 +176,6 @@
   "transition": {
     "type": "fade",
     "dur": 0.24
-  }
+  },
+  "publish_title": "天空本来一片漆黑，蓝是空气撞出来的"
 }

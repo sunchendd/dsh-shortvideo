@@ -217,8 +217,28 @@ $PY $TOOLS/make.py --content content.json --topic topic_<name> --out out/<name>.
 例如浑厚男声不会用 +15% 语速），并做了响度对齐（-20dBFS 语音电平，避免五段连播电平跳变）。
 逐镜微调：`"mood_tuning": {"hook": {"rate": "+15%"}}`。试听：`$PY $TOOLS/voice_lab.py --preset all`。
 
+### 背景乐（默认开）与合规标识
+
+- 成片自动垫一层**程序化 BGM**（`tools/bgm.py`，A 小调 Am–F–C–G、96BPM、pad+琶音+轻鼓点，
+  纯标准库合成、无版权风险），并做人声侧链压低（实测压低 28~39%），默认 gain=-27dB
+- `--no-bgm` 关掉；`--bgm-gain -32` 更轻；content.json 里 `"bgm": {"intensity": "high",
+  "style": "pulse", "gain": -30, "duck": 0.6}` 可细调
+- 画面常驻两件"小道具"：顶部分段进度点（让观众知道还剩几段）+ 右下 `AI 配音` 标识
+  （合成人声需显著标识，平台合规）；`"chrome": false` / `"disclosure": false` 可关
+
 字幕是**逐词高亮**的（卡拉OK 式）：用 edge-tts 的 WordBoundary 时间戳，跟着配音点亮当前词，
 缓存命中时不重新合成也能复用（`<wav>.words.json`）。
+
+## 出片前先算分：`score.py`
+
+```bash
+$PY $TOOLS/score.py --content content.json --video out/x.mp4
+# 爆款要素完成度 94/100  [S]  + 六个维度的扣分原因
+```
+
+六维：钩子 20 / 节奏 20 / 信息密度 15 / 视觉 15 / 封面标题 15 / 互动合规 15。
+它把本文件与 `docs/xhs-playbook.md` 的清单变成数字，改一版看一次分数即可知道有没有变好。
+**注意口径**：满分只代表"完全符合 playbook 清单"，不等于必爆——真实分发还看选题时机与账号权重。
 
 ## 质量检查单（交付前必过）
 

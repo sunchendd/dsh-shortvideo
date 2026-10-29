@@ -593,3 +593,43 @@ class SceneAPI:
                             outline=(tuple(outline) + (int(200 * R.clamp(alpha)),))
                             if outline else None, width=outline_w)
         _blend(img, layer, ox, oy)
+
+    # ------------------------------------------------------------ 常驻装饰（提升完播 / 合规）
+
+    @staticmethod
+    def seg_dots(img, idx, n, y=96, r=9, gap=26, color=None):
+        """顶部分段进度点：让观众知道"还有几段"，是完播率的常见小手段。"""
+        if n <= 0:
+            return
+        color = tuple(color or R.ACCENT)
+        total = (n - 1) * gap
+        x0 = R.W / 2 - total / 2
+        d = ImageDraw.Draw(img, "RGBA")
+        for i in range(n):
+            cx = x0 + i * gap
+            if i < idx:
+                d.ellipse((cx - r * 0.7, y - r * 0.7, cx + r * 0.7, y + r * 0.7),
+                          fill=color + (150,))
+            elif i == idx:
+                d.ellipse((cx - r, y - r, cx + r, y + r), fill=color + (255,))
+            else:
+                d.ellipse((cx - r * 0.7, y - r * 0.7, cx + r * 0.7, y + r * 0.7),
+                          fill=(255, 255, 255, 60))
+
+    @staticmethod
+    def disclosure(img, text="AI 配音", alpha=0.5, y=None, x=None):
+        """AI 合成语音标识（平台合规要求：合成人声需显著标识）。"""
+        if not text:
+            return
+        y = R.H - 104 if y is None else y     # 进度条在 1868，标识放它上方不打架
+        x = R.W - 40 if x is None else x
+        f = R.font(24, bold=False)
+        tw = f.getlength(text)
+        layer, ox, oy = _layer((x - tw - 24, y - 20, x, y + 20), pad=2)
+        d = ImageDraw.Draw(layer)
+        d.rounded_rectangle((x - tw - 24 - ox, y - 20 - oy, x - ox, y + 20 - oy),
+                            radius=20, fill=(255, 255, 255, int(26 * 255 * alpha)),
+                            outline=(255, 255, 255, int(60 * 255 * alpha)), width=1)
+        d.text((x - 12 - ox, y - oy), text, font=f,
+               fill=(255, 255, 255, int(210 * alpha)), anchor="rm")
+        _blend(img, layer, ox, oy)

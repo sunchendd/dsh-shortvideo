@@ -164,6 +164,10 @@ class FrameRenderer:
         self.timeline = timeline
         self.w, self.h = cfg.get("size", [R.W, R.H])
         trans = cfg.get("transition") or {}
+        self.chrome = bool(cfg.get("chrome", True))
+        self.disclosure = cfg.get("disclosure", "AI 配音")
+        if self.disclosure is True:
+            self.disclosure = "AI 配音"
         self.ttype = str(trans.get("type") or "").lower()
         self.tdur = float(trans.get("dur", 0.24) or 0)
         self._prev = {}
@@ -223,18 +227,26 @@ class FrameRenderer:
         if subs:
             text, a = sub_at(subs, item["start"] + lt)
             S.caption(img, text, a, emphasis=self._live_emphasis(item, lt))
+        if self.chrome:
+            S.seg_dots(img, idx, len(self.timeline))
+        if self.disclosure:
+            S.disclosure(img, self.disclosure)
         S.progress_bar(img, (item["start"] + lt) / self.total)
         return img
 
 
 def render_frame(scene_fn, item, lt, ctx, total, with_caption=True, emphasis=None,
-                 with_progress=True):
-    """单帧渲染（预览/封面用；不支持转场）。"""
+                 with_progress=True, idx=None, n_shots=None, disclosure=None):
+    """单帧渲染（预览/封面用；不支持转场）。idx 给了就画顶部进度点。"""
     img = _bg()
     scene_fn(img, lt, item["dur"], ctx, S)
     if with_caption:
         s, a = sub_at(item["subs"], item["start"] + lt)
         S.caption(img, s, a, emphasis=emphasis)
+    if idx is not None and n_shots:
+        S.seg_dots(img, idx, n_shots)
+    if disclosure:
+        S.disclosure(img, disclosure)
     if with_progress:
         S.progress_bar(img, (item["start"] + lt) / total)
     return img
@@ -471,9 +483,12 @@ def lint_script(cfg, timeline):
     pub = cfg.get("publish_title") or ""
     if pub and not (10 <= len(pub) <= 22):
         out.append(("warn", f"发布标题 {len(pub)} 字（建议 12~20 字）：{pub}"))
+    def _width(x):
+        return sum(1.0 if ord(ch) > 0x2E80 else 0.5 for ch in str(x))
+
     for ln in (cov.get("headline") or []):
-        if len(str(ln)) > 6:
-            out.append(("warn", f"封面主标题每行建议 ≤6 字，当前「{ln}」{len(str(ln))} 字"))
+        if _width(ln) > 6:
+            out.append(("warn", f"封面主标题每行建议 ≤6 字宽，当前「{ln}」{_width(ln):.1f} 字宽"))
     if not (cov.get("tags") or []):
         out.append(("warn", "封面还没配话题标签（建议 2~5 个）"))
 
@@ -496,7 +511,36 @@ def print_lint(results, strict=False):
     return not bad
 
 
+
+# ---------------------------------------------------------------- 背景乐
+
+def _maybe_bgm(cfg, args, audio_path, build, total):
+    """给成片垫一层程序化 BGM（人声自动 ducking）。返回混合后 wav 路径。"""
+    conf = dict(cfg.get("bgm") or {})
+    if args.no_bgm or conf.get("enabled") is False:
+        return audio_path
+    try:
+        from bgm import build_bed, mix_into
+    except Exception as e:  # noqa: BLE001  没装/被裁掉都不影响出片
+        print(f"[bgm] 跳过（{e}）")
+        return audio_path
+    intensity = conf.get("intensity") or "mid"
+    style = conf.get("style") or "lofi"
+    gain = args.bgm_gain if args.bgm_gain is not None else float(conf.get("gain", -27.0))
+    duck = float(conf.get("duck", 0.55))
+    t0 = time.time()
+    bed = build_bed(total, intensity=intensity, style=style, seed=int(conf.get("seed", 0)))
+    out = os.path.join(build, "audio_bgm.wav")
+    peak, ducked = mix_into(audio_path, out, bed, gain_db=gain, duck=duck)
+    print(f"[bgm] {style}/{intensity} gain={gain:.0f}dB 峰值 {peak:.1f}dBFS "
+          f"人声段压低 {ducked * 100:.0f}%（{time.time() - t0:.1f}s）")
+    if peak > -0.3:
+        print("[bgm] [!] 混合后接近削波，建议把 --bgm-gain 降到 -30")
+    return out
+
+
 # ---------------------------------------------------------------- 校验（对应 SKILL.md 质量检查单）
+
 
 
 def probe(out_path, expect_dur=None):
@@ -552,6 +596,9 @@ def main():
     ap.add_argument("--no-cover", action="store_true", help="不生成爆款封面图")
     ap.add_argument("--strict", action="store_true", help="脚本体检有 error 就中止")
     ap.add_argument("--no-lint", action="store_true", help="跳过脚本体检")
+    ap.add_argument("--no-bgm", action="store_true", help="不要背景乐（默认会垫 BGM）")
+    ap.add_argument("--bgm-gain", type=float, default=None,
+                    help="BGM 增益 dB（默认 -27，越小越轻）")
     args = ap.parse_args()
 
     cfg = json.load(open(args.content, encoding="utf-8"))
@@ -613,6 +660,7 @@ def main():
     total = cursor
     audio = os.path.join(build, "audio.wav")
     tts.concat(segs, total, audio)
+    audio = _maybe_bgm(cfg, args, audio, build, total)
     print(f"[time] 总时长 {total:.2f}s")
 
     words_fn = getattr(voice, "words_for", None)
@@ -632,7 +680,11 @@ def main():
         for item in timeline:
             for frac in (0.45, 0.9):
                 lt = item["dur"] * frac
-                render_frame(scene_fns[item["id"]], item, lt, ctx, total).convert("RGB").save(
+                render_frame(scene_fns[item["id"]], item, lt, ctx, total,
+                             idx=timeline.index(item), n_shots=len(timeline),
+                             disclosure=cfg.get("disclosure", "AI 配音")
+                             if cfg.get("disclosure", "AI 配音") is not True else "AI 配音"
+                             ).convert("RGB").save(
                     os.path.join(pdir, f"{item['id']}_{int(frac * 100)}.png"), quality=92)
         print(f"[ok] 预览帧: {pdir}")
         return
