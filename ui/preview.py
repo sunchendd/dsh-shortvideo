@@ -84,8 +84,8 @@ def _card(slug):
         return None
     d = os.path.join(OUT, slug)
     files = {}
-    for name in ("cover_short.png", "cover_f1.png", "cover_f3.png", "cover_f6.png",
-                 "cover_9x16.png", "summary.png", f"{slug}.mp4"):
+    for name in ("cover_short.png", "cover_editorial.png", "cover_blueprint.png",
+                 "cover_cinematic.png", "cover_9x16.png", "summary.png", f"{slug}.mp4"):
         if os.path.exists(os.path.join(d, name)):
             files[name] = f"/files/{slug}/{name}"
     return {

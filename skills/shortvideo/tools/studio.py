@@ -12,7 +12,7 @@
   studio-report.md     人看：分数 / 时长 / 体积 / 音量 / 缺失项
   studio-report.json   机器看：同上 +
   studio-index.html    封面 A/B 上传页（三版封面并排，点开大图，用它挑封面）
-  每条片子落在 <dir>/out/<slug>/：成片 + cover_f1/f3/f6/9x16 + cover_frame + summary.png
+  每条片子落在 <dir>/out/<slug>/：成片 + cover_short + 三流派 + cover_9x16 + cover_frame + summary.png
 """
 import argparse
 import glob

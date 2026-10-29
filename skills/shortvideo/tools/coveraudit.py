@@ -164,7 +164,8 @@ def _score(r):
 def pick(out_dir):
     """每条片子挑一张最扛信息流的封面。
 
-    每个片子本来就出 3~4 个 3:4 版式（f1 大字报 / f3 / f6 / short）。
+    每个片子出 4 个 3:4 版式：主封面（按 content.cover_direction 选流派）
+    加三流派对照（editorial / blueprint / cinematic）。
     发之前该选哪张不是"看着顺眼"，而是按缩略图指标排。
     """
     import glob as _glob
@@ -175,7 +176,8 @@ def pick(out_dir):
     print(f"  {'条目':<28}{'推荐':<12}{'综合分':>7}   其它候选")
     for d in dirs:
         cands = []
-        for name in ("cover_short.png", "cover_f1.png", "cover_f3.png", "cover_f6.png"):
+        for name in ("cover_short.png", "cover_editorial.png", "cover_blueprint.png",
+                     "cover_cinematic.png"):
             p = os.path.join(d, name)
             if os.path.exists(p):
                 r = audit(p)

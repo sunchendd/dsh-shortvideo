@@ -127,7 +127,8 @@ def add_cover_gate(rows, out_dir):
         return
     for row in rows:
         d = os.path.join(out_dir, row["slug"])
-        path = next((os.path.join(d, n) for n in ("cover_short.png", "cover_f1.png")
+        path = next((os.path.join(d, n) for n in ("cover_short.png", "cover_editorial.png", "cover_blueprint.png",
+                            "cover_cinematic.png")
                      if os.path.exists(os.path.join(d, n))), None)
         if not path:
             row["gates"]["封面"] = "—"
@@ -157,7 +158,7 @@ def add_asset_gate(rows, out_dir):
         if not os.path.exists(os.path.join(d, f"{slug}.mp4")):
             missing.append("视频")
         if not (os.path.exists(os.path.join(d, "cover_short.png"))
-                or os.path.exists(os.path.join(d, "cover_f1.png"))):
+                or os.path.exists(os.path.join(d, "cover_editorial.png"))):
             missing.append("封面")
         if not os.path.exists(os.path.join(d, "summary.png")):
             missing.append("一张图")

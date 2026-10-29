@@ -525,46 +525,41 @@ _BUILDERS = {"short": lambda c, fp: _variant_short(c),
 
 
 def build_covers(content, out_dir, frame_path=None, variants=None):
-    """生成封面合集，返回文件路径列表（3:4 三个版式 + 一张 9:16）。
+    """出封面套件（v2）：主封面 + 三流派对照 + 9:16。
 
-    短版（content 里 "format": "short"）默认出 short + f1 + 9x16：
-    短版封面字更大、带时长徽标，与长版形成两种视觉层级。
+    - `cover_short.png`：按 `cover_direction` 出的主封面（3:4），信息流用这张
+    - `cover_editorial/blueprint/cinematic.png`：三个流派各一张（3:4），
+      A/B 比的应该是**设计语言**，不是"新旧"——旧版把 f1/f3/f6 当备选，
+      结果旧模板一直躺在备选里，等于把模板味留着。
+    - `cover_9x16.png`：主封面流派的 9:16 版
     """
     os.makedirs(out_dir, exist_ok=True)
     _apply_theme(content)          # 封面用自己的主题（浅色主题照用，不跟着视频回退）
-    c = _cfg(content)
-    if variants is None:
-        short = str((content or {}).get("format") or "").lower() in ("short", "15s", "quick")
-        variants = ("short", "f1", "9x16") if short else ("short", "f1", "f3", "f6", "9x16")
-    # 长版也出一张 short 版式（大字 + 时长徽标）：实测同一片子
-    # short 版式综合分 103.5 vs f1 的 80.8——信息流是 240px 缩略图，字大就是硬道理。
-    # seconds 必须**无条件**算好：以前它在 `variants is None` 分支里，
-    # 调用方一旦显式传 variants（比如只重渲 short 版式），时长徽标就静默消失。
-    secs = float((content or {}).get("seconds") or 0)
-    if not secs:
-        secs = round(sum(float(sh.get("min_dur") or 0) for sh in (content or {}).get("shots") or []))
-    c["seconds"] = secs
+    import cover2
+    direction = str((content or {}).get("cover_direction") or "editorial")
     made = []
-    direction = str((content or {}).get("cover_direction") or "off")
-    for v in variants:
-        if v == "short" and direction != "off":
-            # 主封面走 v2（编辑部 / 蓝图 / 电影感三流派之一，存在 content.cover_direction）。
-            # f1/f3/f6 仍是 v1 版式，留作 A/B 备选，所以两种设计语言不会在同一张图上混。
-            import cover2
-            img, _man = cover2.render(content, direction)
-            path = os.path.join(out_dir, "cover_short.png")
-            img.save(path, quality=95)
-            made.append(path)
-            continue
-        if v == "9x16":
-            img, name = _variant_f1(c, 1080, 1920), "cover_9x16.png"
-        elif v in _BUILDERS:
-            img, name = _BUILDERS[v](c, frame_path), f"cover_{v}.png"
-        else:
-            continue
-        path = os.path.join(out_dir, name)
+    want = variants or ("primary", "alts", "9x16")
+    if "primary" in want or "short" in want:
+        img, _man = cover2.render(content, direction)
+        path = os.path.join(out_dir, "cover_short.png")
         img.save(path, quality=95)
         made.append(path)
+    if "alts" in want:
+        for d in cover2.DIRECTIONS:
+            img, _man = cover2.render(content, d)
+            path = os.path.join(out_dir, f"cover_{d}.png")
+            img.save(path, quality=95)
+            made.append(path)
+    if "9x16" in want:
+        img, _man = cover2.render(content, direction, size=(1080, 1920))
+        path = os.path.join(out_dir, "cover_9x16.png")
+        img.save(path, quality=95)
+        made.append(path)
+    # 清掉 v1 时代的三版式，避免新旧混排（A/B 台账里会同时出现两种设计语言）
+    for stale in ("cover_f1.png", "cover_f3.png", "cover_f6.png"):
+        sp = os.path.join(out_dir, stale)
+        if os.path.exists(sp):
+            os.remove(sp)
     return made
 
 

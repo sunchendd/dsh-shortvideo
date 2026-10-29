@@ -55,7 +55,7 @@ cd project
 | **3 款人格化音色** | `"voice": {"preset": "xiaoxiao"\|"yunxi"\|"yunjian"}` | 每音色独立 5 情绪韵律表 + 响度对齐 -20dBFS |
 | **逐词高亮字幕** | 自动（edge-tts WordBoundary 时间戳） | 跟着配音点亮当前词，剪映式卡拉OK |
 | **不写代码出片** | content.json 里写 `deck`（9 种 kind） | `big/cards/bars/compare/formula/steps/list/bits/digits` |
-| **爆款封面三版式** | 出片自动产出 `cover_f1/f3/f6.png`(3:4) + `cover_9x16.png` | 平台封面只支持 3:4/1:1/4:3，官方建议竖版；支持 A/B 4 张 |
+| **封面三流派** | 出片自动产出 `cover_editorial/blueprint/cinematic.png`(3:4) + `cover_9x16.png` | A/B 比的是**设计语言**（编辑部/蓝图/电影感），不是新旧版式；平台支持 3:4 与竖版 |
 | **脚本体检** | `make.py ... --strict` 打印 `[lint]` | 钩子≤13字、语速≤4.6字/秒、单镜≤38字、留白≥1s、红线词 |
 | **信息图 / 底图** | `tools/oneimage.py` · `tools/art.py` | 一张图总结 / AI 画室 |
 | **片头签名** | 封面栏目名自动做成 0.8s 片头（压暗→扫线→砸字→淡出） | 账号视觉签名，默认开 |

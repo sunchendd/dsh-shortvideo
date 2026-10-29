@@ -202,8 +202,8 @@ $PY $TOOLS/make.py --content content.json --topic topic_<name> --out out/<name>.
 | `--no-lint` | 跳过脚本体检 |
 | `--no-cover` | 不生成封面图 |
 
-产出物（默认全出）：`out/x.mp4` 成片、`cover_f1/f3/f6.png` 三版 3:4 爆款封面
-（平台支持封面 A/B，最多 4 张，10 小时后按点击率选优）、`cover_9x16.png`
+产出物（默认全出）：`out/x.mp4` 成片、`cover_short.png` 主封面 + `cover_editorial/blueprint/cinematic.png`
+三流派 3:4 封面（平台支持 A/B 最多 4 张，10 小时后按点击率选优）、`cover_9x16.png` 竖版
 （首帧/主页用）、`cover_frame.png`（F3 用的净帧截图）。
 
 ### 配音音色（3 款人格化音色）
@@ -430,7 +430,7 @@ pydoc_guard.py --compare /tmp/before.json           # 改之后：成片指纹�
 
 ```bash
 coveraudit.py --dir examples/out --glob 'cover_short.png'
-coveraudit.py --file examples/out/19-spf-sunscreen/cover_f1.png
+coveraudit.py --file examples/out/19-spf-sunscreen/cover_editorial.png
 ```
 
 **校准数据（25 张实测，别再拍脑袋）**：字号 110~190px、缩略图 RMS 33~56、
@@ -796,7 +796,7 @@ $PY $TOOLS/studio.py --dir examples --render --from-score 90   # 只渲达标的
 产物都在 `--dir` 下：
 - `studio-report.md` / `.json`：生产台账（分数 / 时长 / 分辨率 / 体积 / 峰值 / 缺什么）
 - `studio-index.html`：**封面挑选页**，三版 3:4 封面并排，点开大图挑一张去发（也能当 A/B 记录页）
-- `out/<slug>/`：成片 + `cover_f1/f3/f6/9x16` + `cover_frame` + `<slug>-summary.png`
+- `out/<slug>/`：成片 + `cover_short` + 三流派 + `cover_9x16` + `cover_frame` + `summary.png`
 
 选题一多就走这条路：先把 N 个 content.json 写完 → `--dir` 评分排序 → 只渲 ≥90 的 → 用封面页挑图发。
 

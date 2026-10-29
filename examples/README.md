@@ -816,7 +816,7 @@ make.py 全量（--topic deck，默认 preset）
   [check] 流：视频=有 音频=有 时长=33.2s / 37.8s / 34.6s
   [check] 音量：峰值 −2.0 dB / −2.1 dB / −4.1 dB；均值 −24.6 / −22.6 / −22.5 dB
   [check] 通过   ×3
-  另出封面 cover_f1 / cover_f3 / cover_f6 / cover_9x16
+  另出封面 cover_editorial / cover_blueprint / cover_cinematic / cover_9x16
 
 qa.py --video <成片>
   10.mp4  33.2s  画面墨量 3.8%  总墨量 4.2%  越界 0.85%  亮度 14  字幕 8.2%    → 无告警

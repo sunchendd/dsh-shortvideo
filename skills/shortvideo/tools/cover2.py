@@ -171,7 +171,10 @@ def editorial(m, manifest):
     d = ImageDraw.Draw(img, "RGBA")
     M = 96                     # 外边距 > 所有元素间距（位置层级不许倒挂）
     col = (W - 2 * M) / 8
-    fg, dim = R.INK["0"], R.INK["300"]
+    fg = R.INK["0"]
+    # 浅色主题上 300 档的灰做副标太浅（porcelain 实测缩略图对比 25.9，门槛 26 差 0.1），
+    # 深色主题反过来：300 刚好。所以按极性取一档。
+    dim = R.INK["200"] if R.LIGHT else R.INK["300"]
     accent = _hl_color() or R.BRAND["500"]
     hl_on = _hl_color() is not None
 
@@ -183,9 +186,16 @@ def editorial(m, manifest):
 
     # 标题：左对齐、占 6 栏、行距 1.06
     lines = m["headline"]
-    fs = min(_fit(ln, col * 6, hi=190, lo=104) for ln in lines)
+    # 标题占 7 栏、上限放到 210：原来 6 栏 190 封顶，实际落到 150~160px，
+    # 240px 缩略图里比电影感小一档（RMS 25.9 vs 49），信息流里会被淹没。
+    # 这是**把设计做响**，不是改阈值——编辑部的留白要留，但主标题必须够大。
+    fs = min(_fit(ln, col * 7, hi=210, lo=110) for ln in lines)
     lead = 1.06
-    y = int(H * 0.31)
+    # 标题块在"顶栏细线 → 页脚细线"之间垂直居中（偏上 0.42）。
+    # 原来写死 H*0.31：3:4 合适，换 9:16 之后中间空出一大块（实测像断版）。
+    band_top = M + 100
+    band_bot = H - M - 200
+    y = int(band_top + max(0, (band_bot - band_top - _block_height(len(lines), fs, lead))) * 0.42)
     for ln in lines:
         hit = next((w for w in m["highlight"] if w and w in ln), None)
         if hit:
@@ -324,7 +334,9 @@ def cinematic(m, manifest):
     d = ImageDraw.Draw(img, "RGBA")
 
     M = 88
-    fg, dim, accent = R.INK["0"], R.INK["300"], R.BRAND["500"]
+    fg = R.INK["0"]
+    dim = R.INK["200"] if R.LIGHT else R.INK["300"]
+    accent = R.BRAND["500"]
 
     # 标题：巨大、紧行距 1.02、贴近上三分之一
     lines = m["headline"]
@@ -375,10 +387,17 @@ def cinematic(m, manifest):
 DIRECTIONS = {"editorial": editorial, "blueprint": blueprint, "cinematic": cinematic}
 
 
-def render(content, direction="editorial", out=None):
-    """渲一张封面。返回 (img, manifest)。"""
+def render(content, direction="editorial", out=None, size=None):
+    """渲一张封面。返回 (img, manifest)。
+
+    size 用来出 9:16（(1080, 1920)）：三个流派的纵向节奏都按 H 的百分比算，
+    所以换高度不用改字号；宽度固定 1080 时字号刻度可以直接复用。
+    """
+    global W, H
     if direction not in DIRECTIONS:
         raise SystemExit(f"未知流派 {direction}，可选：{', '.join(DIRECTIONS)}")
+    if size:
+        W, H = int(size[0]), int(size[1])
     # 封面要**原主题**：theme_for_video 会把浅色主题映射成深色（那是视频的规则），
     # 用在封面上就等于浅色主题永远渲不出来。
     R.set_theme(content.get("theme"))

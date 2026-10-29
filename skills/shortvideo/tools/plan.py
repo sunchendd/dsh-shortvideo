@@ -90,7 +90,7 @@ def collect(example_dir):
         mp4 = os.path.join(example_dir, "out", slug, f"{slug}.mp4")
         cover = os.path.join(example_dir, "out", slug, "cover_short.png")
         if not os.path.exists(cover):
-            cover = os.path.join(example_dir, "out", slug, "cover_f1.png")
+            cover = os.path.join(example_dir, "out", slug, "cover_short.png")
         rows.append({
             "slug": slug,
             "title": content.get("publish_title") or content.get("title") or slug,
