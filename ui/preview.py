@@ -27,12 +27,15 @@ import argparse
 import json
 import os
 import re
+import shutil
 import subprocess
 import sys
 import threading
 import time
 import hashlib
 import urllib.parse
+
+import preview_render as PV
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 
 REPO = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
@@ -249,6 +252,132 @@ def _brief_from_content(slug):
             "short": slug.startswith("short-"), "derived": True}
 
 
+
+
+# ---------------------------------------------------------------- 编辑器：项目读写
+def _project_json(slug):
+    """给编辑器用的完整项目 JSON。
+
+    和 /api/item 的区别：这里返回**可编辑**的结构（shots 的口播/时长/deck 参数），
+    编辑器改完 PATCH 回来；同时给出时间线（start/dur）供时间线组件直接用。
+    """
+    path = os.path.join(EX, f"{slug}.content.json")
+    if not os.path.exists(path):
+        return None
+    cfg = json.load(open(path, encoding="utf-8"))
+    shots, cursor = [], 0.0
+    for sh in cfg.get("shots") or []:
+        dur = float(sh.get("min_dur") or 4.0)
+        deck = (cfg.get("deck") or {}).get(sh["id"]) or {}
+        shots.append({
+            "id": sh["id"],
+            "narration": sh.get("narration") or "",
+            "mood": sh.get("mood") or "",
+            "duration": round(dur, 2),
+            "start": round(cursor, 2),
+            "kind": deck.get("kind") or "big",
+            "headline": " / ".join(deck.get("lines") or []) or deck.get("text") or "",
+            "emphasis": sh.get("emphasis") or [],
+        })
+        cursor += dur
+    return {
+        "slug": slug,
+        "title": cfg.get("title") or slug,
+        "publish_title": cfg.get("publish_title") or "",
+        "theme": cfg.get("theme") or "",
+        "voice": (cfg.get("voice") or {}).get("preset") or "yunxi",
+        "fps": int(cfg.get("fps") or 30),
+        "size": cfg.get("size") or [1080, 1920],
+        "total": round(cursor, 2),
+        "shots": shots,
+        "kicker": (cfg.get("cover") or {}).get("kicker") or "",
+        "raw_shot_count": len(cfg.get("shots") or []),
+    }
+
+
+def _save_project(slug, body):
+    """把编辑器改动写回 content.json，并留一份历史快照。
+
+    历史快照放在 out/<slug>/history/ 下（最多保留 40 份），
+    编辑器只做了客户端撤销；服务端留档才能防止"手滑改坏 + 关页面"。
+    """
+    path = os.path.join(EX, f"{slug}.content.json")
+    if not os.path.exists(path):
+        return False, "没有这个项目"
+    cfg = json.load(open(path, encoding="utf-8"))
+    hist = os.path.join(OUT, slug, "history")
+    os.makedirs(hist, exist_ok=True)
+    stamp = time.strftime("%Y%m%d-%H%M%S")
+    shutil.copyfile(path, os.path.join(hist, f"content-{stamp}.json"))
+    olds = sorted(os.listdir(hist))
+    for old in olds[:-40]:
+        os.remove(os.path.join(hist, old))
+
+    if "title" in body and body["title"]:
+        cfg["title"] = str(body["title"])
+    if "theme" in body and body["theme"]:
+        cfg["theme"] = str(body["theme"])
+    if "voice" in body and body["voice"]:
+        cfg.setdefault("voice", {})["preset"] = str(body["voice"])
+    deck = cfg.setdefault("deck", {})
+    by_id = {s["id"]: s for s in cfg.get("shots") or []}
+    for upd in body.get("shots") or []:
+        sid = upd.get("id")
+        shot = by_id.get(sid)
+        if not shot:
+            continue
+        if "narration" in upd:
+            shot["narration"] = str(upd["narration"])
+        if "duration" in upd:
+            try:
+                shot["min_dur"] = max(2.0, min(30.0, float(upd["duration"])))
+            except (TypeError, ValueError):
+                pass
+        if "kind" in upd:
+            d = deck.setdefault(sid, {})
+            d["kind"] = str(upd["kind"])
+    json.dump(cfg, open(path, "w", encoding="utf-8"), ensure_ascii=False, indent=2)
+    PV.invalidate(slug)
+    return True, "saved"
+
+
+
+
+# ---------------------------------------------------------------- 质检结果（结构化给编辑器）
+_QA_NAMES = ("清单+总分", "图形事实链", "文档完整度", "发布可行性", "长短版一致",
+             "响度一致", "配音情绪", "封面可读性", "前3秒留人", "画面体检", "总检(checklist)")
+
+
+def _qa_items(slug):
+    """把 .qa.json 里的文本尾巴解析成结构化条目。
+
+    verify.sh 的输出是给人看的（对齐的 ✅/❌ 表格），编辑器要的是数组；
+    这里只做一层薄解析，解析不出来就返回空，前端会显示"未跑"。
+    """
+    path = os.path.join(OUT, slug, ".qa.json")
+    if not os.path.exists(path):
+        return None
+    try:
+        data = json.load(open(path, encoding="utf-8"))
+    except Exception:  # noqa: BLE001
+        return None
+    tail = data.get("tail") or ""
+    items, cur = [], None
+    for line in tail.split("\n"):
+        stripped = line.strip()
+        if not stripped:
+            continue
+        hit = next((n for n in _QA_NAMES if stripped.startswith(n)), None)
+        if hit:
+            ok = "✅" in stripped
+            bad = "❌" in stripped
+            cur = {"name": hit, "ok": ok and not bad, "detail": stripped[len(hit):].strip(" ✅❌")}
+            items.append(cur)
+        elif cur is not None and not items[-1]["ok"]:
+            items[-1]["detail"] = (items[-1]["detail"] + " " + stripped).strip()[:220]
+    return {"slug": slug, "at": data.get("at"), "ok": bool(data.get("ok")), "items": items}
+
+
 def _title_of(slug):
     try:
         cfg = json.load(open(os.path.join(EX, f"{slug}.content.json"), encoding="utf-8"))
@@ -453,6 +582,30 @@ class Handler(BaseHTTPRequestHandler):
                                     "root": REPO})
         if path == "/api/item":
             return self._send(200, _detail(q.get("slug", [""])[0]) or {"error": "unknown"})
+        if path == "/api/stage-status":
+            slug = q.get("slug", [""])[0]
+            return self._send(200, _qa_items(slug) or {"slug": slug, "items": [], "ok": None})
+        if path == "/api/project":
+            slug = q.get("slug", [""])[0]
+            data = _project_json(slug)
+            return self._send(200, data) if data else self._send(404, {"error": "unknown"})
+        if path == "/api/frame":
+            slug = q.get("slug", [""])[0]
+            try:
+                t = float(q.get("t", ["0"])[0])
+            except ValueError:
+                t = 0.0
+            try:
+                data = PV.frame_png(slug, t)
+            except Exception as e:  # noqa: BLE001
+                return self._send(500, {"error": f"{type(e).__name__}: {e}"})
+            self.send_response(200)
+            self.send_header("Content-Type", "image/jpeg")
+            self.send_header("Content-Length", str(len(data)))
+            self.send_header("Cache-Control", "no-store")
+            self.end_headers()
+            self.wfile.write(data)
+            return
         if path == "/api/brief":
             slug = q.get("slug", [""])[0]
             d = os.path.join(OUT, slug, "brief.json")
@@ -473,6 +626,24 @@ class Handler(BaseHTTPRequestHandler):
         if path == "/api/job":
             j = _job(q.get("id", [""])[0])
             return self._send(200, j or {"status": "unknown"})
+        if path in ("/app", "/app/"):
+            path = "/app/index.html"
+        if path.startswith("/app/"):
+            fp = os.path.join(os.path.dirname(os.path.abspath(__file__)), path.lstrip("/"))
+            if os.path.isfile(fp):
+                ext = os.path.splitext(fp)[1]
+                ctype = {".html": "text/html; charset=utf-8",
+                         ".css": "text/css; charset=utf-8",
+                         ".js": "application/javascript; charset=utf-8",
+                         ".svg": "image/svg+xml"}.get(ext, "application/octet-stream")
+                data = open(fp, "rb").read()
+                self.send_response(200)
+                self.send_header("Content-Type", ctype)
+                self.send_header("Content-Length", str(len(data)))
+                self.send_header("Cache-Control", "no-store")
+                self.end_headers()
+                self.wfile.write(data)
+                return
         if path.startswith("/files/"):
             rel = path[len("/files/"):]
             target = os.path.normpath(os.path.join(OUT, rel))
@@ -503,6 +674,12 @@ class Handler(BaseHTTPRequestHandler):
             if not slug:
                 return self._send(400, {"error": "slug required"})
             return self._send(200, {"job": _start_job("theme", slug, {"theme": theme})})
+        if u.path == "/api/project":
+            slug = str(body.get("slug") or "").strip()
+            if not slug:
+                return self._send(400, {"error": "slug required"})
+            ok, msg = _save_project(slug, body)
+            return self._send(200 if ok else 400, {"ok": ok, "message": msg})
         if u.path == "/api/brief":
             slug = str(body.get("slug") or "").strip()
             if not slug:

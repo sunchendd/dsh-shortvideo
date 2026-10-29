@@ -1,0 +1,187 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>dsh-shortvideo · 剪辑台</title>
+<link rel="stylesheet" href="/app/app.css">
+</head>
+<body>
+<div id="app">
+
+  <!-- ============================================================ 顶栏 -->
+  <header class="topbar">
+    <div class="brand">
+      <span class="mark">S</span>
+      <span class="name">shortvideo</span>
+    </div>
+    <div class="sep"></div>
+    <button class="tbtn" id="btnLib" title="返回片库 (Esc)">片库</button>
+    <div class="proj">
+      <input id="titleInput" spellcheck="false" aria-label="项目标题">
+      <span class="save-state" id="saveState">已保存</span>
+    </div>
+    <div class="grow"></div>
+    <button class="tbtn" id="btnUndo" title="撤销 (⌘Z)">撤销</button>
+    <button class="tbtn" id="btnRedo" title="重做 (⇧⌘Z)">重做</button>
+    <div class="sep"></div>
+    <button class="tbtn" id="btnQA" title="跑质检">质检</button>
+    <button class="tbtn primary" id="btnExport" title="导出成片 (⌘E)">导出</button>
+  </header>
+
+  <!-- ============================================================ 左轨 -->
+  <nav class="rail">
+    <button data-panel="assets">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><rect x="3" y="4" width="18" height="14" rx="2"/><path d="M3 14l4-4 4 4 3-3 4 4"/><circle cx="9" cy="8.5" r="1.2"/></svg>
+      素材
+    </button>
+    <button data-panel="voice">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M12 3v10"/><circle cx="12" cy="16" r="3"/><path d="M6 10a6 6 0 0012 0"/></svg>
+      配音
+    </button>
+    <button data-panel="theme">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><circle cx="12" cy="12" r="8"/><path d="M12 4v16a8 8 0 000-16z" fill="currentColor" stroke="none"/></svg>
+      主题
+    </button>
+    <button data-panel="checks">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M4 12l5 5L20 6"/></svg>
+      检查
+    </button>
+    <div class="spacer"></div>
+    <button data-panel="keys" title="快捷键">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><rect x="2" y="6" width="20" height="12" rx="2"/><path d="M6 10h.01M10 10h.01M14 10h.01M18 10h.01M8 14h8"/></svg>
+      快捷键
+    </button>
+  </nav>
+
+  <!-- 素材抽屉 -->
+  <aside class="drawer" id="drawer">
+    <div class="dh"><b id="drawerTitle">素材</b><button class="tbtn" id="drawerClose">×</button></div>
+    <div class="list" id="drawerList"></div>
+  </aside>
+
+  <!-- ============================================================ 画布 -->
+  <main class="canvaswrap">
+    <div class="stage" id="stage">
+      <div class="skeleton" id="skel"></div>
+      <img id="frame" alt="">
+      <span class="badge" id="shotBadge"></span>
+    </div>
+    <div class="transport">
+      <button id="btnStart" title="回到开头 (Home)">
+        <svg viewBox="0 0 24 24" fill="currentColor"><path d="M6 5h2v14H6zM20 5v14L9 12z"/></svg>
+      </button>
+      <button id="btnPrev" title="上一帧 (←)">
+        <svg viewBox="0 0 24 24" fill="currentColor"><path d="M14 5v14L5 12z"/></svg>
+      </button>
+      <button id="btnPlay" class="play" title="播放/暂停 (空格)">
+        <svg id="playIcon" viewBox="0 0 24 24" fill="currentColor"><path d="M7 4l13 8-13 8z"/></svg>
+      </button>
+      <button id="btnNext" title="下一帧 (→)">
+        <svg viewBox="0 0 24 24" fill="currentColor"><path d="M10 5v14l9-7z"/></svg>
+      </button>
+      <button id="btnEnd" title="到结尾 (End)">
+        <svg viewBox="0 0 24 24" fill="currentColor"><path d="M16 5h2v14h-2zM4 5v14l11-7z"/></svg>
+      </button>
+      <span class="tc"><b id="tcNow">00:00.00</b> / <span id="tcTotal">00:00.00</span></span>
+      <span class="pill" id="shotPill">—</span>
+    </div>
+  </main>
+
+  <!-- ============================================================ 检查器 -->
+  <aside class="insp" id="insp">
+    <section class="sect" id="inspShot">
+      <h3>镜头</h3>
+      <div class="field">
+        <label>镜头类型</label>
+        <select id="fKind">
+          <option value="big">大字（观点）</option>
+          <option value="compare">对比</option>
+          <option value="flow">流程</option>
+          <option value="cards">卡片列表</option>
+          <option value="stat">数字</option>
+        </select>
+      </div>
+      <div class="row2">
+        <div class="field"><label>时长（秒）</label><input id="fDur" type="number" min="2" max="30" step="0.1"></div>
+        <div class="field"><label>起始</label><input id="fStart" disabled></div>
+      </div>
+      <div class="field">
+        <label>口播文案</label>
+        <textarea id="fNarr" rows="4" spellcheck="false"></textarea>
+      </div>
+      <div class="meta" id="fMeta"></div>
+    </section>
+
+    <section class="sect">
+      <h3>项目</h3>
+      <div class="field">
+        <label>视觉主题</label>
+        <select id="fTheme"></select>
+      </div>
+      <div class="field">
+        <label>配音音色</label>
+        <select id="fVoice">
+          <option value="yunxi">云希 · 男声（沉稳）</option>
+          <option value="xiaoxiao">晓晓 · 女声（清晰）</option>
+          <option value="yunjian">云健 · 男声（厚）</option>
+        </select>
+      </div>
+      <div class="meta" id="fProjMeta"></div>
+    </section>
+
+    <section class="sect">
+      <h3>成片检查</h3>
+      <div id="qaBox"><span class="pill">未跑</span></div>
+    </section>
+  </aside>
+
+  <!-- ============================================================ 时间线 -->
+  <section class="timeline">
+    <div class="tlhead">
+      <span id="tlInfo">—</span>
+      <div class="grow"></div>
+      <div class="zoom">
+        <span>缩放</span>
+        <input type="range" id="zoom" min="10" max="120" value="34">
+      </div>
+    </div>
+    <div class="tlbody" id="tlBody">
+      <div class="ruler" id="ruler"></div>
+      <div class="lanes" id="lanes">
+        <div class="lane video" id="track"></div>
+        <div class="lane sub" id="subtrack"></div>
+        <div class="lane audio" id="audiotrack"></div>
+      </div>
+      <div class="playhead" id="playhead"></div>
+    </div>
+  </section>
+</div>
+
+<!-- 导出弹层 -->
+<div class="scrim" id="exportScrim">
+  <div class="modal">
+    <header><h2>导出成片</h2><button class="tbtn" id="exportClose">×</button></header>
+    <div class="body">
+      <div class="field">
+        <label>预设</label>
+        <select id="exPreset">
+          <option value="xhs">小红书竖屏 1080×1920 · 30fps</option>
+          <option value="draft">快速预览 720×1280 · 24fps</option>
+        </select>
+      </div>
+      <div class="meta" id="exMeta">—</div>
+      <div style="margin-top:14px" class="progress"><i id="exBar"></i></div>
+      <div class="log" id="exLog">等待开始…</div>
+    </div>
+    <footer>
+      <button class="tbtn" id="exCancel">关闭</button>
+      <button class="tbtn primary" id="exGo">开始导出</button>
+    </footer>
+  </div>
+</div>
+
+<div class="toasts" id="toasts"></div>
+<script src="/app/app.js"></script>
+</body>
+</html>
