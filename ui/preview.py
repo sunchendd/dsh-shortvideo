@@ -233,6 +233,22 @@ STAGES = (
 )
 
 
+def _brief_from_content(slug):
+    """没有 brief.json 的老项目：从 content.json 反推一份可编辑的需求单。"""
+    try:
+        cfg = json.load(open(os.path.join(EX, f"{slug}.content.json"), encoding="utf-8"))
+    except Exception:  # noqa: BLE001
+        return {"title": slug, "lines": [], "kicker": "", "theme": "", "voice": "",
+                "short": slug.startswith("short-"), "derived": True}
+    shots = cfg.get("shots") or []
+    lines = [str(s.get("narration") or "").strip() for s in shots if s.get("narration")]
+    return {"title": cfg.get("title") or "", "lines": lines,
+            "kicker": (cfg.get("cover") or {}).get("kicker") or "",
+            "theme": cfg.get("theme") or "",
+            "voice": (cfg.get("voice") or {}).get("preset") or "",
+            "short": slug.startswith("short-"), "derived": True}
+
+
 def _title_of(slug):
     try:
         cfg = json.load(open(os.path.join(EX, f"{slug}.content.json"), encoding="utf-8"))
@@ -437,6 +453,12 @@ class Handler(BaseHTTPRequestHandler):
                                     "root": REPO})
         if path == "/api/item":
             return self._send(200, _detail(q.get("slug", [""])[0]) or {"error": "unknown"})
+        if path == "/api/brief":
+            slug = q.get("slug", [""])[0]
+            d = os.path.join(OUT, slug, "brief.json")
+            if os.path.exists(d):
+                return self._send(200, json.load(open(d, encoding="utf-8")))
+            return self._send(200, _brief_from_content(slug))
         if path == "/api/projects":
             rows = []
             for slug in _slug_list():
@@ -481,6 +503,24 @@ class Handler(BaseHTTPRequestHandler):
             if not slug:
                 return self._send(400, {"error": "slug required"})
             return self._send(200, {"job": _start_job("theme", slug, {"theme": theme})})
+        if u.path == "/api/brief":
+            slug = str(body.get("slug") or "").strip()
+            if not slug:
+                return self._send(400, {"error": "slug required"})
+            lines = [str(x).strip() for x in (body.get("lines") or []) if str(x).strip()]
+            title = str(body.get("title") or "").strip()
+            if not title or len(lines) < 3:
+                return self._send(400, {"error": "标题必填，句子至少 3 句"})
+            d = os.path.join(OUT, slug)
+            os.makedirs(d, exist_ok=True)
+            brief = {"title": title, "lines": lines, "kicker": body.get("kicker"),
+                     "theme": body.get("theme"), "voice": body.get("voice"),
+                     "short": bool(body.get("short")),
+                     "at": time.strftime("%Y-%m-%d %H:%M:%S")}
+            json.dump(brief, open(os.path.join(d, "brief.json"), "w", encoding="utf-8"),
+                      ensure_ascii=False, indent=2)
+            job = _start_job("stage", slug, {"stage": "script"}) if body.get("rerun", True) else None
+            return self._send(200, {"ok": True, "job": job, "slug": slug})
         if u.path == "/api/project":
             title = str(body.get("title") or "").strip()
             lines = [str(x).strip() for x in (body.get("lines") or []) if str(x).strip()]

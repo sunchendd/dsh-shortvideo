@@ -184,6 +184,17 @@ select{background:var(--raise);border:1px solid var(--line2);color:var(--text);o
 .stg.fail .dot { background: #a33; box-shadow: none; }
 .stg:hover { color: var(--ink0); }
 @keyframes pulse { 50% { opacity: .35; } }
+
+.fld { display: block; margin: 0 0 12px; font: 600 11px/1.6 var(--sans);
+  letter-spacing: .12em; text-transform: uppercase; color: var(--ink3); }
+.fld input, .fld select, .fld textarea { display: block; width: 100%; margin-top: 6px;
+  background: var(--bg1); border: 1px solid var(--line); color: var(--ink0);
+  font: 400 14px/1.6 var(--sans); padding: 9px 11px; border-radius: 0; }
+.fld textarea { resize: vertical; letter-spacing: 0; text-transform: none; }
+.fldrow { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
+.stgrow { display: flex; flex-wrap: wrap; gap: 10px 18px; padding: 6px 0 2px; }
+.stgrow .stg { padding: 8px 12px; border: 1px solid var(--line); }
+.stgrow .stg.done { border-color: #2f6d4f55; }
 </style>
 
 <header>
@@ -474,6 +485,108 @@ async function runStage(slug, stage, btn) {
   }
 }
 
+
+// ---------------------------------------------------------------- 项目面板（改稿 → 重跑 → 看产物）
+async function openProject(slug) {
+  const [it, brief] = await Promise.all([
+    (await fetch("/api/item?slug=" + encodeURIComponent(slug))).json(),
+    (await fetch("/api/brief?slug=" + encodeURIComponent(slug))).json(),
+  ]);
+  // 直链打开时 WB 还是空的（setView 的 loadWorkbench 是异步的），
+  // 不先拉一次就会出现"明明跑过却显示待运行"。
+  if (!WB.projects || !WB.projects.some(p => p.slug === slug)) await loadWorkbench();
+  const proj = (WB.projects || []).find(p => p.slug === slug) || {stages: {}};
+  const mp4 = it.files && it.files[slug + ".mp4"];
+  const covers = Object.entries(it.files || {}).filter(([k]) => k.startsWith("cover_"));
+  const lines = (brief.lines || []).slice(0, 6);
+  while (lines.length < 5) lines.push("");
+  const stg = (id, name) => {
+    const done = proj.stages[id];
+    return `<button class="stg ${done ? "done" : ""}" data-run="${id}" data-slug="${esc(slug)}">
+      <i class="dot"></i>${name}${done ? " · 已完成" : " · 待运行"}</button>`;
+  };
+  $("#drawer").innerHTML = `
+    <div class="dh">
+      <div>
+        <h2>${esc(brief.title || slug)}</h2>
+        <div class="kv"><span>${esc(slug)}</span>
+          <span>${brief.derived ? "需求单由 content.json 反推" : "需求单 brief.json"}</span></div>
+      </div>
+      <button class="x" id="btnClose">关闭</button>
+    </div>
+    <div class="cols">
+      <div>
+        <div class="sec"><h3>工序</h3>
+          <div class="stgrow">
+            ${stg("script","① 创意脚本")}${stg("render","② 配音成片")}${stg("assets","③ 封面物料")}
+            ${stg("qa","④ 质检")}${stg("deliver","⑤ 发布包")}
+          </div>
+        </div>
+        <div class="sec"><h3>需求单（改完保存会自动重跑脚本）</h3>
+          <label class="fld">标题<input id="bTitle" value="${esc(brief.title || "")}"></label>
+          <label class="fld">栏目<input id="bKicker" value="${esc(brief.kicker || "")}" placeholder="护肤反常识"></label>
+          ${lines.map((l, i) => `<label class="fld">第 ${i + 1} 句
+            <textarea id="bL${i}" rows="2">${esc(l)}</textarea></label>`).join("")}
+          <div class="fldrow">
+            <label class="fld">主题<select id="bTheme">${(LIB.themes||[]).map(t =>
+              `<option value="${t.key}" ${t.key===brief.theme?"selected":""}>${esc(t.name)}</option>`).join("")}</select></label>
+            <label class="fld">配音<select id="bVoice">
+              ${["yunxi","xiaoxiao","yunjian"].map(v =>
+                `<option value="${v}" ${v===brief.voice?"selected":""}>${v}</option>`).join("")}
+            </select></label>
+          </div>
+          <div class="actions">
+            <button class="btn primary" id="bSave">保存并重跑脚本</button>
+            <button class="btn" id="bSaveOnly">只保存</button>
+          </div>
+        </div>
+        <div class="log" id="log"></div>
+      </div>
+      <div>
+        ${mp4 ? `<div class="sec"><h3>成片</h3><video controls preload="metadata" src="${mp4}"></video></div>`
+              : `<div class="sec empty">还没渲成片：先把 ② 配音成片 跑完</div>`}
+        ${it.files && it.files["summary.png"] ? `<div class="sec"><h3>一张图</h3>
+          <img class="plain" src="${it.files["summary.png"]}"></div>` : ""}
+        ${covers.length ? `<div class="sec"><h3>封面</h3><div class="thumbs">${covers.map(([k, v]) =>
+          `<a href="${v}" target="_blank"><img src="${v}" title="${k}" alt=""></a>`).join("")}</div></div>` : ""}
+      </div>
+    </div>`;
+
+  $("#btnClose").onclick = closeDrawer;
+  $("#drawer").querySelectorAll("[data-run]").forEach(b =>
+    b.onclick = () => runStageInDrawer(b.dataset.slug, b.dataset.run, b));
+  const save = async (rerun) => {
+    const body = {
+      slug, rerun,
+      title: $("#bTitle").value.trim(),
+      kicker: $("#bKicker").value.trim(),
+      theme: $("#bTheme").value, voice: $("#bVoice").value,
+      lines: [0,1,2,3,4].map(i => $("#bL" + i).value.trim()).filter(Boolean),
+    };
+    $("#log").textContent = "保存中…";
+    const r = await (await fetch("/api/brief", {method: "POST",
+      headers: {"Content-Type": "application/json"}, body: JSON.stringify(body)})).json();
+    if (r.error) { $("#log").textContent = r.error; return; }
+    if (!r.job) { $("#log").textContent = "已保存需求单（未重跑）"; return; }
+    poll(r.job, $("#log"), async () => { await loadWorkbench(); await boot(); });
+  };
+  $("#bSave").onclick = () => save(true);
+  $("#bSaveOnly").onclick = () => save(false);
+  $("#veil").classList.add("on"); $("#drawer").classList.add("on");
+}
+
+async function runStageInDrawer(slug, stage, btn) {
+  btn.classList.add("run"); btn.innerHTML = `<i class="dot"></i>运行中`;
+  const r = await (await fetch("/api/stage", {method: "POST",
+    headers: {"Content-Type": "application/json"},
+    body: JSON.stringify({slug, stage})})).json();
+  poll(r.job, $("#log"), async () => {
+    await loadWorkbench();
+    toast("工序完成，刷新面板");
+    openProject(slug);
+  });
+}
+
 function openModal(){
   const sel = $("#nTheme");
   if (!sel.children.length){
@@ -521,13 +634,14 @@ $("#wbtable").addEventListener("click", e => {
   const stg = e.target.closest(".stg");
   if (stg && stg.dataset.slug) return runStage(stg.dataset.slug, stg.dataset.stage, stg);
   const t = e.target.closest("[data-open]");
-  if (t) open(t.dataset.open);
+  if (t) openProject(t.dataset.open);
 });
 
 boot().then(() => {
   const h = decodeURIComponent((location.hash||"").replace("#",""));
-  if (h) open(h);
-  if (INIT.get("view") === "workbench") setView("workbench");
+  const wb = INIT.get("view") === "workbench";
+  if (wb) setView("workbench");
+  if (h) (wb ? openProject(h) : open(h));
 });
 </script>
 </html>
