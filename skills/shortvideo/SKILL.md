@@ -321,6 +321,26 @@ $PY $TOOLS/make.py --content examples/01-x.content.json --topic deck --out examp
 > 注意：TTS 有缓存（按 text+voice 哈希），没改文案的镜头不会重新合成，
 > 所以第 2 步通常只花几秒。
 
+## 短版：`"format": "short"`
+
+同一个选题可以出长短两版。长版（30~90s）做深度和收藏，短版（10~22s）搏完播和涨粉。
+在 content.json 顶层写 `"format": "short"`，规则随之切换（`make.lint_script` 与
+`score.py` 用的是同一套判定，改一处必须改两处）：
+
+| | 长版 | 短版 |
+|---|---|---|
+| 总时长 | 30~90s | 10~22s |
+| 单镜 | ≤9s | ≤6s |
+| 字数 | 90~200 | 45~95 |
+| 镜头数 | ≥4 | ≥4（短版也别少于 4 层） |
+
+短版实测注意：
+- **数字最占音节**。「26 个码字里，17 个是校验」这种句子念出来就是 5.7 音节/秒，
+  逐镜 `mood_tuning` 调不动（实测只差 0.1s），要把 `voice.rate` 整体放慢 -15%
+- 用 `tighten.py --pad 1.0 --floor 3.2 --cap 6.0 --only short-` 收紧，
+  别用长版那套（pad 1.8 / cap 8.6 会把短版又撑回 20s+）
+- 短版仍然要 ≥4 个镜头和互动引导，否则 `score.py` 会扣分
+
 ## 节奏：`tighten.py` + `viz.py`
 
 镜头时长别手工写死。`min_dur` 越往后面越长（钩子 6.4s、收尾 9.0s）是最常见的节奏病，

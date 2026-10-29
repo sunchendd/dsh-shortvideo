@@ -1,0 +1,110 @@
+{
+  "format": "short",
+  "series_title": "18 秒速通",
+  "topic": "二维码烂三成照样能扫",
+  "publish_title": "二维码烂掉三成，照样能扫",
+  "voice": {
+    "preset": "yunxi",
+    "rate": "-15%"
+  },
+  "bgm": {
+    "style": "lofi",
+    "gain": -26.0
+  },
+  "shots": [
+    {
+      "id": "hook",
+      "min_dur": 5.5,
+      "narration": "二维码烂掉三成，居然照样能扫。",
+      "emphasis": [
+        "三成"
+      ]
+    },
+    {
+      "id": "rule",
+      "min_dur": 4.3,
+      "narration": "26 个码字里，17 个是校验。",
+      "emphasis": [
+        "17个"
+      ]
+    },
+    {
+      "id": "reveal",
+      "min_dur": 3.6,
+      "narration": "坏几个码字，解方程补回来。",
+      "emphasis": [
+        "解方程"
+      ]
+    },
+    {
+      "id": "solve",
+      "min_dur": 4.9,
+      "narration": "塞个 logo 也读得出。评论区聊。",
+      "emphasis": [
+        "logo"
+      ]
+    }
+  ],
+  "deck": {
+    "hook": {
+      "kind": "compare",
+      "left": {
+        "label": "码面完整",
+        "note": "一扫就出"
+      },
+      "right": {
+        "label": "烂掉三成",
+        "note": "照样读出来"
+      },
+      "note": "版本1的码：26 个码字里 17 个是校验"
+    },
+    "rule": {
+      "kind": "stat",
+      "value": "17",
+      "unit": "个校验",
+      "label": "26 个码字里的冗余"
+    },
+    "reveal": {
+      "kind": "big",
+      "lines": [
+        "坏了几个码字",
+        "解方程补回来"
+      ],
+      "emphasis": [
+        "解方程"
+      ]
+    },
+    "solve": {
+      "kind": "big",
+      "lines": [
+        "塞个 logo",
+        "也照样能读"
+      ],
+      "emphasis": [
+        "logo"
+      ]
+    }
+  },
+  "cover": {
+    "kicker": "编码反常识",
+    "serial": "短01",
+    "headline": [
+      "烂掉三成",
+      "照样能扫"
+    ],
+    "highlight": [
+      "三成"
+    ],
+    "sub": "17 个校验码字，专门补洞",
+    "tags": [
+      "#科普",
+      "#二维码",
+      "#冷知识"
+    ],
+    "cta": "18 秒看懂"
+  },
+  "transition": {
+    "type": "fade",
+    "dur": 0.2
+  }
+}

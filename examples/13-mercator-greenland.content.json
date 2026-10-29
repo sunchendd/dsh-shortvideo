@@ -34,7 +34,7 @@
     {
       "id": "hook",
       "mood": "hook",
-      "min_dur": 6.0,
+      "min_dur": 6.3,
       "narration": "非洲面积是格陵兰的14倍。地图上，它们看着差不多。",
       "emphasis": [
         "14倍"
@@ -61,7 +61,7 @@
     {
       "id": "reveal",
       "mood": "reveal",
-      "min_dur": 8.6,
+      "min_dur": 8.4,
       "narration": "72度那条线上放大10.5倍：真实217万，图上2270万。",
       "emphasis": [
         "10.5倍",

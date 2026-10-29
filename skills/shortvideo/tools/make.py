@@ -513,9 +513,19 @@ def lint_script(cfg, timeline, degraded=()):
             out.append(("warn", f"{shot.get('id')}: 镜头留白仅 {item['dur'] - adur:.2f}s（建议 ≥1s，"
                                 f"留给图形动效和呼吸）"))
 
-    # 3) 总时长：知识类完播甜区 30~90s
+    # 3) 总时长：长版完播甜区 30~90s；短版（format="short"）10~20s，为完播/涨粉赛道
     total = timeline[-1]["start"] + timeline[-1]["dur"] if timeline else 0
-    if total < 30:
+    short = str(cfg.get("format") or "").lower() in ("short", "15s", "quick")
+    if short:
+        for shot in (cfg.get("shots") or []):
+            d = float(shot.get("min_dur") or 0)
+            if d > 6.0:
+                out.append(("warn", f"{shot.get('id')}: 短版里单镜 {d:.1f}s 太长（≤6s）"))
+        if total < 10:
+            out.append(("warn", f"短版总时长 {total:.1f}s < 10s，钩子和答案挤在一起"))
+        elif total > 20:
+            out.append(("warn", f"短版总时长 {total:.1f}s > 20s，已经不是短版了"))
+    elif total < 30:
         out.append(("warn", f"总时长 {total:.1f}s < 30s，信息量可能不足以支撑完播"))
     elif total > 90:
         out.append(("warn", f"总时长 {total:.1f}s > 90s，完播率会明显下滑"))

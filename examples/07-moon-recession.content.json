@@ -54,7 +54,7 @@
     {
       "id": "insight",
       "mood": "explain",
-      "min_dur": 8.5,
+      "min_dur": 8.3,
       "narration": "海水被月亮拉出鼓包，自转又把鼓包拖到前面。鼓包回头拽月亮。",
       "emphasis": [
         "鼓包"
@@ -73,7 +73,7 @@
     {
       "id": "solve",
       "mood": "win",
-      "min_dur": 7.9,
+      "min_dur": 8.0,
       "narration": "所以它只给你看一面，自转被拉成27.3天。关注我，下条接着讲。",
       "emphasis": [
         "一面",

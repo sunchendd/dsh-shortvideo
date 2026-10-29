@@ -34,7 +34,7 @@
     {
       "id": "hook",
       "mood": "hook",
-      "min_dur": 5.2,
+      "min_dur": 5.4,
       "narration": "下午 3 点那杯咖啡，晚上 11 点还剩 33%。",
       "emphasis": [
         "33%"
@@ -43,7 +43,7 @@
     {
       "id": "rule",
       "mood": "rule",
-      "min_dur": 6.9,
+      "min_dur": 7.2,
       "narration": "咖啡因长得像腺苷，先占住受体。腺苷进不去，警报发不出。",
       "emphasis": [
         "受体"
@@ -52,7 +52,7 @@
     {
       "id": "insight",
       "mood": "explain",
-      "min_dur": 7.5,
+      "min_dur": 7.2,
       "narration": "腺苷一点没少，只是堵在门口排队。咖啡因每 5 小时减一半。",
       "emphasis": [
         "排队"
@@ -61,7 +61,7 @@
     {
       "id": "reveal",
       "mood": "reveal",
-      "min_dur": 6.9,
+      "min_dur": 7.0,
       "narration": "所以半夜的你，其实困得很。困意没被删掉，只是被静音。",
       "emphasis": [
         "静音"
@@ -70,7 +70,7 @@
     {
       "id": "solve",
       "mood": "win",
-      "min_dur": 7.8,
+      "min_dur": 8.1,
       "narration": "把最后一杯挪到睡前 10 小时，只剩 25%。你几点喝？评论区聊聊。",
       "emphasis": [
         "25%"

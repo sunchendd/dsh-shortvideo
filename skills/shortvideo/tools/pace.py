@@ -145,6 +145,7 @@ def main():
     ap = argparse.ArgumentParser(description="完播友好度体检（逐镜）")
     ap.add_argument("--dir", default="examples")
     ap.add_argument("--top", type=int, default=10, help="只列出最危险的 N 个镜头")
+    ap.add_argument("--only", default=None, help="只看名字以此开头的条目")
     ap.add_argument("--json", action="store_true")
     ap.add_argument("--order", action="store_true", help="给出建议发布顺序（A 级先发）")
     args = ap.parse_args()

@@ -33,7 +33,7 @@
     {
       "id": "hook",
       "mood": "hook",
-      "min_dur": 6.9,
+      "min_dur": 7.2,
       "narration": "卫星上的钟，每天快38微秒。不修就偏11.5公里。",
       "emphasis": [
         "38微秒",
@@ -43,7 +43,7 @@
     {
       "id": "rule",
       "mood": "rule",
-      "min_dur": 7.8,
+      "min_dur": 8.1,
       "narration": "两笔账：引力让钟快45.7微秒。速度让它慢7.2微秒。",
       "emphasis": [
         "45.7微秒",
@@ -63,7 +63,7 @@
     {
       "id": "reveal",
       "mood": "reveal",
-      "min_dur": 8.6,
+      "min_dur": 8.4,
       "narration": "两个相减，每天快38.5微秒。乘上光速，一天差11.5公里。",
       "emphasis": [
         "38.5微秒",
@@ -73,7 +73,7 @@
     {
       "id": "solve",
       "mood": "win",
-      "min_dur": 8.3,
+      "min_dur": 8.1,
       "narration": "所以发射前先把钟调慢，天上还得天天校。关注我，下条讲北斗。",
       "emphasis": [
         "调慢",

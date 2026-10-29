@@ -56,7 +56,7 @@
     {
       "id": "rule",
       "mood": "rule",
-      "min_dur": 7.8,
+      "min_dur": 7.5,
       "narration": "色号是6个字符，两位一组：前两位红，中间绿，最后蓝。",
       "emphasis": [
         "两位一组"
@@ -83,7 +83,7 @@
     {
       "id": "solve",
       "mood": "win",
-      "min_dur": 8.0,
+      "min_dur": 7.7,
       "narration": "想要一半亮度，编码得写188。你调色翻过车吗？评论区聊聊。",
       "emphasis": [
         "188"

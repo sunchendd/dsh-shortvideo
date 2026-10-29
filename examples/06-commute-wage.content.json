@@ -52,7 +52,7 @@
     {
       "id": "insight",
       "mood": "explain",
-      "min_dur": 8.8,
+      "min_dur": 8.6,
       "narration": "但通勤2小时也算你的时间。8000除以220，时薪掉到36块4。",
       "emphasis": [
         "220"
@@ -61,7 +61,7 @@
     {
       "id": "reveal",
       "mood": "reveal",
-      "min_dur": 7.9,
+      "min_dur": 7.8,
       "narration": "通勤一个月44小时，等于白上5天半。这5天半，一分钱不算。",
       "emphasis": [
         "5天半"
@@ -70,7 +70,7 @@
     {
       "id": "solve",
       "mood": "win",
-      "min_dur": 7.2,
+      "min_dur": 7.4,
       "narration": "记住：算时薪要把通勤加进去。你的数字多少，评论区报个数。",
       "emphasis": [
         "评论区"

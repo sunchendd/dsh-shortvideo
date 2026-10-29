@@ -34,7 +34,7 @@
     {
       "id": "hook",
       "mood": "hook",
-      "min_dur": 5.8,
+      "min_dur": 6.1,
       "narration": "5 厘米的洞，就在你眼前。你居然从没看见。",
       "emphasis": [
         "5 厘米"
@@ -61,7 +61,7 @@
     {
       "id": "reveal",
       "mood": "reveal",
-      "min_dur": 7.8,
+      "min_dur": 7.9,
       "narration": "1.26 亿个感光细胞，只接出 100 万根线。大脑在猜，不在拍。",
       "emphasis": [
         "100 万根线"
@@ -70,7 +70,7 @@
     {
       "id": "solve",
       "mood": "win",
-      "min_dur": 7.5,
+      "min_dur": 7.8,
       "narration": "拿张纸点两个点，闭一只眼盯住左边。右边那个会消失，评论区说结果。",
       "emphasis": [
         "会消失"

@@ -33,7 +33,7 @@
     {
       "id": "hook",
       "mood": "hook",
-      "min_dur": 5.4,
+      "min_dur": 5.7,
       "narration": "身份证最后一位，不是随便编的。它是算出来的。",
       "emphasis": [
         "不是随便编的",
@@ -73,7 +73,7 @@
     {
       "id": "solve",
       "mood": "win",
-      "min_dur": 5.8,
+      "min_dur": 6.1,
       "narration": "抄错一位，这个数一定会变。评论区报一下你的末位。",
       "emphasis": [
         "一定会变",

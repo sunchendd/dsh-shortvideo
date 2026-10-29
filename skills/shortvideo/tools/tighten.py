@@ -70,10 +70,14 @@ def main():
     ap.add_argument("--pad", type=float, default=1.5)
     ap.add_argument("--floor", type=float, default=4.5)
     ap.add_argument("--cap", type=float, default=8.0)
+    ap.add_argument("--only", default=None, help="只处理名字以此开头的条目，如 short-")
     ap.add_argument("--dry-run", action="store_true")
     args = ap.parse_args()
     total = 0
-    for cp in sorted(glob.glob(os.path.join(args.dir, "*.content.json"))):
+    cps = sorted(glob.glob(os.path.join(args.dir, "*.content.json")))
+    if getattr(args, "only", None):
+        cps = [c for c in cps if os.path.basename(c).startswith(args.only)]
+    for cp in cps:
         slug = os.path.basename(cp).replace(".content.json", "")
         ch = tighten(cp, args.pad, args.floor, args.cap, args.dry_run)
         if ch:

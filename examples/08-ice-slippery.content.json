@@ -34,7 +34,7 @@
     {
       "id": "hook",
       "mood": "hook",
-      "min_dur": 5.4,
+      "min_dur": 5.7,
       "narration": "冰刀压下去，冰点只降0.1度。那它凭什么这么滑？",
       "emphasis": [
         "0.1度",
@@ -62,7 +62,7 @@
     {
       "id": "reveal",
       "mood": "reveal",
-      "min_dur": 7.5,
+      "min_dur": 7.3,
       "narration": "所以冰不是压化的。它表面本来就有一层水膜，零下十度也在。",
       "emphasis": [
         "水膜"
@@ -71,7 +71,7 @@
     {
       "id": "solve",
       "mood": "win",
-      "min_dur": 7.0,
+      "min_dur": 7.3,
       "narration": "摩擦再补一点点热，那层水就够了。收藏这条，下次滑冰想一下。",
       "emphasis": [
         "摩擦",

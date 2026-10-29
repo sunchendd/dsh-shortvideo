@@ -48,7 +48,7 @@
     {
       "id": "rule",
       "mood": "rule",
-      "min_dur": 7.3,
+      "min_dur": 7.1,
       "narration": "版本1的码只有26个码字：9个装数据，17个是校验。",
       "emphasis": [
         "26个码字",
@@ -58,7 +58,7 @@
     {
       "id": "insight",
       "mood": "explain",
-      "min_dur": 8.2,
+      "min_dur": 8.0,
       "narration": "校验是提前算好的冗余。一个码字8位，坏了几个，解方程补回来。",
       "emphasis": [
         "冗余",
@@ -78,7 +78,7 @@
     {
       "id": "solve",
       "mood": "win",
-      "min_dur": 7.3,
+      "min_dur": 7.2,
       "narration": "所以中间塞个logo，也照样能读。收藏这条，下次别急着撕码。",
       "emphasis": [
         "照样能读",

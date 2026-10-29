@@ -23,7 +23,9 @@ sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 RATE = 4.2          # 普通话口播字/秒（规划用）
 HOOK_MAX = 13
 SHOT_CHARS_MAX = 38
-TOTAL_RANGE = (30, 90)
+TOTAL_RANGE = (30, 90)          # 长版完播甜区
+SHORT_RANGE = (10, 22)          # 短版（format="short"）：为完播/涨粉赛道
+SHORT_WORDS = (45, 95)          # 短版字数区间（15s 大约就说这么多）
 REDLINE = re.compile(
     r"(国家级|世界级|顶级|最佳|最强|第一品牌|唯一|绝对|百分之百|100%有效|永久|彻底治|"
     r"根治|包治|药到病除|无副作用|官方认证|权威认证|央视推荐|加微|私信领|扫码领|稳赚|暴利|月入过万)")
@@ -102,10 +104,11 @@ def score_rhythm(cfg, shots, miss, ok=lambda *a: None):
     elif worst <= 1.1:
         pts += 5
         miss("节奏", 0, 3, "有镜头的语速略超上限")
-    if TOTAL_RANGE[0] <= total <= TOTAL_RANGE[1]:
+    rng = SHORT_RANGE if _is_short(cfg) else TOTAL_RANGE
+    if rng[0] <= total <= rng[1]:
         pts += 6
     else:
-        miss("节奏", 0, 6, f"总时长 {total:.0f}s 不在 {TOTAL_RANGE[0]}~{TOTAL_RANGE[1]}s 甜区")
+        miss("节奏", 0, 6, f"总时长 {total:.0f}s 不在 {rng[0]}~{rng[1]}s 甜区")
     avg = total / max(1, len(shots))
     if 4.0 <= avg <= 9.5:
         pts += 6
@@ -114,6 +117,11 @@ def score_rhythm(cfg, shots, miss, ok=lambda *a: None):
     if pts == mx:
         ok("节奏", f"总长 {total:.0f}s，平均镜头 {avg:.1f}s，语速都在舒适区")
     return pts, mx
+
+
+def _is_short(cfg):
+    """短版判定：与 make.lint_script 保持一致，否则同一条片两处规则打架。"""
+    return str((cfg or {}).get("format") or "").lower() in ("short", "15s", "quick")
 
 
 def _ngram_repeat(text, n=4):
@@ -133,10 +141,11 @@ def score_info(cfg, shots, miss, ok=lambda *a: None):
     pts, mx = 0.0, 15.0
     text = " ".join(s["narration"] for s in shots)
     n = _chars(text)
-    if 90 <= n <= 200:
+    lo, hi = SHORT_WORDS if _is_short(cfg) else (90, 200)
+    if lo <= n <= hi:
         pts += 6
     else:
-        miss("信息密度", 0, 6, f"总字数 {n}（90~200 较合适）")
+        miss("信息密度", 0, 6, f"总字数 {n}（{lo}~{hi} 较合适）")
     nums = len(NUM_RE.findall(text))
     if nums >= 3:
         pts += 5
