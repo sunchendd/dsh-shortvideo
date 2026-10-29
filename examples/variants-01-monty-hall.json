@@ -1,0 +1,23 @@
+{
+  "base": "01-monty-hall.content.json",
+  "variants": [
+    {"id": "num", "label": "数字冲击",
+     "hook": "三扇门，一辆车。换门胜率翻一倍。",
+     "hook_lines": ["三扇门", "一辆车"],
+     "emphasis": ["翻一倍"],
+     "publish_title": "三扇门一辆车，换门为什么胜率翻一倍",
+     "cover": {"headline": ["换门胜率", "翻一倍"], "highlight": ["翻一倍"]}},
+    {"id": "ask", "label": "提问式",
+     "hook": "门被打开那一刻，你的概率变了吗？",
+     "hook_lines": ["概率", "变了吗"],
+     "emphasis": ["变了吗"],
+     "publish_title": "门被打开那一刻，你的中奖概率变了吗",
+     "cover": {"headline": ["概率", "变了吗"], "highlight": ["变了吗"]}},
+    {"id": "cost", "label": "代价恐惧",
+     "hook": "守住不换，你把一倍胜率扔了。",
+     "hook_lines": ["守住不换", "扔掉一半"],
+     "emphasis": ["扔掉一半"],
+     "publish_title": "守住不换门，你把一倍胜率扔了",
+     "cover": {"headline": ["守住不换", "就是扔掉一半"], "highlight": ["扔掉一半"]}}
+  ]
+}

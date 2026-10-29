@@ -251,6 +251,9 @@ $PY $TOOLS/studio.py --dir examples --ab
 
 - 成片自动垫一层**程序化 BGM**（`tools/bgm.py`，A 小调 Am–F–C–G、96BPM、pad+琶音+轻鼓点，
   纯标准库合成、无版权风险），并做人声侧链压低（实测压低 28~39%），默认 gain=-27dB
+- BGM **按镜头情绪分段起伏**（默认开）：hook=high、rule/explain=low、reveal/win=mid，
+  段间 0.35s 交叉淡化、全片统一淡入淡出。实测钩子段比正文段响 ~9dB，讲完先"收"再"推"。
+  覆盖：`"bgm": {"dynamics": false}` 关掉；`"bgm": {"mood_map": {"reveal": "high"}}` 改映射
 - `--no-bgm` 关掉；`--bgm-gain -32` 更轻；content.json 里 `"bgm": {"intensity": "high",
   "style": "pulse", "gain": -30, "duck": 0.6}` 可细调
 - 画面常驻两件"小道具"：顶部分段进度点（让观众知道还剩几段）+ 右下 `AI 配音` 标识
@@ -293,6 +296,22 @@ $PY $TOOLS/coveraudit.py --dir examples    # 字段检查 + 拼一张 covers-f1.
 
 单条封面好看 ≠ 像同一个账号。这个工具横向比对栏目名、主标题行数、标签数、行动号召，
 并拼出一张 3 列封面墙（`examples/covers-f1.png`），一眼看出系列感有没有崩。
+
+## A/B 变体：`variants.py`
+
+小红书的分发由「封面 + 标题 + 前 3 秒」决定进不进下一个流量池，正文通常不变——
+所以做 A/B 要**控制变量**：只换钩子和封面，正文原样。
+
+```bash
+# 1) 写变体清单（例：examples/variants-01-monty-hall.json，三种钩子风格）
+$PY $TOOLS/variants.py --spec examples/variants-01-monty-hall.json --out examples/variants
+# 2) 出片（正文共用，只有开场/封面不同）
+$PY $TOOLS/studio.py --dir examples/variants --render
+# 3) 发布后回填 CTR，看哪种钩子在你这儿真的好使
+$PY $TOOLS/studio.py --dir examples --ab-record "slug=01-monty-hall-vnum,cover=f1,impressions=..,ctr=.."
+```
+
+钩子风格建议至少覆盖三类：**数字冲击**、**提问式**、**代价恐惧**（三种都能进池子，但人群不同）。
 
 ## 批量干活：`studio.py`
 

@@ -117,7 +117,7 @@ def _add(dst, src, at, gain):
         dst[at + i] += src[i] * gain
 
 
-def build_bed(dur, intensity="mid", style="lofi", seed=0):
+def build_bed(dur, intensity="mid", style="lofi", seed=0, master_fade=True):
     """生成一条背景乐（array('d') -> 归一化后的 int16 array('h')）。"""
     n = int(dur * SR)
     buf = array.array("d", bytes(8 * n))
@@ -162,13 +162,14 @@ def build_bed(dur, intensity="mid", style="lofi", seed=0):
         b += 4
         bar_i += 1
 
-    # 母带：淡入淡出 + 软限幅 + 归一化
-    fi = int(0.35 * SR)
-    fo = int(min(1.6, dur / 4) * SR)
-    for i in range(fi):
-        buf[i] *= i / fi
-    for i in range(fo):
-        buf[n - 1 - i] *= i / fo
+    # 母带：淡入淡出 + 软限幅 + 归一化（分段拼接时关掉，用段间交叉淡化代替）
+    if master_fade:
+        fi = int(0.35 * SR)
+        fo = int(min(1.6, dur / 4) * SR)
+        for i in range(fi):
+            buf[i] *= i / fi
+        for i in range(fo):
+            buf[n - 1 - i] *= i / fo
     peak = max(1e-9, max(abs(x) for x in buf))
     # 软限幅：先按 peak 压到 0.9，再 tanh 形状避免瞬态刺耳
     norm = 0.9 / peak
@@ -177,6 +178,66 @@ def build_bed(dur, intensity="mid", style="lofi", seed=0):
         v = math.tanh(x * norm * 1.15) * 0.92
         out[i] = int(max(-1.0, min(1.0, v)) * 32000)
     return out
+
+
+# 情绪 -> 配器强度：钩子要抓人、讲解要退后、揭示要推起来、收尾要收住
+MOOD_INTENSITY = {"hook": "high", "rule": "low", "explain": "low",
+                  "reveal": "mid", "win": "mid"}
+
+
+# 强度 -> 电平（build_bed 内部会各自归一化，所以必须在拼接时补一次电平差，
+# 否则"低强度"只是织体变稀、响度却一样，听不出起伏）
+MOOD_GAIN = {"low": 0.62, "mid": 0.82, "high": 1.0}
+
+
+def build_dynamic(segments, style="lofi", seed=0, xfade=0.35):
+    """按镜头分段生成 BGM 再拼接（段间交叉淡化），让配器跟着叙事起伏。
+
+    segments: [(dur_seconds, intensity), ...]
+    一段一段建床再交替淡化，比"整片一个 intensity"明显更有起伏，
+    而且每段的和弦进行从循环里接着走，不会每次都从 Am 重新开始。
+    """
+    if not segments:
+        return array.array("h")
+    total = sum(d for d, _ in segments)
+    n = int(total * SR)
+    out = array.array("d", bytes(8 * n))
+    bar_offset = 0.0
+    pos = 0.0
+    for dur, intensity in segments:
+        seg = build_bed(dur + xfade, intensity=intensity, style=style, seed=seed,
+                        master_fade=False)
+        seg_gain = MOOD_GAIN.get(intensity, 0.82)
+        # 去掉开头 / 结尾的淡入淡出（拼接时用交叉淡化代替，避免段间"抽一下"）
+        i0 = int(0.12 * SR)
+        seg = seg[i0:]
+        at = int(pos * SR)
+        xf = int(xfade * SR)
+        for i in range(len(seg)):
+            j = at + i
+            if j >= n:
+                break
+            g = 1.0
+            if i < xf and pos > 0:      # 与前一段重叠的上升沿
+                g = i / max(1, xf)
+            out[j] += (seg[i] / 32768.0) * g * seg_gain
+        pos += dur
+        bar_offset += dur
+    # 全片淡入淡出（分段时各自不淡，避免段间"抽一下"）
+    total_sec = n / SR
+    fi = int(min(0.4, total_sec / 8) * SR)
+    fo = int(min(1.6, total_sec / 4) * SR)
+    for i in range(fi):
+        out[i] *= i / max(1, fi)
+    for i in range(fo):
+        out[n - 1 - i] *= i / max(1, fo)
+    peak = max(1e-9, max(abs(x) for x in out))
+    norm = 0.9 / peak
+    res = array.array("h", bytes(2 * n))
+    for i, x in enumerate(out):
+        v = math.tanh(x * norm * 1.15) * 0.92
+        res[i] = int(max(-1.0, min(1.0, v)) * 32000)
+    return res
 
 
 def _read_wav(path):
@@ -252,8 +313,15 @@ def main():
     ap.add_argument("--style", default="lofi", choices=STYLES)
     ap.add_argument("--seed", type=int, default=0)
     ap.add_argument("--mix", default=None, help="可选：与这个人声 wav 混合后输出")
+    ap.add_argument("--dynamics", default=None,
+                    help="按镜头强度分段，如 hook:high,rule:low,reveal:mid")
     args = ap.parse_args()
-    bed = build_bed(args.dur, args.intensity, args.style, args.seed)
+    if args.dynamics:
+        moods = [x.split(":") for x in args.dynamics.split(",") if ":" in x]
+        per = args.dur / max(1, len(moods))
+        bed = build_dynamic([(per, m[1]) for m in moods], args.style, args.seed)
+    else:
+        bed = build_bed(args.dur, args.intensity, args.style, args.seed)
     if args.mix:
         db, duck = mix_into(args.mix, args.out, bed)
         print(f"[ok] {args.out}  混合完成 峰值 {db:.1f} dBFS  BGM 平均压低 {duck * 100:.0f}%")

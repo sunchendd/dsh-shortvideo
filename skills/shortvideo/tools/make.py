@@ -606,13 +606,16 @@ def _is_silent_wav(path):
         return False
 
 
-def _maybe_bgm(cfg, args, audio_path, build, total):
-    """给成片垫一层程序化 BGM（人声自动 ducking）。返回混合后 wav 路径。"""
+def _maybe_bgm(cfg, args, audio_path, build, total, timeline=None):
+    """给成片垫一层程序化 BGM（人声自动 ducking，按镜头情绪分段起伏）。
+
+    返回混合后 wav 路径。
+    """
     conf = dict(cfg.get("bgm") or {})
     if args.no_bgm or conf.get("enabled") is False:
         return audio_path
     try:
-        from bgm import build_bed, mix_into
+        from bgm import MOOD_INTENSITY, build_bed, build_dynamic, mix_into
     except Exception as e:  # noqa: BLE001  没装/被裁掉都不影响出片
         print(f"[bgm] 跳过（{e}）")
         return audio_path
@@ -621,7 +624,21 @@ def _maybe_bgm(cfg, args, audio_path, build, total):
     gain = args.bgm_gain if args.bgm_gain is not None else float(conf.get("gain", -27.0))
     duck = float(conf.get("duck", 0.55))
     t0 = time.time()
-    bed = build_bed(total, intensity=intensity, style=style, seed=int(conf.get("seed", 0)))
+    seed = int(conf.get("seed", 0))
+    dyn = conf.get("dynamics", True) and timeline
+    if dyn:
+        mm = dict(MOOD_INTENSITY)
+        mm.update(conf.get("mood_map") or {})
+        segs = []
+        for it in timeline:
+            mood = str(it.get("mood") or "explain").lower()
+            segs.append((float(it["dur"]), mm.get(mood, "mid")))
+        bed = build_dynamic(segs, style=style, seed=seed,
+                            xfade=float(conf.get("xfade", 0.35)))
+        plan = " → ".join(f"{it.get('mood')}:{g}" for it, (_, g) in zip(timeline, segs))
+        print(f"[bgm] 分段起伏 {plan}")
+    else:
+        bed = build_bed(total, intensity=intensity, style=style, seed=seed)
     out = os.path.join(build, "audio_bgm.wav")
     peak, ducked = mix_into(audio_path, out, bed, gain_db=gain, duck=duck)
     print(f"[bgm] {style}/{intensity} gain={gain:.0f}dB 峰值 {peak:.1f}dBFS "
@@ -752,7 +769,7 @@ def main():
     total = cursor
     audio = os.path.join(build, "audio.wav")
     tts.concat(segs, total, audio)
-    audio = _maybe_bgm(cfg, args, audio, build, total)
+    audio = _maybe_bgm(cfg, args, audio, build, total, timeline)
     print(f"[time] 总时长 {total:.2f}s")
 
     # 配音降级检测：网络抖动时 tts 会写等长静音占位，那不是文案问题，别让体检误判

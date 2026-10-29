@@ -60,7 +60,8 @@ cd project
 | **信息图 / 底图** | `tools/oneimage.py` · `tools/art.py` | 一张图总结 / AI 画室 |
 | **片头签名** | 封面栏目名自动做成 0.8s 片头（压暗→扫线→砸字→淡出） | 账号视觉签名，默认开 |
 | **封面 A/B 台账** | `studio.py --ab-record ...` / `--ab` 汇总 | 回填真实 CTR，反推哪种封面适合这个号 |
-| **程序化 BGM** | 默认自动垫（人声侧链压低 28~39%），`--no-bgm` 关闭 | 纯标准库合成，无版权风险 |
+| **程序化 BGM** | 默认自动垫，按镜头情绪分段起伏（钩子响、正文收、揭示推），`--no-bgm` 关闭 | 纯标准库合成，无版权风险 |
+| **A/B 变体** | `variants.py` 只换钩子/封面出 N 条，正文共用 | 控制变量做钩子实验，配 `--ab-record` 回填 CTR |
 | **爆款评分器** | `tools/score.py --content x.json --video out/x.mp4` | 六维 0~100 + 逐条扣分原因 |
 | **分段进度点 / AI 标识** | 默认开启（`"chrome": false` 关） | 完播 + 平台合规（合成人声需标识） |
 | **转场与动效** | `"transition": {"type":"fade|slide|slide_up|wipe","dur":0.24}` | 每条可单独 `transition_in` 覆盖 |
