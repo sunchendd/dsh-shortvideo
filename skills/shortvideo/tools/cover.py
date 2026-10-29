@@ -1,39 +1,47 @@
-"""爆款封面生成：1080x1440（3:4，小红书首图）+ 1080x1920（9:16，视频内封面）。
+"""爆款封面生成（小红书视频封面只有 3:4 / 1:1 / 4:3，官方建议竖版 3:4）。
 
-竖屏爆款封面的共同点（社区方法论 + 平台视觉习惯）：
-  1. 一个大到手机上能看清的主标题（3:4 图里每行 ≤ 6 字最佳），2~3 行封顶
-  2. 关键词用对比色 + 底纹块强调，让人 0.3 秒抓到信息点
-  3. 顶部一个"栏目名/身份"胶囊，建立账号识别（如「反常识数学」）
-  4. 底部 2~3 个标签 + 一句行动号召，提高点击后的完播预期
-  5. 深底 + 高饱和强调色，缩略图状态下比浅底更跳
+依据 docs/xhs-playbook.md §3：
+  - 画布 1080x1440（3:4），MARGIN=72，主标题 84~132px（默认 120），描边 max(4, size/18)，
+    行距 1.14；底 #0E1116，强调红 #FF2D55，数字高亮黄 #FFD400
+  - 平台支持封面 A/B（最多 4 张，10 小时后按点击率选优）→ 一次产出 3 个差异化版式：
+      F1 数字反差大字报（结论狠）/ F3 红圈标注截图式（有画面主体）/ F6 遮一半（制造信息缺口）
+  - 再额外出 1 张 9:16，供视频首帧/主页头图复用
 
 用法：
-  from cover import build_covers
-  build_covers(content_cfg, out_dir)         # 生成 cover_3x4.png / cover_9x16.png
-  python cover.py --content content.json --out out/   # 单独跑
+  python cover.py --content content.json --out out/ [--frame out/cover_frame.png]
+  from cover import build_covers; build_covers(cfg, out_dir, frame_path=...)
 """
 import argparse
 import json
-import math
 import os
 import sys
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 
-from PIL import Image, ImageDraw
+from PIL import Image, ImageDraw, ImageFilter
 
 from shortvideo import runtime as R
 from shortvideo import scenes as _scenes
-from shortvideo.scenes import SceneAPI as _S
 
+# 3:4 封面基线（playbook §3.1）
+W34, H34 = 1080, 1440
+MARGIN = 72
+SIZE_MAX, SIZE_MIN = 132, 84
+SUB_SIZE = 58
+LINE_SPACING = 1.14
+BG = (14, 17, 22)          # #0E1116
+FG = (255, 255, 255)
+ACCENT = (255, 45, 85)     # #FF2D55
+ACCENT2 = (255, 212, 0)    # #FFD400
+GREY = (154, 163, 174)     # #9AA3AE
+_PROBE = ImageDraw.Draw(Image.new("RGB", (1, 1)))
 
-# ---------------------------------------------------------------- 小工具
 
 def _paste(img, layer, ox, oy):
-    """把 RGBA 小图层混合到画布上（RGB 画布用 paste(mask)，RGBA 画布用 alpha_composite）。
+    """把 RGBA 小图层混合到画布（RGB 画布 paste(mask)；RGBA 画布 alpha_composite）。
 
-    为什么要绕这一圈：ImageDraw 在 RGBA 画布上写半透明颜色时不会混合 RGB，
-    只把 alpha 写进画布，半透明胶囊/底板会变成实心色块。画在小图层再合成才是对的。
+    RGBA 画布上用 ImageDraw 写半透明颜色不会混合 RGB，只写 alpha —— 会把半透明胶囊
+    变成实心色块，所以一律画在小图层再合成。
     """
     ox, oy = int(round(ox)), int(round(oy))
     lw, lh = layer.size
@@ -49,195 +57,304 @@ def _paste(img, layer, ox, oy):
         img.paste(layer, (x0, y0), layer)
 
 
-def _fit_size(draw, text, max_w, size, bold=True, min_size=24):
-    """把字号从 size 往下压，直到文本宽度 <= max_w。"""
-    s = size
-    while s > min_size:
+def _fit(text, max_w, hi=120, lo=SIZE_MIN, bold=True):
+    """自适应字号：从 hi 往下压到 lo，返回 (size, font)。"""
+    s = hi
+    while s > lo:
         f = R.font(s, bold=bold)
-        if draw.textlength(text, font=f) <= max_w:
+        if _PROBE.textlength(text, font=f) <= max_w:
             return s, f
-        s -= 3
-    return min_size, R.font(min_size, bold=bold)
+        s -= 2
+    return lo, R.font(lo, bold=bold)
 
-
-def _gradient_bg(w, h, top, bot):
-    grad = Image.linear_gradient("L").resize((w, h))
-    return Image.composite(Image.new("RGB", (w, h), bot), Image.new("RGB", (w, h), top), grad)
-
-
-def _decor(img, accent, seed=7, rows=26):
-    """斜向网格 + 两团强调色光斑，让纯色底有质感。"""
-    d = ImageDraw.Draw(img, "RGBA")
-    w, h = img.size
-    step = max(48, w // 16)
-    for i in range(-h, w, step):
-        d.line([(i, 0), (i + h // 2, h)], fill=(255, 255, 255, 10), width=1)
-    R.glow(img, int(w * 0.86), int(h * 0.14), int(w * 0.42), accent, strength=0.5)
-    R.glow(img, int(w * 0.08), int(h * 0.9), int(w * 0.38), R.TILE_ON, strength=0.35)
-    return img
-
-
-# ---------------------------------------------------------------- 主流程
 
 def _cfg(content):
-    """把 content.json 归一成封面要用的字段，缺的从 title/subtitle 兜底。"""
     c = dict(content.get("cover") or {})
-    title = (content.get("title") or "").strip()
-    sub = (content.get("subtitle") or "").strip()
-    headline = c.get("headline") or ([title] if title else ["看不懂算我输"])
+    san = lambda x: R.sanitize(str(x), bold=True)  # noqa: E731
+    headline = c.get("headline") or ([content.get("title")] if content.get("title") else [])
     if isinstance(headline, str):
         headline = [headline]
-    headline = [ln.strip() for ln in headline if ln and ln.strip()]
-    # 末行只有 1~2 个字会导致排版头重脚轻：并到上一行
-    if len(headline) > 1 and len(headline[-1]) <= 2:
+    headline = [san(x) for x in headline if x and str(x).strip()]
+    if len(headline) > 1 and len(headline[-1]) <= 2:   # 末行 1~2 字头重脚轻 → 并到上一行
         headline = headline[:-2] + [headline[-2] + headline[-1]]
     highlight = c.get("highlight") or []
     if isinstance(highlight, str):
         highlight = [highlight]
-    san = lambda x: R.sanitize(str(x), bold=True)  # noqa: E731
-    headline = [san(x) for x in headline]
+    theme = content.get("theme") or {}
+    accent = c.get("accent") or theme.get("accent") or ACCENT
+    accent2 = c.get("accent2") or theme.get("accent2") or ACCENT2
     return {
         "kicker": san(c.get("kicker") or content.get("badge") or "硬核科普"),
         "headline": headline[:3] or ["硬核科普"],
         "highlight": [san(x) for x in highlight],
-        "sub": san(c.get("sub") or sub or ""),
+        "sub": san(c.get("sub") or content.get("subtitle") or ""),
         "tags": [san(x) for x in (c.get("tags") or [])[:3]],
         "cta": san(c.get("cta") or ""),
-        "accent": tuple(c.get("accent") or R.ACCENT),
         "serial": c.get("serial") or "",
+        "accent": tuple(accent),
+        "accent2": tuple(accent2),
+        "ring": c.get("ring"),          # [cx, cy, r] 红圈中心与半径（F3）
+        "ring_label": san(c.get("ring_label") or ""),
+        "f3_title": san(c.get("f3_title") or ""),
     }
 
 
-def _draw_headline(img, box, lines, size, highlight, accent, line_gap=1.12):
-    """画主标题：逐行自适应字号 + 关键词高亮 + 深色描边（缩略图更跳）。"""
-    x0, y0, x1, y1 = box
-    max_w = x1 - x0
+# ---------------------------------------------------------------- 基础件
+
+def _canvas(w, h, accent):
+    """深底 + 顶部强调色柔光 + 斜向细纹（缩略图里也有质感）。"""
+    img = Image.new("RGB", (w, h), BG)
+    glow = R._glow_mask(int(min(w, h) * 0.62))  # noqa: SLF001
+    sprite = Image.new("RGBA", glow.size, accent + (255,))
+    layer = Image.new("RGBA", (w, h), (0, 0, 0, 0))
+    layer.paste(sprite, (int(w * 0.78 - glow.size[0] / 2), int(h * 0.06 - glow.size[1] / 2)), glow)
+    layer = layer.filter(ImageFilter.GaussianBlur(int(min(w, h) * 0.02)))
+    _paste(img, layer, 0, 0)
     d = ImageDraw.Draw(img, "RGBA")
-    sizes = [_fit_size(d, ln, max_w, size, bold=True)[0] for ln in lines]
-    sizes = [min(sizes)] * len(lines)          # 统一起始字号，视觉更整
-    f = R.font(sizes[0], bold=True)
-    line_h = int(sizes[0] * line_gap)
-    total_h = line_h * len(lines)
-    y = y0 + max(0, ((y1 - y0) - total_h) // 2)
-    bottom = y
-    for ln, sz in zip(lines, sizes):
-        f = R.font(sz, bold=True)
-        w = d.textlength(ln, font=f)
-        x = x0 + (max_w - w) / 2
-        # 关键词高亮：先画底纹块，再画字
-        for word in highlight:
-            k = ln.find(word)
-            if k < 0:
-                continue
-            pre = d.textlength(ln[:k], font=f)
-            ww = d.textlength(word, font=f)
-            d.rounded_rectangle((x + pre - sz * 0.12, y + line_h * 0.10,
-                                 x + pre + ww + sz * 0.12, y + line_h * 0.96),
-                                radius=int(sz * 0.18), fill=accent + (255,))
-        d.text((x, y), ln, font=f, anchor="la", fill=R.TEXT + (255,),
-               stroke_width=max(2, sz // 26), stroke_fill=(6, 10, 20, 255))
-        y += line_h
-        bottom = y
-    return bottom
+    step = max(56, w // 15)
+    for i in range(-h, w, step):
+        d.line([(i, 0), (i + h // 2, h)], fill=(255, 255, 255, 8), width=1)
+    return img
 
 
-def _draw_kicker(img, cx, y, text, accent, size=36):
-    # 注意：直接在 RGBA 画布上用 "RGBA" 画笔并不会混合 RGB（只把 alpha 写进画布），
-    # 半透明胶囊会变成实心色块。所以这里必须画在小图层上再合成。
+def _kicker(img, cx, y, text, accent, size=36):
     f = R.font(size, bold=True)
-    probe = ImageDraw.Draw(_scenes._layer((0, 0, 1, 1))[0])
-    w = probe.textlength(text, font=f) + 56
+    w = _PROBE.textlength(text, font=f) + 60
     layer, ox, oy = _scenes._layer((cx - w / 2, y - 32, cx + w / 2, y + 32), pad=2)
     d = ImageDraw.Draw(layer)
     d.rounded_rectangle((cx - w / 2 - ox, y - 32 - oy, cx + w / 2 - ox, y + 32 - oy),
-                        radius=32, fill=accent + (34,), outline=accent + (200,), width=2)
+                        radius=32, fill=accent + (34,), outline=accent + (210,), width=2)
     d.text((cx - ox, y - oy), text, font=f, fill=accent + (255,), anchor="mm")
     _paste(img, layer, ox, oy)
 
 
-def _draw_tags(img, cx, y, tags, accent, size=None):
+def _tags(img, cx, y, tags, accent, size=34):
     if not tags:
         return
-    f = R.font(size or int(img.size[0] * 0.030), bold=True)
-    probe = ImageDraw.Draw(_scenes._layer((0, 0, 1, 1))[0])
-    widths = [probe.textlength(t, font=f) + 44 for t in tags]
-    gap = 18
-    total = sum(widths) + gap * (len(tags) - 1)
-    x = cx - total / 2
+    f = R.font(size, bold=True)
+    widths = [_PROBE.textlength(t, font=f) + 46 for t in tags]
+    x = cx - (sum(widths) + 20 * (len(tags) - 1)) / 2
     for t, w in zip(tags, widths):
-        layer, ox, oy = _scenes._layer((x, y - 28, x + w, y + 28), pad=2)
+        layer, ox, oy = _scenes._layer((x, y - 30, x + w, y + 30), pad=2)
         d = ImageDraw.Draw(layer)
-        d.rounded_rectangle((x - ox, y - 28 - oy, x + w - ox, y + 28 - oy), radius=28,
-                            fill=(255, 255, 255, 20), outline=(255, 255, 255, 70), width=1)
-        d.text((x + w / 2 - ox, y - oy), t, font=f, fill=R.DIM + (255,), anchor="mm")
+        d.rounded_rectangle((x - ox, y - 30 - oy, x + w - ox, y + 30 - oy), radius=30,
+                            fill=(255, 255, 255, 18), outline=(255, 255, 255, 64), width=1)
+        d.text((x + w / 2 - ox, y - oy), t, font=f, fill=GREY + (255,), anchor="mm")
         _paste(img, layer, ox, oy)
-        x += w + gap
+        x += w + 20
 
 
-def build_covers(content, out_dir, sizes=((1080, 1440, "cover_3x4.png"),
-                                         (1080, 1920, "cover_9x16.png"))):
-    """按 content.json 生成封面，返回生成的文件路径列表。"""
+def _serial(img, w, n, accent, r=None):
+    r = r or int(w * 0.052)
+    d = ImageDraw.Draw(img, "RGBA")
+    cx, cy = w - MARGIN - r, MARGIN + r
+    d.ellipse((cx - r, cy - r, cx + r, cy + r), fill=accent + (255,))
+    d.text((cx, cy), str(n), font=R.font(int(r * 1.0), bold=True),
+           fill=(10, 12, 18, 255), anchor="mm")
+
+
+def _text_outline(img, xy, s, size, fill, stroke=None, anchor="mm", stroke_w=None, font=None):
+    """带描边的文字（RGB 画布会正确混合 alpha）。"""
+    f = font or R.font(size, bold=True)
+    sw = max(4, size // 18) if stroke_w is None else stroke_w
+    ImageDraw.Draw(img, "RGBA").text(
+        xy, s, font=f, fill=tuple(fill) + (255,), anchor=anchor,
+        stroke_width=sw, stroke_fill=(tuple(stroke) if stroke else (0, 0, 0)) + (255,))
+
+
+def _highlight_block(img, box, color):
+    """关键词高亮色块（F6 用：色块 + 深色字）。"""
+    layer, ox, oy = _scenes._layer(box, pad=1)
+    d = ImageDraw.Draw(layer)
+    d.rounded_rectangle((box[0] - ox, box[1] - oy, box[2] - ox, box[3] - oy),
+                        radius=int((box[3] - box[1]) * 0.22), fill=tuple(color) + (255,))
+    _paste(img, layer, ox, oy)
+
+
+# ---------------------------------------------------------------- 三个版式
+
+def _variant_f1(c, w=W34, h=H34):
+    """F1 数字反差大字报：主标题 1~3 行居中，副标一行强调色。"""
+    accent, accent2 = c["accent"], c["accent2"]
+    img = _canvas(w, h, accent)
+    _kicker(img, w / 2, MARGIN + 34, c["kicker"], accent, size=36)
+    if c["serial"]:
+        _serial(img, w, c["serial"], accent)
+
+    lines = c["headline"]
+    max_w = w - MARGIN * 2
+    hi = 120 if len(lines) <= 1 else (112 if len(lines) == 2 else 100)
+    size = min(_fit(ln, max_w, hi=hi, lo=SIZE_MIN)[0] for ln in lines)
+    f = R.font(size, bold=True)
+    line_h = int(size * LINE_SPACING)
+    block_h = line_h * len(lines)
+    y = max(MARGIN + 120, int(h * 0.245) if len(lines) > 1 else int(h * 0.30))
+    if len(lines) <= 2:                      # 行少时整体视觉居中，别留大片空底
+        y = max(MARGIN + 120, int(h * 0.44 - block_h / 2))
+    for ln in lines:
+        hit = next((wd for wd in c["highlight"] if wd and ln.find(wd) >= 0), None)
+        tw = f.getlength(ln)
+        x0 = (w - tw) / 2
+        if hit:
+            k = ln.find(hit)
+            pre, hw = f.getlength(ln[:k]), f.getlength(hit)
+            _highlight_block(img, (x0 + pre - 10, y + line_h * 0.14,
+                                   x0 + pre + hw + 10, y + line_h * 0.86), accent2)
+            d = ImageDraw.Draw(img, "RGBA")
+            before, after = ln[:k], ln[k + len(hit):]
+            if before:
+                d.text((x0, y + line_h / 2), before, font=f, fill=FG + (255,), anchor="lm")
+            d.text((x0 + pre, y + line_h / 2), hit, font=f, fill=(17, 17, 17, 255), anchor="lm")
+            if after:
+                d.text((x0 + pre + hw, y + line_h / 2), after, font=f,
+                       fill=FG + (255,), anchor="lm")
+        else:
+            _text_outline(img, (w / 2, y + line_h / 2), ln, size, FG, anchor="mm")
+        y += line_h
+
+    if c["sub"]:
+        sub_size, fsub = _fit(c["sub"], w - MARGIN * 2, hi=SUB_SIZE, lo=36)
+        _text_outline(img, (w / 2, y + int(h * 0.035)), c["sub"], sub_size, accent,
+                      anchor="mm", stroke_w=0, font=fsub)
+    _tags(img, w / 2, h - MARGIN - 54, c["tags"], accent)
+    if c["cta"]:
+        _text_outline(img, (w / 2, h - MARGIN + 6), c["cta"], 40, FG, anchor="mm", stroke_w=0)
+    return img
+
+
+def _variant_f3(c, frame_path=None, w=W34, h=H34):
+    """F3 红圈标注（截图式）：hook 镜头画面当底 + 红圈 + 标签。"""
+    accent = c["accent"]
+    if frame_path and os.path.exists(frame_path):
+        src = Image.open(frame_path).convert("RGB")
+        sw, sh = src.size
+        need = w / h
+        if sw / sh > need:                       # 太宽：左右裁
+            nw = int(sh * need)
+            src = src.crop(((sw - nw) // 2, 0, (sw + nw) // 2, sh))
+        elif sh / sw > need:                     # 太高：按上部 25% 对齐裁
+            nh = int(sw / need)
+            top = max(0, int((sh - nh) * 0.25))
+            src = src.crop((0, top, sw, top + nh))
+        img = src.resize((w, h), Image.LANCZOS)
+        # 顶部压暗，保证标题可读
+        shade = Image.new("RGBA", (w, h), (0, 0, 0, 0))
+        sd = ImageDraw.Draw(shade)
+        band = int(h * 0.18)
+        for i in range(band):
+            sd.line([(0, i), (w, i)], fill=(8, 10, 16, int(150 * (1 - i / band) ** 1.4)))
+        _paste(img, shade, 0, 0)
+    else:
+        img = _canvas(w, h, accent)
+
+    d = ImageDraw.Draw(img, "RGBA")
+    # 截图式封面：画面自己会说话。只有显式给了 f3_title 才叠标题，
+    # 否则双标题会互相打架（视频里已经有自己的大字）。
+    title = c.get("f3_title") or ""
+    if title:
+        size, f = _fit(title, w - MARGIN * 2, hi=104, lo=SIZE_MIN)
+        d.text((MARGIN, MARGIN + 6), title, font=f, fill=FG + (255,), anchor="la",
+               stroke_width=max(4, size // 18), stroke_fill=(0, 0, 0, 255))
+    _kicker(img, MARGIN + 150, MARGIN + 40, c["kicker"], accent, size=34)
+
+    # 红圈：默认落在画面中部偏右的"差异点"（可用 cover.ring 覆盖）
+    cx, cy, r = c["ring"] or (int(w * 0.62), int(h * 0.52), 170)
+    d.ellipse((cx - r, cy - r, cx + r, cy + r), outline=accent + (255,), width=10)
+    if c["ring_label"]:
+        lab = c["ring_label"][:6]
+        f2 = R.font(64, bold=True)
+        tw = d.textlength(lab, font=f2)
+        bx, by = cx + r * 0.5, cy + r * 0.15
+        d.rounded_rectangle((bx, by, bx + tw + 44, by + 100), radius=16, fill=accent + (255,))
+        d.text((bx + 22, by + 50), lab, font=f2, fill=FG + (255,), anchor="lm")
+
+    if c["sub"]:
+        _text_outline(img, (w / 2, h - MARGIN - 104), c["sub"], 48, FG, anchor="mm", stroke_w=0)
+    _tags(img, w / 2, h - MARGIN - 24, c["tags"], accent)
+    return img
+
+
+def _variant_f6(c, w=W34, h=H34):
+    """F6 知识性好奇（遮一半）：关键字高亮黄块 + 其余 70% 白，制造"信息在封面外"。"""
+    accent, accent2 = c["accent"], c["accent2"]
+    img = _canvas(w, h, accent)
+    _kicker(img, w / 2, MARGIN + 34, c["kicker"], accent, size=36)
+    if c["serial"]:
+        _serial(img, w, c["serial"], accent)
+
+    lines = c["headline"]
+    max_w = w - MARGIN * 2
+    hi = 116 if len(lines) <= 1 else 108
+    size = min(_fit(ln, max_w, hi=hi, lo=SIZE_MIN)[0] for ln in lines)
+    f = R.font(size, bold=True)
+    line_h = int(size * LINE_SPACING)
+    block_h = line_h * len(lines)
+    y = max(MARGIN + 120, int(h * 0.44 - block_h / 2))
+    d = ImageDraw.Draw(img, "RGBA")
+    for ln in lines:
+        tw = f.getlength(ln)
+        x = (w - tw) / 2
+        hit = next((wd for wd in c["highlight"] if wd and ln.find(wd) >= 0), None)
+        if hit:
+            k = ln.find(hit)
+            pre, hw = f.getlength(ln[:k]), f.getlength(hit)
+            _highlight_block(img, (x + pre - 10, y + line_h * 0.14,
+                                   x + pre + hw + 10, y + line_h * 0.86), accent2)
+            before, after = ln[:k], ln[k + len(hit):]
+            if before:
+                d.text((x, y + line_h / 2), before, font=f, fill=FG + (178,), anchor="lm")
+            d.text((x + pre, y + line_h / 2), hit, font=f, fill=(17, 17, 17, 255), anchor="lm")
+            if after:
+                d.text((x + pre + hw, y + line_h / 2), after, font=f, fill=FG + (178,), anchor="lm")
+        else:
+            d.text((x, y + line_h / 2), ln, font=f, fill=FG + (178,), anchor="lm")
+        y += line_h
+
+    if c["sub"]:
+        _text_outline(img, (w / 2, y + int(h * 0.045)), c["sub"], 50, accent,
+                      anchor="mm", stroke_w=0)
+    band_y = h - MARGIN - 160
+    d.rounded_rectangle((MARGIN, band_y, w - MARGIN, band_y + 8), radius=4, fill=accent + (255,))
+    _text_outline(img, (w / 2, band_y + 74), c["cta"] or "点开看完整推导", 42, FG,
+                  anchor="mm", stroke_w=0)
+    _tags(img, w / 2, h - MARGIN + 6, c["tags"], accent)
+    return img
+
+
+_BUILDERS = {"f1": lambda c, fp: _variant_f1(c),
+             "f3": lambda c, fp: _variant_f3(c, fp),
+             "f6": lambda c, fp: _variant_f6(c)}
+
+
+def build_covers(content, out_dir, frame_path=None, variants=("f1", "f3", "f6", "9x16")):
+    """生成封面合集，返回文件路径列表（3:4 三个版式 + 一张 9:16）。"""
     os.makedirs(out_dir, exist_ok=True)
     c = _cfg(content)
-    accent = c["accent"]
-    paths = []
-    for w, h, name in sizes:
-        img = _gradient_bg(w, h, R.BG_TOP, R.BG_BOT)
-        _decor(img, accent)
-        d = ImageDraw.Draw(img, "RGBA")
-
-        # 顶部栏目胶囊
-        _draw_kicker(img, w / 2, int(h * 0.085), c["kicker"], accent, size=int(w * 0.033))
-        # 序号贴纸（系列号，建立连续追更感）
-        if c["serial"]:
-            r = int(w * 0.058)
-            d.ellipse((w - r * 2 - 44, 44, w - 44, 44 + r * 2), fill=accent + (255,))
-            d.text((w - r - 44, 44 + r), str(c["serial"]), font=R.font(int(r * 1.0), bold=True),
-                   fill=(8, 12, 22, 255), anchor="mm")
-
-        # 主标题区（行数越多字号越小，避免和副标打架）
-        n_lines = max(1, min(3, len(c["headline"])))
-        base = int(w * (0.165 if n_lines <= 2 else 0.128))
-        head_box = (int(w * 0.08), int(h * 0.24), int(w * 0.92), int(h * 0.62))
-        head_bottom = _draw_headline(img, head_box, c["headline"], base,
-                                     c["highlight"], accent)
-        ly = min(int(h * 0.63), head_bottom + int(h * 0.035))
-
-        # 强调短线
-        d.rounded_rectangle((w / 2 - 60, ly, w / 2 + 60, ly + 8), radius=4, fill=accent + (255,))
-
-        # 副标题（自动折行，最多 2 行）
-        if c["sub"]:
-            lines = _S.wrap(c["sub"], int(w * 0.040), int(w * 0.84), bold=False)[:2]
-            y = ly + 52
-            for ln in lines:
-                d.text((w / 2, y), ln, font=R.font(int(w * 0.040), bold=False),
-                       fill=R.TEXT + (225,), anchor="ma")
-                y += int(w * 0.055)
-
-        # 底部标签 + 行动号召
-        _draw_tags(img, w / 2, int(h * 0.855), c["tags"], accent)
-        if c["cta"]:
-            d.text((w / 2, int(h * 0.925)), c["cta"],
-                   font=R.font(int(w * 0.038), bold=True), fill=accent + (255,), anchor="mm")
-
+    made = []
+    for v in variants:
+        if v == "9x16":
+            img, name = _variant_f1(c, 1080, 1920), "cover_9x16.png"
+        elif v in _BUILDERS:
+            img, name = _BUILDERS[v](c, frame_path), f"cover_{v}.png"
+        else:
+            continue
         path = os.path.join(out_dir, name)
-        img.convert("RGB").save(path, quality=95)
-        paths.append(path)
-    return paths
+        img.save(path, quality=95)
+        made.append(path)
+    return made
 
 
 def main():
-    ap = argparse.ArgumentParser(description="生成爆款封面（3:4 + 9:16）")
+    ap = argparse.ArgumentParser(description="生成小红书爆款封面（3:4 三版式 + 9:16）")
     ap.add_argument("--content", required=True)
     ap.add_argument("--out", default="out")
-    ap.add_argument("--text", default=None, help="直接给主标题（覆盖 content.title）")
+    ap.add_argument("--frame", default=None, help="F3 用的画面底图（如 cover_frame.png）")
+    ap.add_argument("--text", default=None, help="直接给主标题（覆盖 cover.headline）")
     args = ap.parse_args()
     content = json.load(open(args.content, encoding="utf-8"))
     if args.text:
         content.setdefault("cover", {})["headline"] = [args.text]
-    R.W, R.H = content.get("size", [1080, 1920])
-    for p in build_covers(content, args.out):
+    for p in build_covers(content, args.out, frame_path=args.frame):
         print(f"[ok] {p}")
 
 

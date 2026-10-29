@@ -17,6 +17,9 @@
   VOICE_PRESETS / VOICE_MOODS（3 个人格音色 + 每音色 5 情绪韵律）
   build_moods(preset, tuning), resolve_preset(cfg), preset_name(key), list_presets(),
   normalize_prosody(field, value)
+  响度对齐：speech_levels(), parse_normalize(), volume_relative_db()（cfg["normalize"]）
+  词级时间戳：voice.words_for(wav) / voice.last_words / voice.words_by_id[shot_id],
+  read_words(wav), shift_words(), words_duration(), boundary_supported()（cfg["words"]）
   synth_all(voice, items, jobs=None) -> [duration...]
   patch_edge_ssl(), resolve_proxy(value), synth_all
 """
@@ -507,8 +510,12 @@ def _last_above(arr, thresh):
     return -1
 
 
-def _trim(path, thresh=TRIM_THRESH, pad=TRIM_PAD):
-    """裁掉首尾静音，原地重写 wav，返回时长（秒）。"""
+def _trim_ex(path, thresh=TRIM_THRESH, pad=TRIM_PAD):
+    """裁掉首尾静音，原地重写 wav。
+
+    返回 (时长秒, 头部裁掉秒数, 尾部裁掉秒数)。头尾偏移是给“词级时间戳”用的：
+    edge-tts 的 offset 以未裁剪音频的起点为准，裁剪后必须整体左移。
+    """
     arr = _read_wav(path)
     n = len(arr)
     p = int(SAMPLE_RATE * pad)
@@ -524,7 +531,12 @@ def _trim(path, thresh=TRIM_THRESH, pad=TRIM_PAD):
         head = tail = 0
     kept = arr[head:tail]
     _write_wav(path, kept)
-    return len(kept) / SAMPLE_RATE
+    return len(kept) / SAMPLE_RATE, head / SAMPLE_RATE, (n - tail) / SAMPLE_RATE
+
+
+def _trim(path, thresh=TRIM_THRESH, pad=TRIM_PAD):
+    """裁掉首尾静音，原地重写 wav，返回时长（秒）。"""
+    return _trim_ex(path, thresh, pad)[0]
 
 
 def _silence(path, seconds):
@@ -536,6 +548,83 @@ def _silence(path, seconds):
         w.setframerate(SAMPLE_RATE)
         w.writeframes(b"\x00\x00" * nsamp)
     return seconds
+
+
+# ------------------------------------------------------------ 词级时间戳（卡拉OK 字幕）
+
+WORDS_SIDECAR_SUFFIX = ".words.json"
+_BOUNDARY_SUPPORTED = None
+
+
+def boundary_supported():
+    """当前 edge-tts 是否支持 Communicate(boundary="WordBoundary")。"""
+    global _BOUNDARY_SUPPORTED
+    if _BOUNDARY_SUPPORTED is None:
+        try:
+            import edge_tts
+            _BOUNDARY_SUPPORTED = "boundary" in inspect.signature(
+                edge_tts.Communicate.__init__).parameters
+        except Exception:  # noqa: BLE001
+            _BOUNDARY_SUPPORTED = False
+    return bool(_BOUNDARY_SUPPORTED)
+
+
+def chunk_word(chunk):
+    """edge-tts 的 WordBoundary chunk -> {"text","start","end"}（秒，相对音频起点）。
+
+    edge-tts 的 offset/duration 单位是 100ns（tick），除以 1e7 得秒。
+    """
+    offset = int(chunk.get("offset") or 0)
+    dur = int(chunk.get("duration") or 0)
+    text = str(chunk.get("text") or "").strip()
+    if not text:
+        return None
+    return dict(text=text, start=round(offset / 1e7, 3), end=round((offset + dur) / 1e7, 3))
+
+
+def shift_words(words, head, duration):
+    """把“未裁剪音频”时间轴上的词，平移到裁剪后的 wav 时间轴并夹到 [0, duration]。
+
+    返回 [{"text","start","end"}]，start/end 单位秒、相对该 wav 起点。
+    """
+    out = []
+    for w in words or []:
+        start = max(0.0, float(w.get("start") or 0.0) - head)
+        end = min(float(duration), float(w.get("end") or 0.0) - head)
+        text = str(w.get("text") or "").strip()
+        if not text or end - start <= 0.001:
+            continue
+        out.append(dict(text=text, start=round(start, 3), end=round(end, 3)))
+    return out
+
+
+def words_duration(words):
+    """词序列覆盖到的结束时刻（没有词返回 0）。"""
+    return round(max((float(w.get("end") or 0.0) for w in words or []), default=0.0), 3)
+
+
+def read_words(wav_path):
+    """读 <wav>.words.json 旁车文件（跨进程可用：渲染阶段单独跑也能拿到）。
+
+    文件缺失/损坏一律返回 []，绝不抛异常。
+    """
+    try:
+        with open(str(wav_path) + WORDS_SIDECAR_SUFFIX, encoding="utf-8") as f:
+            data = json.load(f)
+        items = data.get("words") if isinstance(data, dict) else data
+        out = []
+        for w in items or []:
+            text = str(w.get("text") or "").strip()
+            if text:
+                out.append(dict(text=text, start=float(w["start"]), end=float(w["end"])))
+        return out
+    except Exception:  # noqa: BLE001
+        return []
+
+
+def _words_cache_path(wav_cache_path):
+    base = wav_cache_path[:-4] if wav_cache_path.endswith(".wav") else wav_cache_path
+    return base + WORDS_SIDECAR_SUFFIX
 
 
 # ------------------------------------------------------------ 响度（dBFS + 对齐）
@@ -719,12 +808,23 @@ class SilentVoice:
     persona = "无配音（字幕正常）"
     preset = None
     best_for = ()
+    words_enabled = False
 
     def __init__(self):
         self.name = "silent"
+        self.last_words = []
+        self.words_by_path = {}
+        self.words_by_id = {}
+        self.cache_hits = 0
 
     def mood_prosody(self, mood=None):
         return dict(rate="+0%", pitch="+0Hz", volume="+0%")
+
+    def words_for(self, path):
+        """静音占位没有词时间戳（字幕回退到镜头级）。"""
+        if not self.words_enabled:
+            return []
+        return read_words(path)
 
     def synth(self, text, path, mood=None):
         _ensure_dir(path)
@@ -746,7 +846,7 @@ class EdgeVoice:
     def __init__(self, voice="zh-CN-XiaoxiaoNeural", rate="+0%", pitch="+0Hz", retries=4,
                  volume="+0%", proxy="auto", cache=True, cache_dir=None, jobs=None,
                  retry_delay=0.8, retry_passes=2, verbose=True, preset=None,
-                 moods=None, mood_tuning=None, normalize=None):
+                 moods=None, mood_tuning=None, normalize=None, words=True):
         import edge_tts  # 没装则抛 ImportError，由 build_voice 降级
         self._edge = edge_tts
         self.voice, self.rate, self.pitch = voice, rate, pitch
@@ -755,6 +855,11 @@ class EdgeVoice:
         self.mood_tuning = dict(mood_tuning or {})
         self.moods = moods if moods is not None else build_moods(self.preset, self.mood_tuning)
         self.normalize_target = parse_normalize(normalize)
+        self.words_enabled = bool(words)
+        self.last_words = []        # 最近一条合成出来的词时间戳
+        self.words_by_path = {}     # abspath(wav) -> [{"text","start","end"}]
+        self.words_by_id = {}       # 镜头 id -> 同一份词时间戳（synth_all 时填）
+        self.cache_hits = 0
         self.retries = max(1, int(retries or 1))
         self.retry_delay = max(0.0, float(retry_delay))
         self.retry_passes = max(1, int(retry_passes or 1))
@@ -818,6 +923,7 @@ class EdgeVoice:
         return hashlib.sha1(sig.encode("utf-8")).hexdigest()
 
     def _cache_load(self, wav_path, target):
+        """命中缓存时返回 (时长, 词时间戳|None)；未命中返回 None。"""
         if not self.cache:
             return None
         try:
@@ -828,11 +934,19 @@ class EdgeVoice:
             _ensure_dir(target)
             with open(wav_path, "rb") as src, open(target, "wb") as dst:
                 dst.write(src.read())
-            return dur
+            words = None
+            wpath = _words_cache_path(wav_path)
+            if os.path.isfile(wpath):
+                try:
+                    with open(wpath, encoding="utf-8") as f:
+                        words = json.load(f).get("words") or []
+                except Exception:  # noqa: BLE001  坏文件 -> 当作没词
+                    words = None
+            return dur, words
         except Exception:  # noqa: BLE001  缓存坏了就当未命中
             return None
 
-    def _cache_store(self, src, dur, wav_path, meta_path):
+    def _cache_store(self, src, dur, wav_path, meta_path, words=None):
         if not self.cache:
             return
         try:
@@ -841,13 +955,60 @@ class EdgeVoice:
                 g.write(f.read())
             with open(meta_path, "w", encoding="utf-8") as f:
                 json.dump({"wav": os.path.basename(wav_path), "duration": dur,
-                           "voice": self.voice, "size": os.path.getsize(wav_path)},
+                           "voice": self.voice, "size": os.path.getsize(wav_path),
+                           "words": len(words or [])},
                           f, ensure_ascii=False)
+            if words is not None:
+                with open(_words_cache_path(wav_path), "w", encoding="utf-8") as f:
+                    json.dump({"wav": os.path.basename(wav_path), "duration": dur,
+                               "voice": self.voice, "words": words},
+                              f, ensure_ascii=False)
         except Exception:  # noqa: BLE001
             pass
 
+    # ---------- 词时间戳 ----------
+    def _remember_words(self, path, words, dur):
+        words = [dict(text=w["text"], start=round(float(w["start"]), 3),
+                      end=round(float(w["end"]), 3)) for w in (words or [])]
+        self.last_words = words
+        try:
+            self.words_by_path[os.path.abspath(path)] = words
+        except (TypeError, ValueError):
+            pass
+        if not self.words_enabled or not words:
+            return   # 关了词时间戳，或这条本来就没拿到词 -> 不写旁车
+        try:
+            with open(str(path) + WORDS_SIDECAR_SUFFIX, "w", encoding="utf-8") as f:
+                json.dump({"wav": os.path.basename(path), "duration": round(dur, 3),
+                           "voice": self.voice, "words": words}, f, ensure_ascii=False)
+        except OSError:
+            pass
+
+    def _forget_words(self, path):
+        self.last_words = []
+        try:
+            self.words_by_path[os.path.abspath(path)] = []
+            side = str(path) + WORDS_SIDECAR_SUFFIX
+            if os.path.exists(side):
+                os.remove(side)   # 这条降级成静音了，别留旧词时间戳误导字幕
+        except OSError:
+            pass
+
+    def words_for(self, path):
+        """取某条 wav 的词时间戳（秒，相对该 wav 起点）：内存 -> 旁车文件 -> []。
+
+        cfg["words"]=False 时恒返回 []（要读历史旁车请直接用 tts.read_words(path)）。
+        """
+        if not self.words_enabled:
+            return []
+        key = os.path.abspath(path)
+        if key in self.words_by_path:
+            return list(self.words_by_path[key])
+        return read_words(path)
+
     # ---------- 网络 ----------
     async def _fetch(self, text, path, mood):
+        """拉一条音频。返回 (字节数, 词级时间戳原始列表)。"""
         pros = self.mood_prosody(mood)
         mp3 = path + ".mp3"
         kwargs = dict(
@@ -857,14 +1018,23 @@ class EdgeVoice:
         )
         if self.proxy:
             kwargs["proxy"] = self.proxy
+        # edge-tts 7.x 默认只推 SentenceBoundary；要逐词高亮必须显式要 WordBoundary
+        if self.words_enabled and boundary_supported():
+            kwargs["boundary"] = "WordBoundary"
         comm = self._edge.Communicate(text, self.voice, **kwargs)
         size = 0
+        words = []
         try:
             with open(mp3, "wb") as f:
                 async for chunk in comm.stream():
-                    if chunk["type"] == "audio":
+                    ctype = chunk.get("type")
+                    if ctype == "audio":
                         f.write(chunk["data"])
                         size += len(chunk["data"])
+                    elif self.words_enabled and ctype in ("WordBoundary", "SentenceBoundary"):
+                        word = chunk_word(chunk)
+                        if word:
+                            words.append(word)
             if size < 2000:
                 raise RuntimeError(f"audio too small ({size} bytes)")
             await asyncio.to_thread(self._mp3_to_wav, mp3, path)
@@ -874,7 +1044,7 @@ class EdgeVoice:
                     os.remove(mp3)
             except OSError:
                 pass
-        return size
+        return size, words
 
     @staticmethod
     def _mp3_to_wav(mp3, wav):
@@ -917,16 +1087,21 @@ class EdgeVoice:
         wav_c, meta_c = self._cache_paths(path, key)
         cached = self._cache_load(wav_c, path)
         if cached is not None:
-            return cached
+            dur, words = cached
+            self.cache_hits += 1
+            await asyncio.to_thread(self._remember_words, path, words, dur)
+            return dur
         if self.offline:
             raise RuntimeError("网络已被标记不可达（熔断），跳过网络合成")
         last = None
         for attempt in range(1, self.retries + 1):
             try:
-                await self._fetch(text, path, mood)
-                dur = await asyncio.to_thread(_trim, path)
+                _size, raw_words = await self._fetch(text, path, mood)
+                dur, head, _tail = await asyncio.to_thread(_trim_ex, path)
+                words = shift_words(raw_words, head, dur) if self.words_enabled else []
                 await asyncio.to_thread(self._normalize_loudness, path, mood)
-                self._cache_store(path, dur, wav_c, meta_c)
+                self._cache_store(path, dur, wav_c, meta_c, words if self.words_enabled else None)
+                await asyncio.to_thread(self._remember_words, path, words, dur)
                 return dur
             except Exception as e:  # noqa: BLE001
                 last = e
@@ -951,6 +1126,7 @@ class EdgeVoice:
             if not allow_fallback:
                 raise
             self.failures += 1
+            self._forget_words(path)   # 静音占位没有词时间戳，别让旧数据残留
             return _fallback_silence(path, text, self.retries, e, self.verbose)
 
     # ---------- 对外 ----------
@@ -978,6 +1154,11 @@ class EdgeVoice:
                         durs[i] = await self._synth_async(
                             item.get("text", ""), item["path"], item.get("mood"),
                             allow_fallback=False)
+                        wid = item.get("id") or item.get("shot_id")
+                        if wid and self.words_enabled:
+                            words = self.words_by_path.get(os.path.abspath(item["path"]))
+                            if words is not None:
+                                self.words_by_id[str(wid)] = list(words)
                     except Exception as e:  # noqa: BLE001  单项失败不拖累其余
                         errors[i] = e
 
@@ -987,6 +1168,7 @@ class EdgeVoice:
         for i in range(n):
             if durs[i] is None:
                 self.failures += 1
+                self._forget_words(items[i]["path"])
                 durs[i] = _fallback_silence(items[i]["path"], items[i].get("text", ""),
                                             self.retries, errors.get(i), self.verbose)
         return durs
@@ -1012,6 +1194,10 @@ def build_voice(cfg):
       normalize: 响度对齐（默认 true）。true = 对齐到 -20dBFS 语音电平；
               数字或 "-18dB" = 自定义目标；false/off = 关闭（保留 edge-tts 原始电平）。
               对齐后仍保留每个 mood 的 volume 强弱，跨镜头电平不再跳变。
+      words: 词级时间戳（默认 true）。true = 向 edge-tts 要 WordBoundary，
+              每个镜头产出 [{"text","start","end"}]（秒，相对该 wav），
+              同时写 <wav>.words.json 旁车与 tts_cache/<sha1>.words.json；
+              false = 不收集（省一点内存/IO，卡拉OK 字幕就没词可高亮）。
       retries: 每条重试次数（默认 4）      retry_delay: 退避基数秒（默认 0.8，指数退避+抖动）
       retry_passes: synth_all 整批补轮次数（默认 2）
       proxy: "auto"(默认, 读 https_proxy) | "" | "http://host:port"
@@ -1057,6 +1243,7 @@ def build_voice(cfg):
             moods=build_moods(preset, mood_tuning),
             mood_tuning=mood_tuning,
             normalize=cfg.get("normalize", cfg.get("loudness")),
+            words=cfg.get("words", True),
         )
     except Exception as e:  # noqa: BLE001  edge-tts 没装 / 参数不合法
         print(f"[voice] edge 不可用（{e}），降级静音（字幕仍正常）", flush=True)

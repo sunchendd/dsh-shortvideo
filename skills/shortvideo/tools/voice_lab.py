@@ -438,6 +438,80 @@ def selfcheck():
     return ok and per_voice_differs
 
 
+# ------------------------------------------------------------------ 词级时间戳验收
+
+WORDS_TOL = 0.15  # 末词 end 与 wav 时长的允许误差（秒）
+
+
+def words_check(text, preset="xiaoxiao", out_dir=None, cache=True, tolerance=WORDS_TOL):
+    """验收词级时间戳：打印每个词，并检查末词对齐 + 缓存命中一致。
+
+    1) 第一次跑：走网络，拿 WordBoundary -> 词表；末词 end 必须落在 wav 时长 ±0.15s
+    2) 第二次跑（新对象、缓存开）：必须 cache_hits=1（不重新合成）且词表完全一致
+    """
+    out_dir = os.path.abspath(out_dir or os.path.join(os.getcwd(), "voice-lab-out"))
+    d = os.path.join(out_dir, preset, "words")
+    os.makedirs(d, exist_ok=True)
+    wav = os.path.join(d, "words_demo.wav")
+    issues = []
+
+    def run(tag):
+        v = tts.build_voice({"preset": preset, "cache": cache, "verbose": False,
+                             "words": True, "retries": 6, "retry_passes": 3})
+        t0 = time.time()
+        dur = v.synth(text, wav, "hook")
+        words = v.words_for(wav)
+        print(f"[words] {tag}: {len(words)} 词, wav {dur:.3f}s, "
+              f"cache_hits={v.cache_hits}, 用时 {time.time() - t0:.2f}s, "
+              f"boundary={'WordBoundary' if tts.boundary_supported() else 'SentenceBoundary'}")
+        return dur, words, v
+
+    dur1, words1, v1 = run("第一次(网络)")
+    if not words1:
+        issues.append(("FAIL", "没有拿到任何词时间戳"))
+    else:
+        print(f"\n{'#':>3}{'词':<8}{'start':>8}{'end':>8}{'dur':>7}")
+        prev_end = 0.0
+        for i, w in enumerate(words1, 1):
+            print(f"{i:>3}{w['text']:<8}{w['start']:>8.3f}{w['end']:>8.3f}"
+                  f"{w['end'] - w['start']:>7.3f}")
+            if w["start"] < prev_end - 1e-6:
+                issues.append(("WARN", f"第 {i} 个词 start 早于前一个 end（重叠）"))
+            if w["end"] <= w["start"]:
+                issues.append(("FAIL", f"第 {i} 个词 end<=start"))
+            if w["start"] > dur1 + 1e-6:
+                issues.append(("FAIL", f"第 {i} 个词 start 超出 wav 时长"))
+            prev_end = w["end"]
+        last_end = tts.words_duration(words1)
+        delta = last_end - dur1
+        ok = abs(delta) <= tolerance
+        issues.append(("OK" if ok else "FAIL",
+                       f"末词 end {last_end:.3f}s vs wav {dur1:.3f}s （{delta:+.3f}s，"
+                       f"容差 ±{tolerance}s）"))
+        issues.append(("OK" if words1[0]["start"] < 1.0 else "WARN",
+                       f"首词 start {words1[0]['start']:.3f}s（裁剪后应从 0 附近开始）"))
+
+    dur2, words2, v2 = run("第二次(应命中缓存)")
+    issues.append(("OK" if v2.cache_hits >= 1 else "FAIL",
+                   f"第二次 cache_hits={v2.cache_hits}（应 ≥1，即不重新合成）"))
+    same = (len(words1) == len(words2)
+            and all(abs(a["start"] - b["start"]) < 1e-6 and abs(a["end"] - b["end"]) < 1e-6
+                    and a["text"] == b["text"] for a, b in zip(words1, words2)))
+    issues.append(("OK" if same else "FAIL",
+                   f"两次词表一致（{len(words1)} vs {len(words2)} 词），"
+                   f"时长 {dur1:.3f} vs {dur2:.3f}s"))
+    side = tts.read_words(wav)
+    issues.append(("OK" if len(side) == len(words1) else "FAIL",
+                   f"旁车文件 {os.path.basename(wav)}{tts.WORDS_SIDECAR_SUFFIX} 读出 "
+                   f"{len(side)} 词"))
+
+    v3 = tts.build_voice({"preset": preset, "cache": cache, "verbose": False, "words": False})
+    dur3 = v3.synth(text, os.path.join(d, "words_off.wav"), "hook")
+    issues.append(("OK" if not v3.words_for(os.path.join(d, "words_off.wav")) else "FAIL",
+                   f"cfg[\"words\"]=False 时 words_for 返回空（dur {dur3:.2f}s）"))
+    return issues
+
+
 # ------------------------------------------------------------------ main
 
 def main(argv=None):
@@ -454,6 +528,10 @@ def main(argv=None):
                     help="关闭响度对齐，测 edge-tts 原始电平（对照用）")
     ap.add_argument("--target-dbfs", type=float, default=None,
                     help="响度对齐目标语音电平（默认 -20 dBFS）")
+    ap.add_argument("--words", default="", metavar="TEXT",
+                    help="只验收词级时间戳：合成这句台词并打印每个词的 start/end")
+    ap.add_argument("--words-tolerance", type=float, default=WORDS_TOL,
+                    help=f"末词对齐容差秒（默认 {WORDS_TOL}）")
     ap.add_argument("--list", action="store_true", help="只列出音色清单")
     ap.add_argument("--selfcheck", action="store_true", help="只跑 build_voice 兼容性断言")
     args = ap.parse_args(argv)
@@ -464,6 +542,14 @@ def main(argv=None):
         return 0
     if args.selfcheck:
         return 0 if selfcheck() else 1
+    if args.words:
+        key = args.preset if args.preset.strip().lower() not in ("", "all") else tts.DEFAULT_PRESET
+        issues = words_check(args.words, key, args.out, cache=not args.no_cache,
+                             tolerance=args.words_tolerance)
+        print_checks(issues)
+        fails = [i for i in issues if i[0] == "FAIL"]
+        print(f"\n[lab] 词时间戳结论：{'通过' if not fails else '不通过'} ({len(fails)} FAIL)")
+        return 0 if not fails else 1
 
     keys = list(tts.VOICE_PRESETS) if args.preset.strip().lower() in ("all", "") \
         else [k.strip().lower() for k in args.preset.split(",") if k.strip()]

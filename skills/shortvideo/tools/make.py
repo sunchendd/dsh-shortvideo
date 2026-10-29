@@ -217,14 +217,16 @@ class FrameRenderer:
         return img
 
 
-def render_frame(scene_fn, item, lt, ctx, total, with_caption=True, emphasis=None):
+def render_frame(scene_fn, item, lt, ctx, total, with_caption=True, emphasis=None,
+                 with_progress=True):
     """单帧渲染（预览/封面用；不支持转场）。"""
     img = _bg()
     scene_fn(img, lt, item["dur"], ctx, S)
     if with_caption:
         s, a = sub_at(item["subs"], item["start"] + lt)
         S.caption(img, s, a, emphasis=emphasis)
-    S.progress_bar(img, (item["start"] + lt) / total)
+    if with_progress:
+        S.progress_bar(img, (item["start"] + lt) / total)
     return img
 
 
@@ -391,7 +393,96 @@ def encode_by_segments(timeline, topic_ref, ctx, total, w, h, fps, jobs, cfg,
     return time.time() - t0
 
 
+
+# ---------------------------------------------------------------- 脚本体检（依据 docs/xhs-playbook.md）
+
+# 小红书红线：绝对化用语 / 医疗承诺 / 权威背书 / 导流
+REDLINE = re.compile(
+    r"(国家级|世界级|顶级|最佳|最强|第一品牌|唯一|绝对|百分之百|100%有效|永久|彻底治|"
+    r"根治|包治|药到病除|无副作用|官方认证|权威认证|央视推荐|加微|私信领|扫码领|"
+    r"稳赚|暴利|月入过万)")
+_SPEECH_RATE = 4.2   # 普通话口播 240~260 字/分 ≈ 4.0~4.33 字/秒
+
+
+def _clauses(text):
+    return [c for c in re.split(r"[，。；：？！,;?!\s]+", text or "") if c.strip()]
+
+
+def lint_script(cfg, timeline):
+    """开工前的脚本体检：返回 [(级别, 说明)]，级别 error/warn/ok。"""
+    out = []
+    shots = cfg.get("shots") or []
+    full = " ".join(s.get("narration", "") for s in shots)
+    title = cfg.get("title") or ""
+    cov = cfg.get("cover") or {}
+
+    # 1) 钩子：前 3 秒必须交代完钩子，4.2 字/秒 × 3s ≈ 12.6 字
+    if shots:
+        first = _clauses(shots[0].get("narration", ""))
+        head = first[0] if first else ""
+        if len(head) > 13:
+            out.append(("warn", f"钩子首句 {len(head)} 字（建议 ≤13 字），3 秒念不完：{head}"))
+
+    # 2) 每镜语速：以配音实际时长算"字/秒"，超过 5.4 就是赶（人类口播舒适区 4.0~4.6）
+    for shot, item in zip(shots, timeline):
+        n = len(re.sub(r"\s", "", shot.get("narration", "")))
+        adur = item.get("adur") or item["dur"]
+        density = n / adur if adur else 0
+        if density > 5.4:
+            out.append(("error", f"{shot.get('id')}: {density:.1f} 字/秒（{n}字/{adur:.1f}s）"
+                                  f"语速过快，建议压到 ≤4.6（删 1/6 字或加时长）"))
+        elif density > 4.8:
+            out.append(("warn", f"{shot.get('id')}: {density:.1f} 字/秒偏快（舒适区 4.0~4.6）"))
+        if n > 38:
+            out.append(("warn", f"{shot.get('id')}: {n} 字超单镜上限 38 字（字幕会顶满两行）"))
+        if item["dur"] - adur < 1.0:
+            out.append(("warn", f"{shot.get('id')}: 镜头留白仅 {item['dur'] - adur:.2f}s（建议 ≥1s，"
+                                f"留给图形动效和呼吸）"))
+
+    # 3) 总时长：知识类完播甜区 30~90s
+    total = timeline[-1]["start"] + timeline[-1]["dur"] if timeline else 0
+    if total < 30:
+        out.append(("warn", f"总时长 {total:.1f}s < 30s，信息量可能不足以支撑完播"))
+    elif total > 90:
+        out.append(("warn", f"总时长 {total:.1f}s > 90s，完播率会明显下滑"))
+
+    # 4) 标题/封面/口播红线词
+    for where, text in (("标题", title), ("封面", " ".join(
+            [str(x) for x in (cov.get("headline") or [])] + [cov.get("sub") or ""])), ("口播", full)):
+        bad = set(REDLINE.findall(text or ""))
+        if bad:
+            out.append(("error", f"{where}含平台红线词：{sorted(bad)}"))
+
+    # 5) 标题长度 / 封面字段
+    if title and not (10 <= len(title) <= 22):
+        out.append(("warn", f"标题 {len(title)} 字（建议 12~20 字）"))
+    for ln in (cov.get("headline") or []):
+        if len(str(ln)) > 6:
+            out.append(("warn", f"封面主标题每行建议 ≤6 字，当前「{ln}」{len(str(ln))} 字"))
+    if not (cov.get("tags") or []):
+        out.append(("warn", "封面还没配话题标签（建议 2~5 个）"))
+
+    # 6) 结尾互动（CES 里关注权重最高）
+    tail = (shots[-1].get("narration", "") if shots else "")
+    if not re.search(r"(关注|收藏|评论|留言|私信|评论区)", tail):
+        out.append(("warn", "结尾没有互动引导（关注/收藏/评论区），会拉低关注转化"))
+
+    return out or [("ok", "脚本体检通过")]
+
+
+def print_lint(results, strict=False):
+    bad = False
+    for level, msg in results:
+        tag = {"error": "[x]", "warn": "[!]", "ok": "[ok]"}[level]
+        print(f"[lint] {tag} {msg}")
+        bad |= level == "error"
+    if bad and strict:
+        raise SystemExit("[x] 脚本体检不通过（--no-strict 可强制出片）")
+    return not bad
+
+
 # ---------------------------------------------------------------- 校验（对应 SKILL.md 质量检查单）
+
 
 def probe(out_path, expect_dur=None):
     """用 ffmpeg -i / volumedetect 自检：流、时长、峰值电平。返回 (ok, 报告行)。"""
@@ -444,6 +535,8 @@ def main():
     ap.add_argument("--clean", action="store_true", help="先清空 build 目录（含 TTS 缓存）")
     ap.add_argument("--no-check", action="store_true", help="跳过成片自检")
     ap.add_argument("--no-cover", action="store_true", help="不生成爆款封面图")
+    ap.add_argument("--strict", action="store_true", help="脚本体检有 error 就中止")
+    ap.add_argument("--no-lint", action="store_true", help="跳过脚本体检")
     args = ap.parse_args()
 
     cfg = json.load(open(args.content, encoding="utf-8"))
@@ -504,6 +597,9 @@ def main():
         item["subs"] = build_subs(item["narration"], item["start"] + lead,
                                   item["dur"] - lead - tail)
 
+    if not args.no_lint:
+        print_lint(lint_script(cfg, timeline), strict=args.strict)
+
     # ---------- 审片模式 ----------
     if args.preview:
         pdir = os.path.join(build, "preview")
@@ -562,15 +658,16 @@ def main():
 
     elapsed = time.time() - t0
     frame_cover = os.path.join(out_dir, "cover_frame.png")
+    # 封面底图：去掉字幕和进度条，画面更干净（F3 截图式封面用）
     render_frame(scene_fns[timeline[0]["id"]], timeline[0],
-                 min(timeline[0]["dur"] * 0.75, timeline[0]["dur"] - 0.1), ctx, total
-                 ).convert("RGB").save(frame_cover)
+                 min(timeline[0]["dur"] * 0.75, timeline[0]["dur"] - 0.1), ctx, total,
+                 with_caption=False, with_progress=False).convert("RGB").save(frame_cover)
     size_mb = os.path.getsize(out_path) / 1048576
     print(f"[ok] {out_path}  {size_mb:.1f}MB  {total:.1f}s  "
           f"渲染 {total_frames / elapsed:.1f}fps（{elapsed:.1f}s）")
     if not args.no_cover:
         from cover import build_covers
-        for path in build_covers(cfg, out_dir):
+        for path in build_covers(cfg, out_dir, frame_path=frame_cover):
             print(f"[ok] 封面 {path}")
     print(f"[ok] 帧截图 {frame_cover}")
 
