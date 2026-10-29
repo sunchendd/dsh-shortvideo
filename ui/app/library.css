@@ -127,3 +127,7 @@ body.lib { overflow: auto; background: var(--bg0); }
 .tpl b { display: block; font: 600 13px/1.4 var(--sans); color: var(--ink0); }
 .tpl span { display: block; font-size: 11px; line-height: 1.5; color: var(--ink2); margin-top: 3px; }
 .tpl em { display: block; font: 10px/1.6 var(--mono); color: var(--accent); font-style: normal; margin-top: 5px; }
+
+/* 空态：两种情况（一条都没有 / 筛出来没有）共用一套版式，靠文案区分 */
+.libempty .et { font: 650 20px/1.4 var(--serif); color: var(--ink0); margin-bottom: 10px; }
+.libempty .ed { font-size: 12.5px; line-height: 1.9; color: var(--ink2); max-width: 420px; margin: 0 auto 18px; }

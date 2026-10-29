@@ -972,9 +972,39 @@ async function openDeliver(auto = false) {
   const d = await jget(`/api/deliver?slug=${encodeURIComponent(S.slug)}`).catch(() => null);
   if (!d) return toast("读不到交付信息");
   if (!d.video) {
-    if (!auto) toast("还没有成片，先导出");
+    // 一条 toast 一闪而过，用户还是不知道该干嘛。直接把交付面板打开，
+    // 显示"还缺哪一步"，并给一个直达导出的按钮。
+    $("#dlTitle").textContent = "还没有成片";
+    $("#dlVideo").removeAttribute("src");
+    if ($("#dlVideo").load) $("#dlVideo").load();
+    const left = $("#dlLeft");
+    if (left) left.classList.add("off");
+    $("#deliverScrim").classList.add("novideo");
+    $("#dlStat").textContent = "先导出一次，这里会出现成片、封面、标题与话题";
+    $("#dlPubTitle").value = d.publish_title || "";
+    $("#dlTitleCount").textContent = "";
+    $("#dlTopics").innerHTML = `<span class="meta">导出后自动带上话题</span>`;
+    $("#dlCovers").innerHTML = `<div class="meta" style="padding:6px 0">
+      还没有封面 —— 导出时会一起生成 5 张（主封面 / 电影感 / 编辑风 / 蓝图 / 竖版）</div>`;
+    $("#dlChosen").textContent = "";
+    $("#dlQA").innerHTML = `<span class="pill">未质检</span>`;
+    if ($("#dlDown")) $("#dlDown").style.display = "none";
+    if ($("#dlDownSummary")) $("#dlDownSummary").style.display = "none";
+    if ($("#dlRerun")) {
+      $("#dlRerun").textContent = "去导出";
+      $("#dlRerun").onclick = () => {
+        $("#deliverScrim").classList.remove("on");
+        $("#exportScrim").classList.add("on");
+      };
+    }
+    $("#deliverScrim").classList.add("on");
     return;
   }
+  if ($("#dlDown")) $("#dlDown").style.display = "";
+  const left2 = $("#dlLeft");
+  if (left2) left2.classList.remove("off");
+  $("#deliverScrim").classList.remove("novideo");
+  if ($("#dlRerun")) $("#dlRerun").textContent = "重新导出";
   $("#dlTitle").textContent = auto ? "导出完成" : "成片交付";
   $("#dlVideo").src = d.video + "?v=" + Date.now();
   $("#dlStat").textContent =

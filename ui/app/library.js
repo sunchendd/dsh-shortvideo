@@ -12,6 +12,7 @@ const THEMES = [
 ];
 
 const S = { all: [], filter: "all", q: "", templates: [], tpl: null };
+const FILTER_NAME = { all: "全部", video: "已成片", draft: "未出片", qa: "未质检" };
 
 async function boot() {
   S.templates = (await (await fetch("/api/templates")).json().catch(() => ({ templates: [] }))).templates || [];
@@ -41,8 +42,32 @@ function match(p) {
 function render() {
   const rows = S.all.filter(match);
   const grid = $("#grid");
-  $("#libEmpty").hidden = rows.length > 0;
-  if (!rows.length) { grid.innerHTML = ""; return; }
+  const empty = $("#libEmpty");
+  empty.hidden = rows.length > 0;
+  if (!rows.length) {
+    grid.innerHTML = "";
+    // 两种"空"必须分开说：一条都没有 ≠ 筛出来的没有。
+    // 合成一个"还没有项目"会让用户以为自己的片子丢了。
+    const none = S.all.length === 0;
+    empty.innerHTML = none
+      ? `<p class="et">还没有项目</p>
+         <p class="ed">从一句话选题开始，五个镜头由流水线自动生成；也可以先挑个结构模板。</p>
+         <button class="btn primary" id="btnNew2">建第一条片子</button>`
+      : `<p class="et">没有匹配的项目</p>
+         <p class="ed">当前筛选：${esc(S.q ? `关键词「${S.q}」` : FILTER_NAME[S.filter] || "全部")}
+            · 共 ${S.all.length} 条却一条都没命中。</p>
+         <button class="btn" id="btnClearFilter">清除筛选</button>`;
+    const b1 = $("#btnNew2"), b2 = $("#btnClearFilter");
+    if (b1) b1.onclick = () => $("#newScrim").classList.add("on");
+    if (b2) b2.onclick = () => {
+      S.q = ""; S.filter = "all";
+      const inp = $("#search"); if (inp) inp.value = "";
+      $$(".libnav nav a[data-filter]").forEach((x) =>
+        x.classList.toggle("on", x.dataset.filter === "all"));
+      render();
+    };
+    return;
+  }
   grid.innerHTML = rows.map((p) => {
     const badge = p.has_video
       ? `<span class="tag ok">已成片 ${p.size_mb || ""}MB</span>`

@@ -504,3 +504,9 @@ input, textarea, select { font: inherit; color: inherit; }
 }
 .shotops .tbtn:hover { background: var(--bg3); color: var(--ink0); border-color: var(--line3); }
 .shotops .tbtn:active { transform: translateY(1px); }
+
+/* 交付面板：没有成片时左栏是空的，收起来别让用户对着黑框 */
+.dleft.off { display: none; }
+/* 真正承载两栏的是 .body.result-body（.dbody 不存在，写错了就是静默无效） */
+#deliverScrim.novideo .body.result-body { grid-template-columns: 1fr; }
+#deliverScrim.novideo .dright { padding-left: 0; }
