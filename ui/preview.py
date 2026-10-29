@@ -149,6 +149,18 @@ def _detail(slug):
     return base
 
 
+def _rev(slug):
+    """渲染版本号：内容或渲染器一改就变，给图片缓存做 cache-busting 用。"""
+    try:
+        return int(max(
+            os.path.getmtime(os.path.join(EX, f"{slug}.content.json")),
+            os.path.getmtime(os.path.join(os.path.dirname(os.path.abspath(__file__)),
+                                          "preview_render.py")),
+        ))
+    except OSError:
+        return 0
+
+
 def _themes():
     try:
         from shortvideo import runtime as R
@@ -841,6 +853,20 @@ class Handler(BaseHTTPRequestHandler):
                                     "root": REPO})
         if path == "/api/item":
             return self._send(200, _detail(q.get("slug", [""])[0]) or {"error": "unknown"})
+        if path == "/api/theme-preview":
+            slug = q.get("slug", [""])[0]
+            theme = q.get("theme", ["porcelain"])[0]
+            try:
+                data = PV.theme_frame(slug, theme)
+            except Exception as e:  # noqa: BLE001
+                return self._send(500, {"error": f"{type(e).__name__}: {e}"})
+            self.send_response(200)
+            self.send_header("Content-Type", "image/jpeg")
+            self.send_header("Content-Length", str(len(data)))
+            self.send_header("Cache-Control", "public, max-age=600")
+            self.end_headers()
+            self.wfile.write(data)
+            return
         if path == "/api/voice-sample":
             vk = q.get("voice", ["yunxi"])[0]
             try:
@@ -865,6 +891,8 @@ class Handler(BaseHTTPRequestHandler):
         if path == "/api/project":
             slug = q.get("slug", [""])[0]
             data = _project_json(slug)
+            if data:
+                data["rev"] = _rev(slug)
             return self._send(200, data) if data else self._send(404, {"error": "unknown"})
         if path == "/api/frame":
             slug = q.get("slug", [""])[0]

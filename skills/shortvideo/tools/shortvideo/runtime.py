@@ -122,6 +122,11 @@ def set_theme(name):
     key = name if name in THEMES else "midnight"
     t = THEMES[key]
     _CURRENT_THEME = key
+    # 背景是带缓存的（大图，几十毫秒一张）：换主题必须清掉，
+    # 否则颜色全换了、底色还是上一套 —— 表现为"切主题没反应"。
+    global _bg_cache, _bg_rgba_cache
+    _bg_cache = None
+    _bg_rgba_cache = None
     LIGHT = bool(t["light"])
     global CAPTION_BG, CAPTION_BG_A
     CAPTION_BG = (255, 255, 255) if LIGHT else (8, 12, 24)

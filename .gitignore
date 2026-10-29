@@ -27,3 +27,8 @@ skills/ui-ux-pro-max/data/
 examples/covers-f1.png
 examples/variants/
 examples/rhythm.png
+
+# 预览缓存（试听音频、换主题缩略图）
+examples/out/.voice-samples/
+examples/out/.theme-previews/
+examples/.theme-previews/

@@ -70,7 +70,7 @@ def _q(t, fps=30):
 class Preview:
     """一条片子的预览渲染器。"""
 
-    def __init__(self, slug):
+    def __init__(self, slug, theme_override=None):
         import make as M
         from shortvideo import runtime as R
         from shortvideo import themes
@@ -83,7 +83,7 @@ class Preview:
             raise FileNotFoundError(content_path)
         cfg = json.load(open(content_path, encoding="utf-8"))
         self.cfg = cfg
-        themes_name = cfg.get("theme")
+        themes_name = theme_override or cfg.get("theme")
         R.set_theme(themes.theme_for_video(themes_name) if themes_name else None)
         try:
             import art as _art
@@ -95,6 +95,7 @@ class Preview:
 
         # theme 是全局的：多个项目交替预览时必须每次重设，否则会串色
         self.theme = themes_name
+        self.theme_override = theme_override
 
         topic = M.load_topic("deck")
         ctx = dict(cfg.get("ctx", {}))
@@ -140,9 +141,13 @@ class Preview:
                 return idx
         return max(0, len(self.timeline) - 1)
 
-    def frame(self, t):
-        from shortvideo import runtime as R
-        R.set_theme(self.theme_for_video())
+    def frame(self, t, theme="__default__"):
+        """渲染一帧。theme 传具体名字可以渲染"换主题之后"的样子（主题面板预览用）。"""
+        from shortvideo import runtime as R, themes
+        if theme == "__default__":
+            R.set_theme(self.theme_for_video())
+        else:
+            R.set_theme(themes.theme_for_video(theme) if theme else None)
         idx = self.shot_at(t)
         item = self.timeline[idx]
         lt = max(0.0, min(t - item["start"], item["dur"] - 1e-3))
@@ -159,7 +164,8 @@ class Preview:
 
     def theme_for_video(self):
         from shortvideo import themes
-        return themes.theme_for_video(self.cfg.get("theme")) if self.cfg.get("theme") else None
+        name = self.theme_override or self.cfg.get("theme")
+        return themes.theme_for_video(name) if name else None
 
 
 def project(slug):
@@ -206,6 +212,37 @@ def invalidate(slug=None):
             _PROJECTS.pop(slug, None)
             for k in [k for k in _FRAMES if k[0] == slug]:
                 _FRAMES.pop(k, None)
+
+
+_THEME_PROJECTS = {}
+
+
+def _themed_project(slug, theme):
+    key = (slug, theme)
+    if key not in _THEME_PROJECTS:
+        _THEME_PROJECTS[key] = Preview(slug, theme_override=theme)
+    return _THEME_PROJECTS[key]
+
+
+def theme_frame(slug, theme, t=1.0, width=240):
+    """某条片子换某个主题后的一帧（带磁盘缓存）。"""
+    import io, os
+    # 缓存放在 out/ 下（和 .voice-samples 一致），别散落在 examples/ 根上
+    d = os.path.join(EX, "out", ".theme-previews")
+    os.makedirs(d, exist_ok=True)
+    key = "".join(c for c in f"{slug}--{theme}" if c.isalnum() or c in "-_")[:80]
+    path = os.path.join(d, key + ".jpg")
+    if os.path.exists(path) and os.path.getsize(path) > 500:
+        return open(path, "rb").read()
+    pv = _themed_project(slug, theme)
+    img = pv.frame(t)
+    w, h = img.size
+    img = img.resize((width, int(h * width / w)), )
+    buf = io.BytesIO()
+    img.convert("RGB").save(buf, format="JPEG", quality=80, optimize=True)
+    data = buf.getvalue()
+    open(path, "wb").write(data)
+    return data
 
 
 if __name__ == "__main__":

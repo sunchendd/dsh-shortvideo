@@ -79,6 +79,7 @@ async function loadProject(slug) {
   history.replaceState(null, "", "#" + slug);
   try {
     S.proj = await jget(`/api/project?slug=${encodeURIComponent(slug)}`);
+    S.rev = S.proj.rev || 0;
   } catch (e) {
     return showEmpty("读不到这个项目：" + slug);
   }
@@ -782,10 +783,13 @@ async function openPanel(name, btn) {
       };
     });
   } else if (name === "theme") {
+    // 用**真实帧**做色板预览：纯色块看不出这套配色在真画面上好不好看
     L.innerHTML = THEMES.map(([k, n]) => `
-      <div class="asset" data-theme="${k}">
-        <div style="width:44px;height:44px;border-radius:6px;display:grid;place-items:center;background:${themeSwatch(k)}">Aa</div>
-        <div><div class="t">${n}</div><div class="s">${k}</div></div>
+      <div class="asset theme ${S.proj.theme === k ? "on" : ""}" data-theme="${k}">
+        <img src="/api/theme-preview?slug=${encodeURIComponent(S.slug)}&theme=${k}&v=${S.rev || 0}"
+             loading="lazy" alt="">
+        <div><div class="t">${n}${S.proj.theme === k ? " ✓" : ""}</div>
+          <div class="s">${k}${["porcelain", "rice-paper", "arctic"].includes(k) ? " · 浅色" : " · 深色"}</div></div>
       </div>`).join("");
     L.querySelectorAll("[data-theme]").forEach((el) => {
       el.onclick = () => {
