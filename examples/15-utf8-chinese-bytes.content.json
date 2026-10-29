@@ -132,8 +132,9 @@
       ],
       "note": "四个汉字，占掉 12 个字节",
       "ghost": "字节",
-      "ghost_y": 1150,
-      "ghost_size": 300
+      "ghost_y": 1430,
+      "ghost_size": 240,
+      "per_line": 3
     },
     "rule": {
       "kind": "compare",

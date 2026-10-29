@@ -121,8 +121,8 @@
     "insight": {
       "kind": "digits",
       "text": "80 80 80",
-      "size": 132,
-      "note": "三位都是八零，三盏灯一样亮"
+      "size": 160,
+      "note": "三个 80，就是三盏灯调到同一个亮度"
     },
     "reveal": {
       "kind": "stat",

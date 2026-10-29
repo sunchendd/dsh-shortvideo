@@ -293,10 +293,12 @@ def _bits(img, t, dur, spec):
         return
     p = t / dur if dur else 1
     n = len(items)
-    cols = n if n <= 7 else 6      # 七种颜色这类刚好一行排满
+    # per_line：一排放几个。用来表达"分组"——比如一个汉字占 3 个字节，
+    # 就设 per_line=3，每行正好是一个字，语义一眼可见（否则 12 个格子看着像重复）
+    cols = int(spec.get("per_line") or 0) or (n if n <= 7 else 6)
     rows = math.ceil(n / cols)
     gap = 16
-    cell = min(150, int((R.W - 220 - gap * (cols - 1)) / cols))
+    cell = min(int(spec.get("cell") or 150), int((R.W - 220 - gap * (cols - 1)) / cols))
     gx = R.W / 2 - (cell * cols + gap * (cols - 1)) / 2
     gy = int(R.H * 0.40) - (cell * rows + gap * (rows - 1)) / 2
     for i, it in enumerate(items):
