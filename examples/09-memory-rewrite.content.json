@@ -64,7 +64,7 @@
     {
       "id": "reveal",
       "mood": "reveal",
-      "min_dur": 7.6,
+      "min_dur": 6.4,
       "narration": "你以为在回放，其实在重录。每回想一次，就重写一次。",
       "emphasis": [
         "重录",
@@ -74,7 +74,7 @@
     {
       "id": "solve",
       "mood": "win",
-      "min_dur": 8.6,
+      "min_dur": 7.0,
       "narration": "所以「记得清楚」，不等于「记得准」。收藏这条，评论区聊聊。",
       "emphasis": [
         "记得准",

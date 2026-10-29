@@ -44,7 +44,7 @@
     {
       "id": "rule",
       "mood": "rule",
-      "min_dur": 7.4,
+      "min_dur": 6.2,
       "narration": "先算压强：80公斤踩6平方厘米，大约1.3兆帕。",
       "emphasis": [
         "1.3兆帕"
@@ -62,7 +62,7 @@
     {
       "id": "reveal",
       "mood": "reveal",
-      "min_dur": 8.0,
+      "min_dur": 6.8,
       "narration": "所以冰不是压化的。它表面本来就有一层水膜，零下十度也在。",
       "emphasis": [
         "水膜"
@@ -71,7 +71,7 @@
     {
       "id": "solve",
       "mood": "win",
-      "min_dur": 7.8,
+      "min_dur": 7.0,
       "narration": "摩擦再补一点点热，那层水就够了。收藏这条，下次滑冰想一下。",
       "emphasis": [
         "摩擦",
@@ -146,5 +146,5 @@
     "type": "fade",
     "dur": 0.24
   },
-  "publish_title": "冰刀压下去冰点只降0.1度，冰到底靠什么滑"
+  "publish_title": "冰刀压下去冰点只降0.1度，那靠什么滑"
 }

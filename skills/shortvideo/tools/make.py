@@ -465,8 +465,13 @@ def _deck_numbers(node, out):
             out.add(m.rstrip("0").rstrip(".") if "." in m else m)
 
 
-def lint_script(cfg, timeline):
-    """开工前的脚本体检：返回 [(级别, 说明)]，级别 error/warn/ok。"""
+def lint_script(cfg, timeline, degraded=()):
+    """开工前的脚本体检：返回 [(级别, 说明)]，级别 error/warn/ok。
+
+    degraded：配音降级成静音占位的镜头下标集合——这些镜的"音节/秒"没有意义
+    （用的是估算时长），语速项直接跳过，另给一条重跑建议。
+    """
+    degraded = set(degraded or ())
     out = []
     shots = cfg.get("shots") or []
     full = " ".join(s.get("narration", "") for s in shots)
@@ -484,12 +489,14 @@ def lint_script(cfg, timeline):
 
     # 2) 每镜语速：以配音实际时长算"音节/秒"。
     #    正文舒适区 4.0~4.6；钩子镜头允许更快（前 3 秒本来就要"赶着抓人"），上限 6.2。
-    for shot, item in zip(shots, timeline):
+    for i_shot, (shot, item) in enumerate(zip(shots, timeline)):
         text = shot.get("narration", "")
         n_char = len(re.sub(r"\s", "", text))
         n_syl = syllables(text)
         adur = item.get("adur") or item["dur"]
         density = n_syl / adur if adur else 0
+        if i_shot in degraded:
+            continue
         is_hook = shot.get("id") == "hook"
         hi_err, hi_warn = (6.6, 6.0) if is_hook else (5.8, 5.2)
         if density > hi_err:
@@ -553,6 +560,11 @@ def lint_script(cfg, timeline):
                 out.append(("warn", f"钩子画面数字 {sorted(stray)} 口播里没说，"
                                     f"检查首 3 秒是否自相矛盾"))
 
+    if degraded:
+        ids = ", ".join(shots[i].get("id", str(i)) for i in sorted(degraded) if i < len(shots))
+        out.append(("warn", f"配音降级为静音占位：{ids}（网络抖动，重跑一次通常就好；"
+                            f"这几镜的语速项已跳过）"))
+
     return out or [("ok", "脚本体检通过")]
 
 
@@ -569,6 +581,20 @@ def print_lint(results, strict=False):
 
 
 # ---------------------------------------------------------------- 背景乐
+
+def _is_silent_wav(path):
+    """配音降级占位是全零静音；用来把"网络抖动"和"文案太长"区分开。"""
+    try:
+        import wave as _w
+        from array import array as _arr
+        with _w.open(path, "rb") as w:
+            if w.getsampwidth() != 2:
+                return False
+            data = _arr("h", w.readframes(min(w.getnframes(), 22050 * 8)))
+        return bool(data) and max(abs(x) for x in data) < 8
+    except Exception:  # noqa: BLE001
+        return False
+
 
 def _maybe_bgm(cfg, args, audio_path, build, total):
     """给成片垫一层程序化 BGM（人声自动 ducking）。返回混合后 wav 路径。"""
@@ -718,6 +744,11 @@ def main():
     tts.concat(segs, total, audio)
     audio = _maybe_bgm(cfg, args, audio, build, total)
     print(f"[time] 总时长 {total:.2f}s")
+
+    # 配音降级检测：网络抖动时 tts 会写等长静音占位，那不是文案问题，别让体检误判
+    degraded = [i for i, it in enumerate(timeline)
+                if it.get("wav") and _is_silent_wav(it["wav"])
+                and len(re.sub(r"\s", "", shots[i].get("narration", ""))) > 2]
 
     words_fn = getattr(voice, "words_for", None)
     for item in timeline:
