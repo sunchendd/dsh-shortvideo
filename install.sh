@@ -74,6 +74,18 @@ print(f"    Pillow {PIL.__version__} / edge-tts {getattr(edge_tts,'__version__',
 PY
 fi
 
+echo "==> 准备配音缓存目录"
+# edge-tts 是唯一的外部依赖。网络/代理不可用时，没有缓存就只能出静音片，
+# 所以缓存默认放在 skill 根目录的 .audiocache/，安装时建好并检查可用性。
+AUDIO_CACHE="$REPO_DIR/.audiocache"
+mkdir -p "$AUDIO_CACHE"
+if ls "$AUDIO_CACHE"/*.wav >/dev/null 2>&1; then
+  n=$(ls "$AUDIO_CACHE"/*.wav 2>/dev/null | wc -l)
+  echo "    已有 $n 条配音缓存（断网也能重渲）"
+else
+  echo "    缓存为空：首次出片需要能连 speech.platform.bing.com"
+fi
+
 echo "==> 检查中文字体"
 if fc-list :lang=zh 2>/dev/null | grep -q .; then
   fc-list :lang=zh 2>/dev/null | head -2 | sed 's/^/    /'

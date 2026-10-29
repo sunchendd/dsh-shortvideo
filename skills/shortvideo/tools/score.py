@@ -45,7 +45,14 @@ HOOK_SIGNALS = ("错", "不", "为什么", "居然", "竟然", "其实", "真相
 
 
 def _clauses(text):
-    return [c for c in re.split(r"[，。；：？！,;?!\s]+", text or "") if c.strip()]
+    """按标点切分句（**不按空格切**）。
+
+    空格在中文口播里通常只是数字两侧的排版（「5 厘米的洞」），不是分句。
+    旧实现把空格也算分隔符，于是钩子首句被切成「5」——1 个字，
+    "钩子首句 ≤13 字"这条规则对数字开头的钩子实际失效。
+    """
+    return [re.sub(r"\s+", "", c) for c in re.split(r"[，。；：？！,;?!]+", text or "")
+            if c.strip()]
 
 
 def _chars(text):

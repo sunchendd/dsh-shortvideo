@@ -1,0 +1,194 @@
+{
+  "title": "防晒倍数是个陷阱：涂量才是命门",
+  "subtitle": "SPF50 比 SPF30 只多挡 1.3%，薄涂等于白涂",
+  "voice": {
+    "preset": "yunjian",
+    "mood_tuning": {
+      "hook": {
+        "rate": "+10%"
+      },
+      "rule": {
+        "rate": "-8%"
+      },
+      "explain": {
+        "rate": "-6%"
+      },
+      "reveal": {
+        "rate": "+2%"
+      },
+      "win": {
+        "rate": "+10%"
+      }
+    }
+  },
+  "fps": 30,
+  "size": [
+    1080,
+    1920
+  ],
+  "lead_in": 0.15,
+  "tail": 0.55,
+  "disclosure": "AI 配音",
+  "bgm": {
+    "style": "lofi",
+    "gain": -28
+  },
+  "cover": {
+    "kicker": "护肤反常识",
+    "serial": "19",
+    "headline": [
+      "五十倍防晒",
+      "只多挡",
+      "1.3%"
+    ],
+    "highlight": [
+      "1.3%"
+    ],
+    "sub": "真正决定晒黑的是涂量",
+    "tags": [
+      "#防晒",
+      "#护肤",
+      "#冷知识"
+    ],
+    "cta": "看到最后 →"
+  },
+  "shots": [
+    {
+      "id": "hook",
+      "min_dur": 7.3,
+      "narration": "五十倍防晒，只多挡1.3%。你多花的钱，买了个心理安慰。",
+      "emphasis": [
+        "1.3%"
+      ]
+    },
+    {
+      "id": "rule",
+      "min_dur": 8.2,
+      "narration": "倍数算的是透过率：三十倍放过3.3%，五十倍放过2%。",
+      "emphasis": [
+        "透过率"
+      ],
+      "transition_in": {
+        "type": "fade",
+        "dur": 0.24
+      }
+    },
+    {
+      "id": "insight",
+      "min_dur": 7.9,
+      "narration": "标准涂量是每平方厘米2毫克。薄一半，透过的光翻七倍。",
+      "emphasis": [
+        "2毫克",
+        "翻七倍"
+      ],
+      "transition_in": {
+        "type": "slide_up",
+        "dur": 0.24
+      }
+    },
+    {
+      "id": "reveal",
+      "min_dur": 6.2,
+      "narration": "涂四分之一，有效倍数掉到2.7，连三十倍都不如。",
+      "emphasis": [
+        "2.7"
+      ],
+      "transition_in": {
+        "type": "fade",
+        "dur": 0.24
+      }
+    },
+    {
+      "id": "solve",
+      "min_dur": 7.2,
+      "narration": "一张脸要1.2克，两小时补一次。你涂够了吗？评论区说说。",
+      "emphasis": [
+        "1.2克"
+      ],
+      "transition_in": {
+        "type": "slide_up",
+        "dur": 0.24
+      }
+    }
+  ],
+  "deck": {
+    "hook": {
+      "kind": "big",
+      "lines": [
+        "五十倍防晒",
+        "只多挡 1.3%"
+      ],
+      "sub": "真正决定晒黑的是涂量",
+      "style": "slam",
+      "ghost": "1.3"
+    },
+    "rule": {
+      "kind": "bars",
+      "items": [
+        {
+          "label": "三十倍",
+          "v": 3.33,
+          "value": "3.3%"
+        },
+        {
+          "label": "五十倍",
+          "v": 2.0,
+          "value": "2%"
+        }
+      ],
+      "note": "漏过去的紫外线：两者只差 1.3 个百分点"
+    },
+    "insight": {
+      "kind": "flow",
+      "items": [
+        {
+          "t": "涂量决定膜厚",
+          "d": "标准是每平方厘米 2 毫克"
+        },
+        {
+          "t": "膜越薄，挡光的分子越少",
+          "d": "透过率按指数往上走"
+        },
+        {
+          "t": "薄一半，透过的光翻七倍",
+          "d": "2% 变 14%，有效倍数只剩 7"
+        }
+      ],
+      "note": "防晒不是加成，是厚度堆出来的"
+    },
+    "reveal": {
+      "kind": "compare",
+      "left": {
+        "label": "五十倍薄涂",
+        "value": "2.7",
+        "note": "只涂四分之一"
+      },
+      "right": {
+        "label": "三十倍涂够",
+        "value": "30",
+        "note": "标准用量"
+      },
+      "note": "薄涂的高倍数，输给涂够的低倍数"
+    },
+    "solve": {
+      "kind": "steps",
+      "items": [
+        {
+          "t": "一张脸 1.2 克"
+        },
+        {
+          "t": "两指长，别省着涂"
+        },
+        {
+          "t": "两小时补一次"
+        }
+      ],
+      "note": "倍数看瓶子，结局看用量"
+    }
+  },
+  "transition": {
+    "type": "fade",
+    "dur": 0.24
+  },
+  "publish_title": "SPF50只比30多挡1.3%，关键在涂量"
+}
