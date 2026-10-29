@@ -397,7 +397,22 @@ function renderInspector() {
   $("#fMeta").innerHTML =
     `${subs.length} 句 · ${chars} 字 · <span class="pill ${bad ? "bad" : "ok"}">` +
     `语速 ${rate.toFixed(1)} 字/秒</span>` +
-    (bad ? `<div style="margin-top:6px;color:var(--bad)">偏快：删 1~2 字或把时长加到 ${(chars / 6).toFixed(1)}s</div>` : "");
+    (bad ? `<div style="margin-top:6px;color:var(--bad)">偏快：删 1~2 字或把时长加到 ${(chars / 6).toFixed(1)}s</div>` : "") +
+    numMismatchHint(sh);
+}
+
+/* 口播里的数字 vs 画面里的数字。
+   "改了一半"是这个工具最容易出的事故：画面改成 4.4%，字幕还念 3.3%，
+   成片发出去就是错的。流水线有事实链门禁，但那是导出后；编辑器里应该当场提醒。 */
+function numMismatchHint(sh) {
+  const nums = (t) => (String(t).match(/\d+(?:\.\d+)?/g) || []);
+  const deckText = JSON.stringify(sh.deck || {});
+  const inDeck = nums(deckText);
+  const inNarr = nums(sh.narration || "");
+  const missing = [...new Set(inNarr)].filter((n) => !inDeck.includes(n));
+  if (!missing.length) return "";
+  return `<div style="margin-top:6px;color:var(--warn)">
+    口播里有 ${missing.slice(0, 3).join("、")}，画面上没有 —— 检查是不是只改了一边</div>`;
 }
 
 /* 画面文字：每种镜头类型吃不同字段（big 吃 lines / compare 吃左右两组 /
@@ -912,18 +927,77 @@ async function openPanel(name, btn) {
   }
 }
 
+/* 本地即时体检：不依赖跑 QA，改一个字就能重算。
+   跑一次 verify.sh 要十几秒，而"数字对不上/语速过快/标题太长"这类问题
+   当场就能看出来——不该等到导出之后。 */
+function localChecks() {
+  const out = [];
+  const shotOf = (i) => `镜头 ${String(i + 1).padStart(2, "0")}`;
+  S.proj.shots.forEach((sh, i) => {
+    const nums = (t) => (String(t).match(/\d+(?:\.\d+)?/g) || []);
+    const inDeck = nums(JSON.stringify(sh.deck || {}));
+    const miss = [...new Set(nums(sh.narration))].filter((n) => !inDeck.includes(n));
+    if (miss.length) {
+      out.push({ ok: false, name: `${shotOf(i)} 口播与画面数字不一致`, shot: i,
+                 detail: `口播有 ${miss.slice(0, 3).join("、")}，画面上没有` });
+    }
+    const chars = sh.narration.replace(/[\s，。！？、；：""'']/g, "").length;
+    const rate = chars / Math.max(0.5, sh.duration);
+    if (rate > 6.2) {
+      out.push({ ok: false, name: `${shotOf(i)} 语速偏快`, shot: i,
+                 detail: `${rate.toFixed(1)} 字/秒，建议删字或加到 ${(chars / 6).toFixed(1)}s` });
+    }
+    if (!String(sh.narration || "").trim()) {
+      out.push({ ok: false, name: `${shotOf(i)} 没有口播`, shot: i, detail: "这一镜会是静音" });
+    }
+  });
+  const n = (S.proj.title || "").trim().length;
+  if (n > 20) out.push({ ok: false, name: "标题超过 20 字", detail: `现在 ${n} 字，信息流会截断` });
+  const hook = S.proj.shots[0];
+  // 8s 是个宽松阈值：7 秒左右的钩子配动态画面完全能留人，
+  // 卡到 5s 会天天误报，用户就不看这一栏了。
+  if (hook && hook.duration > 8) {
+    out.push({ ok: false, name: "首镜偏长", shot: 0,
+               detail: `${hook.duration.toFixed(1)}s，前 3 秒要留住人，建议 ≤8s` });
+  }
+  return out;
+}
+
 function renderChecks(L, qa) {
   const items = (qa && qa.items) || [];
+  const local = localChecks();
+  const localHtml = `
+    <div class="cksec">本地即时体检</div>
+    ${local.length
+      ? local.map((x) => `<div class="asset ckbad" ${x.shot != null ? `data-shot="${x.shot}"` : ""}>
+          <div style="width:22px;text-align:center;color:var(--bad)">✕</div>
+          <div><div class="t">${esc(x.name)}</div><div class="s">${esc(x.detail || "")}</div></div></div>`).join("")
+      : `<div class="asset"><div style="width:22px;text-align:center;color:var(--ok)">✓</div>
+         <div><div class="t">没有发现问题</div><div class="s">数字、语速、标题、首镜长度都正常</div></div></div>`}
+    <div class="cksec">流水线质检${items.length ? `（${items.filter((x) => x.ok).length}/${items.length} 通过）` : ""}</div>`;
+  const bindLocal = () => {
+    L.querySelectorAll("[data-shot]").forEach((el) => {
+      el.onclick = () => {
+        const i = +el.dataset.shot;
+        S.sel = i; markSelection(); renderInspector();
+        seek(S.proj.shots[i].start + 0.15, { force: true });
+      };
+    });
+  };
   if (!items.length) {
-    L.innerHTML = `<div class="meta" style="padding:10px;line-height:1.9">这个项目还没跑过质检。<br>
+    L.innerHTML = localHtml + `<div class="meta" style="padding:10px;line-height:1.9">还没跑过流水线质检。<br>
       点顶栏「质检」跑一次，会检查：清单完成度、图形事实链、文档完整度、发布可行性、
       长短版一致、响度一致、配音情绪、封面可读性、前 3 秒留人、画面体检。</div>`;
+    bindLocal();
     return;
   }
-  L.innerHTML = items.map((x) => `
+  L.innerHTML = localHtml + items.map((x) => `
     <div class="asset"><div style="width:22px;text-align:center;color:${x.ok ? "var(--ok)" : "var(--bad)"}">
       ${x.ok ? "✓" : "✕"}</div>
-      <div><div class="t">${esc(x.name)}</div><div class="s">${esc(x.detail || "")}</div></div></div>`).join("");
+      <div><div class="t">${esc(x.name)}</div>
+        <div class="s" title="${esc(x.detail || "")}">${esc((x.detail || "").slice(0, 90))}${
+          (x.detail || "").length > 90 ? "…" : ""}</div></div></div>`).join("");
+  bindLocal();
 }
 
 const THEME_SWATCH = {

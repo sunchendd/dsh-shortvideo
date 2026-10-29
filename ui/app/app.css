@@ -510,3 +510,11 @@ input, textarea, select { font: inherit; color: inherit; }
 /* 真正承载两栏的是 .body.result-body（.dbody 不存在，写错了就是静默无效） */
 #deliverScrim.novideo .body.result-body { grid-template-columns: 1fr; }
 #deliverScrim.novideo .dright { padding-left: 0; }
+
+/* 检查面板分区标题 */
+.cksec {
+  font: 600 9px/1 var(--sans); letter-spacing: .14em; text-transform: uppercase;
+  color: var(--ink3); padding: 10px 10px 6px;
+}
+.ckbad { cursor: pointer; }
+.ckbad:hover { background: #ffffff06; }
