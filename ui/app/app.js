@@ -249,7 +249,8 @@ function requestFrame(force = false) {
   const seq = ++S.frameSeq;
   const run = () => {
     const t = Math.round(S.t * 30) / 30;
-    const url = `/api/frame?slug=${encodeURIComponent(S.slug)}&t=${t}`;
+    // 带版本号：编辑后浏览器不能再拿旧图（服务端 LRU 与浏览器缓存各有一套）
+    const url = `/api/frame?slug=${encodeURIComponent(S.slug)}&t=${t}&v=${S.frameRev || 0}`;
     const img = new Image();
     img.onload = () => {
       if (seq !== S.frameSeq) return;         // 有更新的请求了，丢掉旧图
@@ -487,6 +488,45 @@ function snapshot() {
   };
 }
 
+/* 换镜头类型时给一套"能立刻渲出来"的默认内容。
+   否则从"对比"切到"卡片"会得到空卡片 —— 用户看到的是黑屏，还以为工具坏了。
+   素材优先用原有 lines，其次从口播里按句切。 */
+function defaultDeck(kind, sh) {
+  const old = sh.deck || {};
+  const lines = (old.lines || []).slice();
+  if (!lines.length) {
+    lines.push(...String(sh.narration || "").split(/[，。！？；]/).map((x) => x.trim()).filter(Boolean));
+  }
+  const txt = lines.join(" ") || sh.narration || "";
+  const num = (txt.match(/\d+(?:\.\d+)?%?/) || [""])[0];
+  const L = (i, d) => lines[i] || d || "";
+  if (kind === "big") return { kind, lines: lines.slice(0, 2), style: old.style || "slam" };
+  if (kind === "compare") {
+    return {
+      kind,
+      left: { label: L(0, "左边"), value: (old.left && old.left.value) || num || "—", note: "" },
+      right: { label: L(1, "右边"), value: (old.right && old.right.value) || "—", note: "" },
+      note: L(2, ""),
+    };
+  }
+  if (kind === "stat") {
+    const unit = (txt.match(/\d+(?:\.\d+)?\s*([^\s\d，。]{1,3})/) || ["", ""])[1];
+    return { kind, value: num.replace(/[^\d.]/g, "") || "—", unit: old.unit || unit || "",
+             label: L(0, ""), note: L(1, "") };
+  }
+  // 卡片/流程的标题要短：整句口播塞进去会撑爆版面（实测一行只放得下 ~14 字）
+  const chunks = String(sh.narration || lines.join("，"))
+    .split(/[，。！？；：]/).map((x) => x.trim()).filter(Boolean);
+  const items = [];
+  for (const c of chunks) {
+    if (items.length >= 3) break;
+    if (c.length < 2) continue;
+    items.push({ t: c.length > 14 ? c.slice(0, 13) + "…" : c, d: "" });
+  }
+  while (items.length && items.length < 3) items.push({ t: "补一句关键信息", d: "" });
+  return { kind, items, note: "" };
+}
+
 /* 连续输入（打字、拖滑块）应该只产生一个撤销点。
    机制：开一个 900ms 的窗口，窗口内第一次改动压栈，后续改动共用这个点。 */
 let _editWindow = 0;
@@ -522,6 +562,7 @@ function scheduleSave() {
 }
 
 async function doSave() {
+  S.frameRev = (S.frameRev || 0) + 1;
   const snap = snapshot();
   const st = $("#saveState");
   st.textContent = "保存中…";
@@ -602,7 +643,17 @@ function bindUI() {
   $("#titleInput").onblur = (e) => { commit(() => { S.proj.title = e.target.value; }, { undo: false }); };
 
   // 检查器字段
-  $("#fKind").onchange = (e) => commit(() => { S.proj.shots[S.sel].kind = e.target.value; });
+  $("#fKind").onchange = (e) => {
+    const v = e.target.value;
+    commit(() => {
+      const sh = S.proj.shots[S.sel];
+      // 只改 kind 不改 deck 的话，场景还是按旧 kind 画（deck.kind 才是渲染真源）
+      sh.kind = v;
+      sh.deck = defaultDeck(v, sh);
+      sh.headline = (sh.deck.lines || []).join(" / ");
+    });
+    renderInspector();
+  };
   $("#fDur").onchange = (e) => {
     const v = clamp(parseFloat(e.target.value) || 4, 2, 30);
     commit(() => { S.proj.shots[S.sel].duration = +v.toFixed(2); retime(); });

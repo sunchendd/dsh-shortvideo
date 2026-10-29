@@ -66,19 +66,44 @@ PY
     if [ -z "$title" ]; then
       read -r -p "标题: " title
     fi
-    "$PY" - "$ROOT" "$title" <<'PY'
+    shift || true
+    tmp=$(mktemp)
+    if [ $# -gt 0 ]; then
+      printf '%s\n' "$@" > "$tmp"
+    elif [ -t 0 ]; then
+      echo "输入 3~5 句话（每行一句，空行结束）："
+      n=0
+      while [ $n -lt 5 ]; do
+        read -r -p "  $((n+1)). " line || break
+        [ -z "$line" ] && break
+        printf '%s\n' "$line" >> "$tmp"
+        n=$((n+1))
+      done
+    else
+      cat > "$tmp"
+    fi
+    "$PY" - "$ROOT" "$title" "$(cat "$tmp")" <<'PY'
 import json, os, sys, urllib.request
-root, title = sys.argv[1], sys.argv[2]
+root, title, raw = sys.argv[1], sys.argv[2], sys.argv[3]
+lines = [l.strip() for l in raw.splitlines() if l.strip()]
+if len(lines) < 3:
+    raise SystemExit(f"[x] 至少 3 句口播，现在只有 {len(lines)} 句。"
+                     "（每行一句：钩子 / 规则 / 原理 / 高潮 / 实战）")
 port = os.environ.get("SV_PORT", "8099")
-body = json.dumps({"title": title, "lines": [], "kicker": "硬核科普"}).encode()
+body = json.dumps({"title": title, "lines": lines}).encode()
 try:
     req = urllib.request.Request(f"http://127.0.0.1:{port}/api/project/new",
                                  data=body, headers={"Content-Type": "application/json"})
-    d = json.loads(urllib.request.urlopen(req, timeout=10).read())
-    print(f"已建项目 {d.get('slug')} —— 打开 http://127.0.0.1:{port}/app/#{d.get('slug')} 写五句话")
+    d = json.loads(urllib.request.urlopen(req, timeout=20).read())
+    slug = d.get("slug")
+    print(f"已建项目 {slug}（{len(lines)} 句）")
+    print(f"  打开 http://127.0.0.1:{port}/app/#{slug}")
 except Exception as e:
-    print(f"需要先启动剪辑台（sv app）：{e}")
+    msg = getattr(e, "read", lambda: b"")()
+    raise SystemExit(f"[x] 创建失败：{msg.decode()[:200] if msg else e}\n"
+                     "    需要先启动剪辑台：sv app")
 PY
+    rm -f "$tmp"
     ;;
   export)
     slug="${1:?用法: sv export <slug>}"
