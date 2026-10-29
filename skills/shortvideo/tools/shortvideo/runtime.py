@@ -103,24 +103,55 @@ def ease_back(t, s=1.6):
 # ---------------------------------------------------------------- 背景（一次生成，帧间复用）
 
 _bg_cache = None
+_bg_rgba_cache = None
 _glow_cache = {}
+# 强度缩放表 / 纯色贴图，避免每帧重复建表、重复做 RGB->RGBA 转换
+_glow_luts = {}
+_glow_solids = {}
 
 
 def _glow_mask(r, strength=255):
+    """径向辉光蒙版（按半径缓存形状，不可变对象跨帧复用）。
+
+    原实现每次都在约 370x370 的蒙版上跑一遍 Python 逐像素回调，grid() 一帧最多调 9 次；
+    现在形状按半径只算一次（strength=255 时表值就是 (255-v)^2/255，口径不变），
+    强度缩放在 glow() 里用一次 C 层 LUT 查表完成。
+    """
     key = ("mask", r, strength)
     if key not in _glow_cache:
         s = r * 2
         m = Image.radial_gradient("L").resize((s, s))
-        m = m.point(lambda v: int((255 - v) ** 2 / 255 * strength / 255))
+        m = m.point([int((255 - v) ** 2 / 255 * strength / 255) for v in range(256)])
         _glow_cache[key] = m
     return _glow_cache[key]
+
+
+def _strength_lut(s):
+    """v -> int(v*s) 的 256 级口径表（按强度缓存，表本身极小）。"""
+    lut = _glow_luts.get(s)
+    if lut is None:
+        lut = [int(v * s) for v in range(256)]
+        if len(_glow_luts) > 512:  # 防御：强度是连续量，表别无限长
+            _glow_luts.clear()
+        _glow_luts[s] = lut
+    return lut
+
+
+def _solid_rgba(color, side):
+    """纯色 RGBA 贴图缓存：paste(mask) 时 Pillow 会把 RGB 源转成 RGBA，
+    每次新建等于每帧多做 N 次小图转换，这里按 (颜色, 边长) 复用。"""
+    key = (tuple(color), side)
+    sprite = _glow_solids.get(key)
+    if sprite is None:
+        sprite = Image.new("RGBA", (side, side), key[0] + (255,))
+        _glow_solids[key] = sprite
+    return sprite
 
 
 def background():
     global _bg_cache
     if _bg_cache is not None:
         return _bg_cache.copy()
-    import PIL
     grad = Image.linear_gradient("L").resize((W, H))
     top = Image.new("RGB", (W, H), BG_TOP)
     bot = Image.new("RGB", (W, H), BG_BOT)
@@ -133,9 +164,21 @@ def background():
     return bg.copy()
 
 
+def background_rgba():
+    """缓存的 RGBA 背景副本，等价于 background().convert("RGBA")。
+
+    逐帧渲染时背景是只读底图，转换结果可以缓存；省掉每帧一次整帧 RGB->RGBA
+    转换（1080x1920 约 8MB 的分配+写），返回的仍是一份独立副本，调用方可随意画。
+    """
+    global _bg_rgba_cache
+    if _bg_rgba_cache is None or _bg_rgba_cache.size != (W, H):
+        _bg_rgba_cache = background().convert("RGBA")
+    return _bg_rgba_cache.copy()
+
+
 def glow(img, cx, cy, r, color, strength=1.0):
     if strength <= 0.01 or r < 4:
         return
-    rgb = Image.new("RGB", (r * 2, r * 2), color)
-    mask = _glow_mask(r).point(lambda v: int(v * min(1.0, strength)))
-    img.paste(rgb, (int(cx - r), int(cy - r)), mask)
+    lut = _strength_lut(min(1.0, strength))
+    mask = _glow_mask(r).point(lut)
+    img.paste(_solid_rgba(color, r * 2), (int(cx - r), int(cy - r)), mask)

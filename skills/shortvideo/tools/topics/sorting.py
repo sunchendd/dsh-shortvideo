@@ -56,15 +56,16 @@ def prepare(ctx):
 
 # ---------------------------------------------------------------- 绘制
 
-def _bars(img, snapshot, compare=None, swapped=False, top=640, bar_w=118, gap=22,
-          labels=True, height_k=6.4, S=None):
+def _bars(img, snapshot, compare=None, swapped=False, baseline=1150, bar_w=118, gap=22,
+          labels=True, height_k=58, S=None):
+    """baseline = 柱子底边 y；height_k = 每单位数值对应像素高度（9 -> 522px）。"""
     n = len(snapshot)
     total_w = n * bar_w + (n - 1) * gap
     x0 = (1080 - total_w) / 2
     for i, v in enumerate(snapshot):
         x = x0 + i * (bar_w + gap)
         bh = v * height_k
-        y1 = top + 6 * height_k
+        y1 = baseline
         y0 = y1 - bh
         hot = compare is not None and i in compare
         color = (255, 82, 116) if hot else ((255, 181, 71) if swapped else (61, 232, 255))
@@ -84,7 +85,7 @@ def shot_hook(img, t, dur, ctx, S):
            alpha=clamp(a2b))
     a3 = ease_out(seg(t, 0.85, 1.45))
     S.text(img, (540, 690), "为什么一个快，一个慢一倍？", 52, ACCENT, alpha=a3)
-    _bars(img, DEMO, top=860, S=S)
+    _bars(img, DEMO, baseline=1300, S=S)
     a4 = ease_out(seg(t, 2.0, 2.6))
     S.tag(img, 540, 1560, "冒泡 vs 选择 · 都是 O(n²)", AMBER, a4, 38)
 
@@ -96,7 +97,7 @@ def shot_rule(img, t, dur, ctx, S):
     idx = min(int((t - 0.8) * 2.2), len(trace) - 1)
     idx = max(0, idx)
     snap, cmp_, sw = trace[idx]
-    _bars(img, snap, compare=cmp_, swapped=sw, top=620, S=S)
+    _bars(img, snap, compare=cmp_, swapped=sw, baseline=1150, S=S)
     a = ease_out(seg(t, 1.2, 1.7))
     S.text(img, (540, 1360), "每比一次，只知道这两个数的大小关系", 42, AMBER, alpha=a)
     a2 = ease_out(seg(t, 2.0, 2.5))
@@ -109,7 +110,7 @@ def shot_insight(img, t, dur, ctx, S):
     trace = ctx["bubble"]
     idx = min(int((t - 0.8) * 2.6), len(trace) - 1)
     snap, cmp_, sw = trace[max(0, idx)]
-    _bars(img, snap, compare=cmp_, swapped=sw, top=620, S=S)
+    _bars(img, snap, compare=cmp_, swapped=sw, baseline=1150, S=S)
     a = ease_out(seg(t, 1.4, 1.9))
     S.text(img, (540, 1360), "相邻才比 → 大数一步步\"冒\"到末尾", 42, AMBER, alpha=a)
     a2 = ease_out(seg(t, 2.2, 2.7))
@@ -122,7 +123,7 @@ def shot_reveal(img, t, dur, ctx, S):
     idx = min(int((t - 0.8) * 2.6), len(trace) - 1)
     item = trace[max(0, idx)]
     snap, cmp_, sw, boundary = item
-    _bars(img, snap, compare=cmp_ if cmp_ else None, swapped=sw, top=620, S=S)
+    _bars(img, snap, compare=cmp_ if cmp_ else None, swapped=sw, baseline=1150, S=S)
     a = ease_out(seg(t, 1.4, 1.9))
     S.text(img, (540, 1360), "扫完一轮记住最小值，只交换一次", 42, GREEN, alpha=a)
     a2 = ease_out(seg(t, 2.2, 2.7))

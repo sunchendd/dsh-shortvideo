@@ -2,23 +2,58 @@
 
 用法（在 project/ 下）：
   python $SKILL_DIR/tools/make.py --content content.json --topic topic_demo \
-         --out out/demo.mp4            # 全量渲染
+         --out out/demo.mp4            # 全量渲染（默认多进程并行）
   ... --preview                       # 每镜头 2 张关键帧（快速审片）
+  ... --jobs 1                        # 关掉并行，单进程渲染（调试用）
+  ... --preset veryfast --crf 23      # 调整编码速度/质量
 
 题材包（--topic 指向的 import 名或 .py 路径）需提供：
-    def build(ctx) -> {镜头id: scene(img, t, dur, ctx)}
+    def build(ctx) -> {镜头id: scene(img, t, dur, ctx, S)}
 镜头 id 必须与 content.json 的 shots[].id 对应。
+
+速度：渲染是纯 CPU 的 Pillow 任务，默认按 CPU 核数开进程池；帧按顺序写入
+ffmpeg 的 stdin，用「滑动窗口」控制内存（不攒帧）。
 """
 import argparse
+import fcntl
 import importlib.util
 import json
 import os
 import re
+import shutil
 import subprocess
 import sys
 import time
+import traceback
+from collections import deque
+
+
+# ---------------------------------------------------------------- 运行环境自愈
+# 依赖装在 skill 目录自带的 .venv 里；如果当前解释器缺依赖（比如直接 `python3 make.py`），
+# 自动 exec 到那个 venv，用户不用记路径。
+def _bootstrap_venv():
+    import importlib.util as _u
+    need = ["PIL", "edge_tts", "imageio_ffmpeg"]
+    if all(_u.find_spec(m) for m in need):
+        return
+    skill_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+    venv_dir = os.path.join(skill_dir, ".venv")
+    for cand in (os.path.join(venv_dir, "bin", "python"),
+                 os.path.join(venv_dir, "Scripts", "python.exe")):
+        # 注意：venv 里的 python 是指向系统解释器的符号链接，不能用 realpath 比，
+        # 要比 sys.prefix 是否已经是这个 venv。
+        if os.path.exists(cand) and os.path.realpath(sys.prefix) != os.path.realpath(venv_dir):
+            print(f"[env] 当前 Python 缺依赖，切到 {cand}", flush=True)
+            os.execv(cand, [cand] + sys.argv)
+    raise SystemExit(
+        "[x] 缺少运行依赖（Pillow / edge-tts / imageio-ffmpeg）。\n"
+        "    请在仓库根目录运行 ./install.sh，或：\n"
+        "    python3 -m venv .venv && .venv/bin/pip install -r requirements.txt")
+
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+
+_bootstrap_venv()
 
 from shortvideo import runtime as R
 from shortvideo import tts
@@ -26,6 +61,8 @@ from shortvideo.scenes import SceneAPI as S
 
 CLAUSE = re.compile(r"[^，。；：？！,;?!]+[，。；：？！]?")
 
+
+# ---------------------------------------------------------------- 题材包
 
 def load_topic(ref):
     """ref 可以是模块名（topics 目录下）或 .py 文件路径。"""
@@ -37,11 +74,20 @@ def load_topic(ref):
     return importlib.import_module(f"topics.{ref}")
 
 
+# ---------------------------------------------------------------- 字幕
+
 def split_clauses(text):
-    return [c.strip() for c in CLAUSE.findall(text) if c.strip()]
+    """按标点切句；字幕不显示句末标点（"六个数，" -> "六个数"）。"""
+    out = []
+    for c in CLAUSE.findall(text):
+        c = c.strip().rstrip("，。；：？！,;?!").strip()
+        if c:
+            out.append(c)
+    return out
 
 
 def build_subs(narration, t0, dur):
+    """按标点切句，按字数比例分配时长。"""
     clauses = split_clauses(narration)
     if not clauses:
         return []
@@ -61,13 +107,236 @@ def sub_at(subs, t):
     return "", 0.0
 
 
+# ---------------------------------------------------------------- 渲染核心（主进程/子进程共用）
+
+def render_frame(scene_fn, item, lt, ctx, total, with_caption=True):
+    """渲染一帧：背景 -> 题材绘制 -> 字幕 -> 进度条。"""
+    bg = getattr(R, "background_rgba", None)
+    img = bg() if bg is not None else R.background().convert("RGBA")
+    scene_fn(img, lt, item["dur"], ctx, S)
+    if with_caption:
+        s, a = sub_at(item["subs"], item["start"] + lt)
+        S.caption(img, s, a)
+    S.progress_bar(img, (item["start"] + lt) / total)
+    return img
+
+
+# --- 单进程路径的题材包缓存
+_W = {}
+
+
+def _scenes_for(topic_ref, ctx):
+    if "_scenes" not in _W:
+        _W["_scenes"] = load_topic(topic_ref).build(ctx)
+    return _W["_scenes"]
+
+
+def _jobs_for(timeline, fps):
+    for idx, item in enumerate(timeline):
+        n = max(1, int(round(item["dur"] * fps)))
+        for i in range(n):
+            yield (idx, i, fps)
+
+
+def _frame_counts(timeline, fps):
+    return [max(1, int(round(item["dur"] * fps))) for item in timeline]
+
+
+# ---------------------------------------------------------------- 并行：分段编码
+#
+# 为什么不是「多进程渲染 + 父进程拼帧」：1080x1920 一帧 6.2MB，跨进程搬帧的
+# memcpy 带宽本机约 0.5GB/s，实测把并行收益全吃掉（8 进程 85fps < 单进程 152fps）。
+# 这里改成 let each worker 自己渲染+自己编码成一段 mp4（不跨进程搬像素），
+# 最后用 ffmpeg concat + stream copy 无损拼接并混入音轨 —— 渲染和编码一起并行。
+#
+# 负载均衡：先用 1 帧/镜头测出各镜头单帧成本，再按成本做 LPT 分配。
+
+
+def _chunks(timeline, fps, target_chunks):
+    """把帧按镜头切成若干连续段 [(shot_idx, i0, i1), ...]（帧序）。"""
+    counts = _frame_counts(timeline, fps)
+    total = sum(counts) or 1
+    pieces = []
+    for idx, n in enumerate(counts):
+        k = max(1, min(n, round(target_chunks * n / total)))
+        step = n / k
+        start = 0
+        for j in range(k):
+            end = n if j == k - 1 else int(round((j + 1) * step))
+            if end > start:
+                pieces.append((idx, start, end))
+            start = end
+    return pieces
+
+
+def _sample_cost(timeline, scene_fns, ctx, total, fps):
+    """每个镜头的单帧成本（秒）：渲染 2 帧取均值，用于分段负载均衡。"""
+    cost = {}
+    for item in timeline:
+        ts = (item["dur"] * 0.45, item["dur"] * 0.9)
+        t0 = time.time()
+        for lt in ts:
+            render_frame(scene_fns[item["id"]], item, lt, ctx, total, with_caption=False)
+        cost[item["id"]] = max(1e-4, (time.time() - t0) / len(ts))
+    return cost
+
+
+def _assign(pieces, cost_of, jobs):
+    """LPT 分配：成本大的段优先落到当前总成本最小的 worker。"""
+    order = sorted(range(len(pieces)), key=lambda k: -cost_of(k))
+    load, plan = [0.0] * jobs, [[] for _ in range(jobs)]
+    for k in order:
+        w = min(range(jobs), key=lambda j: load[j])
+        plan[w].append(k)
+        load[w] += cost_of(k)
+    return plan
+
+
+def _child_encode(worker, segs, seg_path, timeline, topic_ref, ctx, total,
+                  w, h, fps, preset, crf, threads):
+    """子进程：渲染自己负责的每一段并直接编码成 mp4，最后退出。"""
+    try:
+        R.W, R.H, R.FPS = w, h, fps
+        ff = tts.ffmpeg_exe()
+        scene_fns = load_topic(topic_ref).build(ctx)
+        for k in segs:
+            idx, i0, i1 = timeline["_pieces"][k]
+            item = timeline["_items"][idx]
+            path = seg_path(k)
+            proc = subprocess.Popen(
+                [ff, "-y", "-loglevel", "error",
+                 "-f", "rawvideo", "-pix_fmt", "rgb24", "-s", f"{w}x{h}",
+                 "-r", str(fps), "-i", "-",
+                 "-c:v", "libx264", "-preset", preset, "-crf", str(crf),
+                 "-threads", str(threads), "-pix_fmt", "yuv420p",
+                 "-g", str(fps * 2), "-an", path],
+                stdin=subprocess.PIPE)
+            try:
+                fn = scene_fns[item["id"]]
+                for i in range(i0, i1):
+                    img = render_frame(fn, item, i / fps, ctx, total)
+                    proc.stdin.write(img.convert("RGB").tobytes())
+            finally:
+                proc.stdin.close()
+                rc = proc.wait()
+            if rc != 0:
+                raise RuntimeError(f"分段编码失败（段 {k}, ffmpeg 退出码 {rc}）")
+        os._exit(0)
+    except BrokenPipeError:
+        os._exit(1)
+    except BaseException:  # noqa: BLE001
+        traceback.print_exc()
+        os._exit(1)
+
+
+def encode_by_segments(timeline, topic_ref, ctx, total, w, h, fps, jobs,
+                       build, preset, crf, audio, out_path, keep_segments=False):
+    """分段并行渲染+编码，再无损拼接并混音。返回耗时秒数。"""
+    scene_fns = _scenes_for(topic_ref, ctx)
+    cost = _sample_cost(timeline, scene_fns, ctx, total, fps)
+    pieces = _chunks(timeline, fps, max(jobs * 2, jobs))
+    cost_of = lambda k: (pieces[k][2] - pieces[k][1]) * cost[timeline[pieces[k][0]]["id"]]  # noqa: E731
+    plan = _assign(pieces, cost_of, jobs)
+    seg_path = lambda k: os.path.join(build, f"seg_{k:03d}.mp4")  # noqa: E731
+
+    # 子进程需要用到的共同状态（fork 后共享）
+    shared = {"_pieces": pieces, "_items": timeline}
+    cpu = os.cpu_count() or 1
+    threads = max(1, min(8, cpu // max(1, jobs)))
+
+    t0 = time.time()
+    pids = []
+    for wid, segs in enumerate(plan):
+        if not segs:
+            continue
+        pid = os.fork()
+        if pid == 0:
+            _child_encode(wid, segs, seg_path, shared, topic_ref, ctx, total,
+                          w, h, fps, preset, crf, threads)
+        pids.append((wid, pid))
+    failed = []
+    for wid, pid in pids:
+        _p, status = os.waitpid(pid, 0)
+        if status != 0:
+            failed.append((wid, status))
+    if failed:
+        raise SystemExit(f"[x] 并行编码失败: {failed}")
+
+    # concat（stream copy，不重编码）
+    list_path = os.path.join(build, "segments.txt")
+    with open(list_path, "w", encoding="utf-8") as f:
+        for k in range(len(pieces)):
+            f.write(f"file '{os.path.basename(seg_path(k))}'\n")
+    ff = tts.ffmpeg_exe()
+    # cwd=build 让 list 里的相对文件名生效；路径参数统一转绝对路径
+    cmd = [ff, "-y", "-loglevel", "error", "-f", "concat", "-safe", "0",
+           "-i", os.path.abspath(list_path), "-i", os.path.abspath(audio),
+           "-c:v", "copy", "-c:a", "aac", "-b:a", "192k",
+           "-shortest", "-movflags", "+faststart", os.path.abspath(out_path)]
+    rc = subprocess.run(cmd, cwd=build, capture_output=True, text=True)
+    if rc.returncode != 0:
+        raise SystemExit(f"[x] 分段拼接失败:\n{rc.stderr[-800:]}")
+    if not keep_segments:                       # 中间分段占空间，默认清掉
+        for k in range(len(pieces)):
+            try:
+                os.remove(seg_path(k))
+            except OSError:
+                pass
+    return time.time() - t0
+
+
+# ---------------------------------------------------------------- 校验（对应 SKILL.md 质量检查单）
+
+def probe(out_path, expect_dur=None):
+    """用 ffmpeg -i / volumedetect 自检：流、时长、峰值电平。返回 (ok, 报告行)。"""
+    ff = tts.ffmpeg_exe()
+    lines = []
+    ok = True
+    info = subprocess.run([ff, "-hide_banner", "-i", out_path],
+                          capture_output=True, text=True).stderr
+    has_v = "Video: h264" in info or "Video: " in info
+    has_a = "Audio: aac" in info or "Audio: " in info
+    m = re.search(r"Duration: (\d+):(\d+):(\d+\.\d+)", info)
+    dur = None
+    if m:
+        dur = int(m.group(1)) * 3600 + int(m.group(2)) * 60 + float(m.group(3))
+    lines.append(f"流：视频={'有' if has_v else '无'} 音频={'有' if has_a else '无'} 时长={dur if dur else '?'}s")
+    ok &= has_v and has_a
+    if expect_dur and dur and abs(dur - expect_dur) > 0.75:
+        lines.append(f"[!] 时长偏差 {dur - expect_dur:+.2f}s（预期 {expect_dur:.2f}s）")
+        ok = False
+    vol = subprocess.run([ff, "-hide_banner", "-i", out_path, "-af", "volumedetect",
+                          "-f", "null", "-"], capture_output=True, text=True).stderr
+    mm = re.search(r"max_volume: (-?[\d.]+) dB", vol)
+    mn = re.search(r"mean_volume: (-?[\d.]+) dB", vol)
+    if mm:
+        mx = float(mm.group(1))
+        lines.append(f"音量：峰值 {mx:.1f} dB / 均值 {mn.group(1) if mn else '?'} dB")
+        if mx > -0.2:
+            lines.append("[!] 峰值可能削波")
+            ok = False
+        if mx < -50:
+            lines.append("[i] 接近静音（无配音或降级静音？）")
+    return ok, lines
+
+
+# ---------------------------------------------------------------- 主流程
+
 def main():
-    ap = argparse.ArgumentParser()
+    ap = argparse.ArgumentParser(description="shortvideo 主流程")
     ap.add_argument("--content", required=True)
     ap.add_argument("--topic", required=True)
     ap.add_argument("--out", default="out/video.mp4")
-    ap.add_argument("--preview", action="store_true")
+    ap.add_argument("--preview", action="store_true", help="每镜头 2 张关键帧，秒级审片")
     ap.add_argument("--fps", type=int, default=None)
+    ap.add_argument("--jobs", type=int, default=None,
+                    help="并行分段数（默认 auto=min(4, 核数//2)；1=单进程边渲边编）")
+    ap.add_argument("--keep-segments", action="store_true", help="保留并行中间分段文件")
+    ap.add_argument("--preset", default="medium", help="x264 preset（veryfast 更快）")
+    ap.add_argument("--crf", type=int, default=20)
+    ap.add_argument("--build-dir", default=None)
+    ap.add_argument("--clean", action="store_true", help="先清空 build 目录（含 TTS 缓存）")
+    ap.add_argument("--no-check", action="store_true", help="跳过成片自检")
     args = ap.parse_args()
 
     cfg = json.load(open(args.content, encoding="utf-8"))
@@ -83,25 +352,40 @@ def main():
     if missing:
         raise SystemExit(f"[x] 题材包缺镜头: {missing}（content.json 与 topic 的 id 需一致）")
 
-    build = os.path.join(os.path.dirname(args.out) or "build", os.pardir, "build")
-    build = os.path.normpath(build)
-    os.makedirs(build, exist_ok=True)
     out_dir = os.path.dirname(args.out) or "out"
     os.makedirs(out_dir, exist_ok=True)
+    build = args.build_dir or os.path.normpath(os.path.join(out_dir, os.pardir, "build"))
+    if args.clean and os.path.isdir(build):
+        shutil.rmtree(build)
+    os.makedirs(build, exist_ok=True)
 
     print(f"[font] {R.font_info()}")
     voice = tts.build_voice(cfg.get("voice", {}))
     print(f"[voice] {voice.name}")
 
-    # ---------- 配音 + 对轴 ----------
-    timeline, segs, cursor = [], [], 0.0
+    # ---------- 配音 + 对轴（能并行就并行） ----------
     lead, tail = cfg.get("lead_in", 0.15), cfg.get("tail", 0.55)
-    for i, shot in enumerate(cfg["shots"]):
-        wav = os.path.join(build, f"{i:02d}_{shot['id']}.wav")
-        adur = voice.synth(shot["narration"], wav, mood=shot.get("mood"))
+    items = [{"text": shot["narration"], "mood": shot.get("mood"),
+              "path": os.path.join(build, f"{i:02d}_{shot['id']}.wav")}
+             for i, shot in enumerate(cfg["shots"])]
+    t_tts = time.time()
+    if hasattr(tts, "synth_all"):
+        adurs = tts.synth_all(voice, items)
+    else:  # 兼容旧版 tts 模块
+        adurs = [voice.synth(it["text"], it["path"], mood=it["mood"]) for it in items]
+    print(f"[tts] {len(items)} 段配音用时 {time.time() - t_tts:.1f}s")
+    degraded = getattr(voice, "failures", 0) or getattr(voice, "offline", False)
+    if degraded:
+        print(f"[!] 有 {getattr(voice, 'failures', '?')} 段配音降级为静音（网络/代理不可用），"
+              f"成片仍有字幕")
+
+    timeline, segs, cursor = [], [], 0.0
+    for item, adur in zip(items, adurs):
+        shot = cfg["shots"][len(timeline)]
         dur = max(shot.get("min_dur", 4.0), adur + lead + tail)
-        timeline.append({**shot, "start": cursor, "dur": dur, "wav": wav})
-        segs.append((cursor + lead, wav))
+        timeline.append({**shot, "start": cursor, "dur": dur,
+                         "wav": item["path"], "adur": adur})
+        segs.append((cursor + lead, item["path"]))
         cursor += dur
         print(f"  {shot['id']:<10} 配音 {adur:5.2f}s -> 镜头 {dur:5.2f}s")
     total = cursor
@@ -110,64 +394,88 @@ def main():
     print(f"[time] 总时长 {total:.2f}s")
 
     for item in timeline:
-        item["subs"] = build_subs(item["narration"], item["start"] + lead, item["dur"] - lead - tail)
+        item["subs"] = build_subs(item["narration"], item["start"] + lead,
+                                  item["dur"] - lead - tail)
 
-    def render_frame(item, lt):
-        from PIL import Image
-        img = R.background().convert("RGBA")
-        scene_fns[item["id"]](img, lt, item["dur"], ctx, S)
-        s, a = sub_at(item["subs"], item["start"] + lt)
-        S.caption(img, s, a)
-        S.progress_bar(img, (item["start"] + lt) / total)
-        return img
-
+    # ---------- 审片模式 ----------
     if args.preview:
         pdir = os.path.join(build, "preview")
         os.makedirs(pdir, exist_ok=True)
         for item in timeline:
             for frac in (0.45, 0.9):
-                t = item["dur"] * frac
-                render_frame(item, t).convert("RGB").save(
-                    os.path.join(pdir, f"{item['id']}_{int(frac*100)}.png"), quality=92)
+                lt = item["dur"] * frac
+                render_frame(scene_fns[item["id"]], item, lt, ctx, total).convert("RGB").save(
+                    os.path.join(pdir, f"{item['id']}_{int(frac * 100)}.png"), quality=92)
         print(f"[ok] 预览帧: {pdir}")
         return
 
-    # ---------- 逐帧渲染 -> ffmpeg ----------
-    import imageio_ffmpeg
+    # ---------- 渲染 + 编码 ----------
     out_path = args.out
-    proc = subprocess.Popen(
-        [tts.ffmpeg_exe(), "-y", "-loglevel", "error",
-         "-f", "rawvideo", "-pix_fmt", "rgb24", "-s", f"{w}x{h}", "-r", str(fps), "-i", "-",
-         "-i", audio,
-         "-c:v", "libx264", "-preset", "medium", "-crf", "20", "-pix_fmt", "yuv420p",
-         "-c:a", "aac", "-b:a", "192k", "-shortest", "-movflags", "+faststart",
-         out_path],
-        stdin=subprocess.PIPE)
-    total_frames = int(total * fps)
-    done, t0 = 0, time.time()
-    for item in timeline:
-        n_frames = max(1, int(round(item["dur"] * fps)))
-        fn = scene_fns[item["id"]]
-        for i in range(n_frames):
-            img = render_frame(item, i / fps)
-            proc.stdin.write(img.convert("RGB").tobytes())
-            done += 1
-            if done % 60 == 0 or done == total_frames:
-                el = time.time() - t0
-                print(f"\r  渲染 {done}/{total_frames}  {done/el:5.1f}fps  "
-                      f"ETA {(total_frames-done)/max(done/el,.1):4.0f}s", end="", flush=True)
-    proc.stdin.close()
-    proc.wait()
-    print()
-    if proc.returncode != 0:
-        raise SystemExit(f"[x] ffmpeg 退出码 {proc.returncode}")
+    counts = _frame_counts(timeline, fps)
+    total_frames = sum(counts)
+    jobs = args.jobs if args.jobs else min(4, max(1, (os.cpu_count() or 1) // 2))
+    jobs = max(1, min(jobs, max(1, total_frames // 30)))   # 太短的片子不值得分段
+    print(f"[render] {total_frames} 帧 / {fps}fps / preset={args.preset} / "
+          f"{'单进程' if jobs == 1 else f'{jobs} 路分段并行'}")
 
-    # 封面：hook 镜头后段一帧
+    t0 = time.time()
+    if jobs == 1:
+        cmd = [tts.ffmpeg_exe(), "-y", "-loglevel", "error",
+               "-f", "rawvideo", "-pix_fmt", "rgb24", "-s", f"{w}x{h}",
+               "-r", str(fps), "-i", "-",
+               "-i", audio,
+               "-c:v", "libx264", "-preset", args.preset, "-crf", str(args.crf),
+               "-pix_fmt", "yuv420p", "-c:a", "aac", "-b:a", "192k",
+               "-shortest", "-movflags", "+faststart", out_path]
+        proc = subprocess.Popen(cmd, stdin=subprocess.PIPE, stderr=subprocess.PIPE)
+        written = 0
+        try:
+            for idx, i, _fps in _jobs_for(timeline, fps):
+                item = timeline[idx]
+                img = render_frame(scene_fns[item["id"]], item, i / _fps, ctx, total)
+                proc.stdin.write(img.convert("RGB").tobytes())
+                written += 1
+                if written % 20 == 0 or written == total_frames:
+                    _progress(written, total_frames, t0)
+        except BrokenPipeError:
+            err = proc.stderr.read().decode("utf-8", "replace")[-800:]
+            raise SystemExit(f"[x] ffmpeg 提前退出（{written}/{total_frames} 帧已送）:\n{err}")
+        finally:
+            if proc.stdin and not proc.stdin.closed:
+                proc.stdin.close()
+        rc = proc.wait()
+        err = proc.stderr.read().decode("utf-8", "replace").strip()
+        print()
+        if rc != 0:
+            raise SystemExit(f"[x] ffmpeg 退出码 {rc}\n{err[-800:]}")
+    else:
+        encode_by_segments(timeline, args.topic, ctx, total, w, h, fps, jobs,
+                           build, args.preset, args.crf, audio, out_path,
+                           keep_segments=args.keep_segments)
+        print(f"\r  渲染 {total_frames}/{total_frames}  {total_frames / (time.time() - t0):5.1f}fps")
+
+    elapsed = time.time() - t0
     cover = os.path.join(out_dir, "cover.png")
-    render_frame(timeline[0], min(timeline[0]["dur"] * 0.75, timeline[0]["dur"] - 0.1)
+    render_frame(scene_fns[timeline[0]["id"]], timeline[0],
+                 min(timeline[0]["dur"] * 0.75, timeline[0]["dur"] - 0.1), ctx, total
                  ).convert("RGB").save(cover)
-    print(f"[ok] {out_path}  {os.path.getsize(out_path)/1048576:.1f}MB  {total:.1f}s")
+    size_mb = os.path.getsize(out_path) / 1048576
+    print(f"[ok] {out_path}  {size_mb:.1f}MB  {total:.1f}s  "
+          f"渲染 {total_frames / elapsed:.1f}fps（{elapsed:.1f}s）")
     print(f"[ok] 封面 {cover}")
+
+    if not args.no_check:
+        ok, lines = probe(out_path, expect_dur=total)
+        for ln in lines:
+            print(f"[check] {ln}")
+        print("[check] " + ("通过" if ok else "存在问题，请复核"))
+
+
+def _progress(done, total, t0):
+    el = time.time() - t0
+    rate = done / el if el > 0 else 0
+    eta = (total - done) / rate if rate > 0 else 0
+    print(f"\r  渲染 {done}/{total}  {rate:5.1f}fps  ETA {eta:4.0f}s", end="", flush=True)
 
 
 if __name__ == "__main__":

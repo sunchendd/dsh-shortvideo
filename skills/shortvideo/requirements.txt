@@ -1,0 +1,8 @@
+# shortvideo skill 运行时依赖（WSL/Linux，无需 GPU）
+# 安装：python -m pip install -r requirements.txt
+Pillow>=10.0            # 逐帧程序化视觉（runtime/scenes）
+edge-tts>=7.0           # 微软神经配音（云端 TTS；断网/无代理时自动降级静音占位）
+imageio-ffmpeg>=0.5     # 自带 ffmpeg 可执行文件：mp3->wav、wav->aac、封装 mp4
+# ---- 以下为可选加速/证书兼容项 ----
+numpy>=1.24 ; python_version >= "3.9"   # tts.concat/_trim 的快速路径（未安装时用 array('h') 纯标准库实现）
+certifi>=2023.0         # edge-tts 依赖；配合系统 CA（/etc/ssl/certs/ca-certificates.crt）穿透企业 MITM 网关
