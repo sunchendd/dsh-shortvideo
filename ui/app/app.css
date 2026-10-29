@@ -221,11 +221,14 @@ input, textarea, select { font: inherit; color: inherit; }
 .clip.sel { border-color: var(--accent); box-shadow: 0 0 0 1px var(--accent); }
 .clip .thumb {
   position: absolute; inset: 0; background-size: cover; background-position: center;
-  opacity: .42;
+  /* 缩略图只是"这张卡长什么样"的暗示。0.42 太亮：数字类镜头的巨大数字会
+     从卡片标题后面透出来（实测"涂四分之一…"上面趴着一个大 6），标签读不清。 */
+  opacity: .22; filter: saturate(.9) brightness(.85);
 }
 .clip::after {
   content: ""; position: absolute; inset: 0; pointer-events: none;
-  background: linear-gradient(180deg, #0b0d1099 0%, #0b0d1000 45%, #0b0d10cc 100%);
+  /* 底部压得更狠一点，保证标题永远在白字可读区 */
+  background: linear-gradient(180deg, #0b0d10b3 0%, #0b0d1022 42%, #0b0d10e6 100%);
 }
 .clip .cap {
   position: absolute; left: 8px; right: 8px; bottom: 8px;
