@@ -1,12 +1,12 @@
 #!/usr/bin/env bash
-# 一键全验：把 13 道门禁串起来跑，任何一道红就非 0 退出。
+# 一键全验：把 14 道门禁串起来跑，任何一道红就非 0 退出。
 #
 # 为什么需要它：单条片子要验的项太多，靠记忆逐条敲命令必然漏；
 # 而且漏掉的那道恰好是最容易出问题的那道（静默裁字、缺 AI 标注都是这么漏的）。
 #
 #   ./verify.sh                    # 全库
 #   ./verify.sh short-09           # 只验名字以 short-09 开头的
-#   ./verify.sh --no-slow          # 跳过慢的（抽帧类）
+#   ./verify.sh --no-slow          # 跳过慢的（抽帧类 / 界面自检）
 #
 # 退出码：0 = 全部通过；1 = 有门禁失败（末尾会列出失败的项）
 
@@ -65,6 +65,16 @@ if [[ "$SLOW" == "1" ]]; then
   else
     run "前3秒留人" $PY $TOOLS/hookaudit.py --dir $DIR
     run "画面体检"  $PY $TOOLS/qa.py --dir $DIR --fps 4
+  fi
+fi
+
+# 界面自检：需要 Chrome + 一个端口，跑 ~40 秒，所以只在全量模式下跑。
+# 检查的是"改了没生效"那一类（选择器写错、UI 变了磁盘没变、撤销丢镜头）。
+if [[ "$SLOW" == "1" && -z "$ONLY" ]]; then
+  if command -v node >/dev/null 2>&1; then
+    run "界面自检" node ui/tools/selftest.js --port 8124
+  else
+    printf '%-22s' "界面自检"; echo "⏭  没有 node，跳过"
   fi
 fi
 
