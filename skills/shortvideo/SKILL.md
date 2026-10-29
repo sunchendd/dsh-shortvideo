@@ -387,6 +387,24 @@ $PY $TOOLS/studio.py --dir examples --ab-record "slug=01-monty-hall-vnum,cover=f
 
 钩子风格建议至少覆盖三类：**数字冲击**、**提问式**、**代价恐惧**（三种都能进池子，但人群不同）。
 
+## 响度一致性：`loudaudit.py`
+
+单条检查只能保证"不爆不哑"，但连播时观众感觉到的是**条与条之间的落差**。
+
+```bash
+$PY $TOOLS/loudaudit.py --dir examples        # 横向比对，偏差超阈值报警
+$PY $TOOLS/loudaudit.py --dir examples --json
+```
+
+四个指标：峰值 / 人声（门限 RMS）/ BGM（停顿段 p90）/ 动态范围。
+16 条实测人声 -20.8~-21.8dB（±0.6dB 内），BGM -40.9~-42.8dB。
+
+两个量法上的坑（都踩过）：
+- **人声要用"相对峰值的 -20dB 门限 RMS"**（和 tts 归一化同口径）。用绝对门限会把
+  停顿比例混进来，同一批音频能算出 ±2.7dB 的假差异
+- **BGM 要用停顿段的 90 分位**，不能用均值：`pulse` 是密集打击乐，间隔里均值很低、
+  脉冲很高，用均值会误判成"BGM 小了 12dB"
+
 ## 发布前总检：`checklist.py`
 
 ```bash

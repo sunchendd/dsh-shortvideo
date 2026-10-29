@@ -55,7 +55,7 @@ DEFAULT_JOBS = 3
 # 于是：跨镜头电平一致，情绪强弱仍保留。
 NORMALIZE_TARGET_DBFS = -20.0   # 语音段 RMS 目标电平（门限 RMS，剔除停顿）
 NORMALIZE_GAIN_LIMIT_DB = 12.0  # 单条最大增益修正（防止把底噪/静音段抬起来）
-NORMALIZE_PEAK_CEILING_DBFS = -0.5  # 峰值保护，留 0.5dB 余量
+NORMALIZE_PEAK_CEILING_DBFS = -2.0  # 峰值上限：AAC 编码会过冲，-0.5dB 实测会顶到削波
 
 # 五段式情绪（hook 钩子 / rule 规则 / explain 原理 / reveal 揭晓 / win 收尾）
 MOOD_KEYS = ("hook", "rule", "explain", "reveal", "win")
@@ -919,6 +919,8 @@ class EdgeVoice:
             str(mood or ""),
             str(self.preset or ""),
             "" if self.normalize_target is None else f"norm{self.normalize_target:g}",
+            # 峰值上限也参与缓存键：调紧了就必须重新生成，否则复用旧的"热"音频
+            "" if self.normalize_target is None else f"peak{NORMALIZE_PEAK_CEILING_DBFS:g}",
         ))
         return hashlib.sha1(sig.encode("utf-8")).hexdigest()
 
@@ -1073,6 +1075,12 @@ class EdgeVoice:
             gain = max(-NORMALIZE_GAIN_LIMIT_DB, min(NORMALIZE_GAIN_LIMIT_DB, gain))
             if peak_db != float("-inf"):
                 gain = min(gain, NORMALIZE_PEAK_CEILING_DBFS - peak_db)
+            # 原来的写法只在"往上抬"时受峰值上限约束，本来就很热的句子（如某些深男声）
+            # 峰值照样能顶到 -0.5dBFS。这里改成真正的封顶：抬完还超，就按峰值倒推压下来。
+            if peak_db != float("-inf"):
+                after = peak_db + gain
+                if after > NORMALIZE_PEAK_CEILING_DBFS:
+                    gain -= after - NORMALIZE_PEAK_CEILING_DBFS
             if abs(gain) < 0.05:
                 return 0.0
             _scale_wav(path, arr, 10.0 ** (gain / 20.0))
