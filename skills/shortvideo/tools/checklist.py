@@ -91,6 +91,31 @@ def check_one(content_path, out_dir, strict=False):
     return row
 
 
+def add_graphic_gate(rows, content_paths):
+    """图文事实链：一张图标题层的数字必须在口播里出现过（推导值放正文不算违规）。"""
+    try:
+        sys.path.insert(0, HERE)
+        import graphicaudit
+    except Exception:  # noqa: BLE001
+        return
+    by_slug = {os.path.basename(p).replace(".content.json", ""): p for p in content_paths}
+    for row in rows:
+        spec = os.path.join("examples", f"oneimage-{row['slug']}.json")
+        content = by_slug.get(row["slug"])
+        if not (content and os.path.exists(spec)):
+            continue
+        try:
+            rep = graphicaudit.audit(spec, content)
+        except Exception:  # noqa: BLE001
+            continue
+        if rep["headline_stray"]:
+            row["problems"].append(
+                f"图文：一张图标题层 {rep['headline_stray']} 口播里没有")
+            row["gates"]["图文"] = "warn"
+        else:
+            row["gates"]["图文"] = "ok"
+
+
 def add_asset_gate(rows, out_dir):
     """发布齐套：视频 + 封面 + 一张图 + 发布标题，四件缺一不可。
 
@@ -203,6 +228,7 @@ def main():
     add_loudness_gate(rows, out_dir)
     add_voice_gate(rows, paths, args.strict)
     add_asset_gate(rows, out_dir)
+    add_graphic_gate(rows, paths)
 
     if args.json:
         payload = {"total": len(rows), "go": sum(1 for r in rows if r["ok"]),

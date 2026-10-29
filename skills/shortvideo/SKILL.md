@@ -378,6 +378,23 @@ python3 tools/oneimage.py --spec examples/oneimage-<slug>.json \
     --out examples/out/<slug>/summary.png
 ```
 
+## 图文事实链：`graphicaudit.py`
+
+一张图里**合法地**包含推导值（SPF50 的 96.7%/98%、600cm²、0.3 克），
+这些是把视频里的原始数字算出来的，不该要求旁白念一遍。
+但**标题和高亮是这条图文对外的主张力**——那里出现视频从没提过的数字，
+就是两条事实链对不上。
+
+```bash
+graphicaudit.py --dir examples        # 全库，退出码 = 有无标题层不一致
+graphicaudit.py --spec examples/oneimage-19-spf-sunscreen.json
+```
+
+判据：标题/高亮/anchor 的数字必须在任一口播稿里出现；要点正文的数字只在
+"整段一个数都没念过"时弱提示。实测 24 条里抓到 1 条
+（通勤时薪的封面写「除以 176」，而旁白只说「22 天 × 8 小时」），已改成口播里有的「36 块」。
+`checklist.py` 第 10 道门。
+
 ## 排期：`plan.py` 把片库排成发布日历
 
 ```bash
