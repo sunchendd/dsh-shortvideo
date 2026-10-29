@@ -139,6 +139,12 @@ def check_video(path, fps=2.0, keep_frames=False):
     if best >= max(3, int(1.5 * fps)):
         flags.append(f"画面太空：内容区连续 {best / fps:.1f}s 无内容（从 {best_at:.1f}s 起，"
                      f"只剩字幕）")
+    # 开场空白：前 1.5 秒是决定划走的窗口，前 3 帧（t ≤ 1.0s）只要都没有内容就是硬伤。
+    # 这条是"短镜头按比例出场"那次的直接产物：4.9s 镜头按 0.5 比例出场，
+    # 第二个元素 2.5s 才到，前 1 秒几乎空白，而 qa 原来的"连续 1.5s"规则抓不到。
+    head = [r for r in rows if r["t"] <= 1.0]
+    if len(head) >= 2 and all(r["body"] < BODY_MIN for r in head):
+        flags.append(f"开场空白：前 {head[-1]['t']:.1f}s 内容区无内容（首帧必须立刻有信息）")
     edges = [r for r in rows if r["edge"] > EDGE_MAX]
     if edges:
         flags.append(f"内容进安全区：{len(edges)} 帧越界（最多 {max(r['edge'] for r in edges) * 100:.2f}%）")

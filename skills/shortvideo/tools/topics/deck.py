@@ -70,13 +70,28 @@ def _fade_frac(dur, seconds=0.22):
     return min(0.5, max(0.04, seconds / max(0.5, dur)))
 
 
-def _seq_at(i, n, p, span=(0.00, 0.50)):
-    """第 i/n 个元素的出现起点（默认：第一个 0.0 就出现，最晚 0.5 到场）。
+_CUR_DUR = 1.0          # 由 build() 在每个镜头开始前写入，用于算"元素到场窗口"
+
+
+def _default_span():
+    """元素到场的默认窗口。
+
+    长镜头按比例走（0.5 = 一半时长内全部到场）；**短镜头改成按绝对时间**
+    （1.7 秒内到场）：4.9 秒的镜头若按 0.5 比例，第二个元素要 2.5 秒才出现，
+    而短版总共只有 18 秒——前 1 秒几乎是空画面，直接伤完播。
+    """
+    if _CUR_DUR < 6.0:
+        return (0.0, max(0.30, min(0.50, 1.7 / max(_CUR_DUR, 0.1))))
+    return (0.00, 0.50)
+
+
+def _seq_at(i, n, p, span=None):
+    """第 i/n 个元素的出现起点（默认：第一个 0.0 就出现）。
 
     早先的默认值是 (0.10, 0.78)：镜头开头 1~2 秒画面是空的（只剩字幕），
     实测被 qa.py 判为"画面太空"，直接伤完播。所以第一个元素必须立刻可见。
     """
-    a, b = span
+    a, b = span or _default_span()
     return a + (b - a) * (i / max(1, n if n > 1 else 1))
 
 
@@ -196,16 +211,25 @@ def _bars(img, t, dur, spec):
         _note(img, spec["note"], y=int(R.H * 0.70), alpha=_appear(p, 0.5))
 
 
-def _sweep_line(img, box, p, color=None, alpha=0.35, from_p=0.55):
+def _sweep_line(img, box, p, color=None, alpha=0.35, from_p=0.55, vertical=False):
     """在 box 里画一道随时间横向移动的细亮线（8px 高）。
 
     用途：内容元素出现完之后画面不要变成静止图。成本只有一次 panel 绘制，
     肉眼几乎察觉不到"在动"，但同一镜头内的两帧不会像素一致。
     """
     x0, y0, x1, y1 = box
+    sp = R.clamp((p - from_p) / max(0.01, 1.0 - from_p))
+    if vertical:
+        # 细横线沿链向下扫（不用大色块：实测 760x120 的色块差异 16 万像素，
+        # 已经不是"察觉不到的微动"，而是"有东西在滑下来"）
+        if y1 - y0 < 60:
+            return
+        y = y0 + sp * (y1 - y0)
+        S.panel(img, (x0, y - 4, x1, y + 4), fill=color or (255, 255, 255),
+                alpha=alpha, radius=4)
+        return
     if x1 - x0 < 40:
         return
-    sp = R.clamp((p - from_p) / max(0.01, 1.0 - from_p))
     w = 140
     x = x0 + sp * ((x1 - x0) + w) - w
     left, right = max(x0, x), min(x1, x + w)
@@ -557,6 +581,11 @@ def _flow(img, t, dur, spec):
             ay = y + box_h
             S.arrow(img, (130 + bw / 2, ay + 8), (130 + bw / 2, ay + row_h * 0.22),
                     color=col, width=5, head=16, alpha=a)
+    # 全部盒子到位后，一条细亮线沿链从上往下缓缓走一遍：
+    # 因果链是"逐级点亮"，点亮完就静止最像 PPT，这道扫光把"还在推理"的感觉留住
+    if spec.get("sweep", True) and p > 0.6 and n > 1:
+        _sweep_line(img, (130, top, 130 + bw, top + row_h * (n - 1) + row_h * 0.78),
+                    p, color=R.ACCENT, alpha=0.18, from_p=0.6, vertical=True)
     if spec.get("note"):
         _note(img, spec["note"], alpha=_appear(p, 0.7))
 
@@ -605,6 +634,8 @@ def build(ctx):
             fn = _big
 
         def _draw(img, t, dur, _ctx, _S, f=fn, s=spec):
+            global _CUR_DUR
+            _CUR_DUR = dur or 1.0
             p = t / dur if dur else 1
             _ghost(img, s or {}, p)
             f(img, t, dur, s)
