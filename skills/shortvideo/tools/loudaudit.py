@@ -91,7 +91,7 @@ def stats_of(wav_path, mix_path=None):
             if max(abs(min(a[s:s + win])), abs(max(a[s:s + win]))) < GAP_TH:
                 seg = a2[s:s + win]
                 segs.append(db(math.sqrt(sum((x / 32768.0) ** 2 for x in seg) / len(seg))))
-        if segs:
+        if segs and len(segs) >= 8:     # 样本太少时 p90 没意义（17 秒的短版只有几个停顿）
             segs.sort()
             gap_mix = segs[int(len(segs) * 0.9)]   # 90 分位，代表"打击乐的响度"
     voice.sort()

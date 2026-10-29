@@ -14,7 +14,7 @@
   "shots": [
     {
       "id": "hook",
-      "min_dur": 5.0,
+      "min_dur": 4.6,
       "narration": "二维码烂掉三成，居然照样能扫。",
       "emphasis": [
         "三成"

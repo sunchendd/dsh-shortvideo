@@ -1,0 +1,116 @@
+{
+  "format": "short",
+  "series_title": "18 秒速通",
+  "topic": "微波炉热不匀是驻波",
+  "publish_title": "微波炉热不匀，是6厘米波长的锅",
+  "voice": {
+    "preset": "yunxi",
+    "rate": "-10%"
+  },
+  "bgm": {
+    "style": "lofi",
+    "gain": -28.0
+  },
+  "transition": {
+    "type": "fade",
+    "dur": 0.2
+  },
+  "shots": [
+    {
+      "id": "hook",
+      "min_dur": 3.7,
+      "narration": "微波炉加热不匀，差在6厘米。",
+      "emphasis": [
+        "6厘米"
+      ]
+    },
+    {
+      "id": "rule",
+      "min_dur": 4.4,
+      "narration": "微波波长12厘米，叠成驻波。",
+      "emphasis": [
+        "驻波"
+      ]
+    },
+    {
+      "id": "reveal",
+      "min_dur": 5.0,
+      "narration": "微波只进2厘米，深处靠导热。",
+      "emphasis": [
+        "2厘米"
+      ]
+    },
+    {
+      "id": "solve",
+      "min_dur": 3.7,
+      "narration": "摊成薄层翻面，收藏这条。",
+      "emphasis": [
+        "薄层"
+      ]
+    }
+  ],
+  "deck": {
+    "hook": {
+      "kind": "big",
+      "lines": [
+        "微波炉热不匀",
+        "差在 6 厘米"
+      ],
+      "emphasis": [
+        "6 厘米"
+      ],
+      "sub": "热点之间就差这么远"
+    },
+    "rule": {
+      "kind": "stat",
+      "value": "12",
+      "unit": "厘米",
+      "label": "2.45 GHz 微波的波长",
+      "note": "两次波峰相隔半个波长"
+    },
+    "reveal": {
+      "kind": "compare",
+      "left": {
+        "label": "微波穿透",
+        "value": "2",
+        "note": "厘米，只到这么深"
+      },
+      "right": {
+        "label": "热点间距",
+        "value": "6.1",
+        "note": "厘米，半波长"
+      },
+      "note": "所以中间永远是凉的"
+    },
+    "solve": {
+      "kind": "steps",
+      "items": [
+        {
+          "t": "摊成薄层"
+        },
+        {
+          "t": "中途翻一次"
+        }
+      ],
+      "note": "厚度 1 厘米内，微波进得去"
+    }
+  },
+  "cover": {
+    "kicker": "生活物理",
+    "serial": "短04",
+    "headline": [
+      "微波炉热不匀",
+      "差在6厘米"
+    ],
+    "highlight": [
+      "6厘米"
+    ],
+    "sub": "热点相隔6厘米，微波只进2厘米",
+    "tags": [
+      "#科普",
+      "#物理",
+      "#微波炉"
+    ],
+    "cta": "17 秒看懂"
+  }
+}

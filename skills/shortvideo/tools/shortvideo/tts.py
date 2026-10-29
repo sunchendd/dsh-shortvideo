@@ -187,7 +187,19 @@ def normalize_prosody(field, value, fallback=None):
     return f"{round(num, 1):+g}%"
 
 
-def build_moods(preset=None, tuning=None):
+def _add_prosody(field, a, b):
+    """把两个韵律值相加（rate/volume 用百分比，pitch 用 Hz）。"""
+    def num(v):
+        v = str(v or "0").strip().lower().replace("hz", "").replace("%", "")
+        try:
+            return int(round(float(v)))
+        except ValueError:
+            return 0
+    total = num(a) + num(b)
+    return f"{total:+d}Hz" if field == "pitch" else f"{total:+d}%"
+
+
+def build_moods(preset=None, tuning=None, offset=None):
     """合成某个音色的完整 5 情绪韵律表：MOODS -> VOICE_MOODS[preset] -> mood_tuning。
 
     preset 为 None/未知时就是 MOODS 的副本（旧配置的行为完全不变）。
@@ -207,9 +219,18 @@ def build_moods(preset=None, tuning=None):
             if field in pros:
                 table[mood][field] = normalize_prosody(field, pros[field],
                                                        table[mood].get(field))
+    # offset：voice 里显式写的 rate/pitch/volume 作为"全局偏移"叠加到每个情绪上。
+    # 之前这些值被情绪表完全覆盖（yunxi 的 rule 恒为 +7%），写 voice.rate=-15%
+    # 一点效果都没有——实测三段音频时长完全一致（4.38s / 4.38s）。
+    # 现在改成叠加：-15% + rule(+7%) = -8%，既让开关生效，又保留情绪之间的相对差异。
     for pros in table.values():
         for field in ("rate", "pitch", "volume"):
             pros[field] = normalize_prosody(field, pros.get(field))
+    if offset:
+        for pros in table.values():
+            for field in ("rate", "pitch", "volume"):
+                if offset.get(field):
+                    pros[field] = _add_prosody(field, pros[field], offset[field])
     return table
 
 
@@ -1229,6 +1250,10 @@ def build_voice(cfg):
             cache, cache_dir = True, cache_dir or cache
     preset = resolve_preset(cfg)
     base = (VOICE_PRESETS.get(preset or "", {}) or {}).get("base") or {}
+    _offset = {}
+    for field in ("rate", "pitch", "volume"):
+        if cfg.get(field) not in (None, ""):
+            _offset[field] = normalize_prosody(field, cfg.get(field), "+0%" if field != "pitch" else "+0Hz")
     mood_tuning = cfg.get("mood_tuning") or cfg.get("moods") or {}
     if not isinstance(mood_tuning, dict):
         _warn_once("tuning-type", "[voice] mood_tuning 必须是 {mood: {...}} 字典，已忽略")
@@ -1248,7 +1273,7 @@ def build_voice(cfg):
             jobs=cfg.get("jobs") or cfg.get("parallel"),
             verbose=cfg.get("verbose", True),
             preset=preset,
-            moods=build_moods(preset, mood_tuning),
+            moods=build_moods(preset, mood_tuning, _offset),
             mood_tuning=mood_tuning,
             normalize=cfg.get("normalize", cfg.get("loudness")),
             words=cfg.get("words", True),

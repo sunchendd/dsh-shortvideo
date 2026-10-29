@@ -168,7 +168,8 @@ def _bars(img, t, dur, spec):
     if not items:
         return
     p = t / dur if dur else 1
-    reveal = _ease(R.clamp((p - 0.05) / 0.55))
+    # 条长满用 2.4 秒（原来按比例 0.55 走，8.6 秒的镜头要 4.7 秒才长完，太磨）
+    reveal = _ease(R.clamp((p - 0.05) / max(0.001, min(0.55, 2.4 / max(dur, 0.1)))))
     vals = [float(it.get("v", 0)) for it in items]
     vmax = max(vals) or 1.0
     n = len(items)
@@ -356,16 +357,21 @@ def _bits(img, t, dur, spec):
     cell = min(int(spec.get("cell") or 150), int((R.W - 220 - gap * (cols - 1)) / cols))
     gx = R.W / 2 - (cell * cols + gap * (cols - 1)) / 2
     gy = int(R.H * 0.40) - (cell * rows + gap * (rows - 1)) / 2
+    # 格子是同质小元素，没必要按镜头比例慢慢铺：2.2 秒内全部到位就够
+    span = (0.0, min(0.5, 2.2 / max(dur, 0.1)))
     for i, it in enumerate(items):
-        a = _appear(p, _seq_at(i, n, p), _fade_frac(dur))
+        a = _appear(p, _seq_at(i, n, p, span), _fade_frac(dur))
         if a <= 0:
             continue
         r_, c_ = divmod(i, cols)
         x = gx + c_ * (cell + gap)
         y = gy + r_ * (cell + gap)
         on = bool(it.get("on", it.get("v", 1)))
-        S.panel(img, (x, y, x + cell, y + cell), fill=(10, 14, 26),
-                alpha=(0.9 if on else 0.35) * a, radius=14,
+        # 点亮的格子给一层淡强调色底：只用描边+单字时画面墨量只有 2% 左右，
+        # 是全部版式里最薄的开场。加淡底之后一格=一块色，一眼看得出"哪些位是 1"。
+        S.panel(img, (x, y, x + cell, y + cell),
+                fill=(R.ACCENT[0] // 6, R.ACCENT[1] // 6, R.ACCENT[2] // 6) if on else (10, 14, 26),
+                alpha=(0.85 if on else 0.35) * a, radius=14,
                 outline=R.ACCENT if on else R.FAINT)
         S.text(img, (x + cell / 2, y + cell / 2), str(it.get("label", "1" if on else "0")),
                int(cell * 0.46), fill=R.ACCENT if on else R.DIM, bold=True,
