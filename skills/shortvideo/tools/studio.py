@@ -125,8 +125,31 @@ def write_report(rows, d, rendered):
     return holes + qa_holes
 
 
+def ab_load(d):
+    """读 ab-log.csv，返回 {(slug, cover): {"ctr": float, "impressions": int, ...}}。"""
+    path = ab_path(d)
+    out = {}
+    if not os.path.exists(path):
+        return out
+    import csv
+    with open(path, encoding="utf-8") as f:
+        for row in csv.DictReader(f):
+            slug = (row.get("slug") or "").strip()
+            cover = (row.get("cover") or "").strip()
+            if not slug:
+                continue
+            try:
+                ctr = float(row.get("ctr") or 0)
+            except ValueError:
+                ctr = 0.0
+            out[(slug, cover)] = {"ctr": ctr,
+                                  "impressions": int(float(row.get("impressions") or 0))}
+    return out
+
+
 def write_index(rows, d):
     """封面挑选页：三版封面并排，方便上传前对比（也当作 A/B 记录表用）。"""
+    ab = ab_load(d)
     cards = []
     for r in rows:
         if not r["mp4"]:
@@ -135,10 +158,18 @@ def write_index(rows, d):
         rel = os.path.relpath(od, d)
         covs = [("f1 数字反差", "cover_f1.png"), ("f3 截图红圈", "cover_f3.png"),
                 ("f6 遮一半", "cover_f6.png"), ("9x16 竖版", "cover_9x16.png")]
-        imgs = "".join(
-            f'<figure><a href="{rel}/{fn}" target="_blank"><img src="{rel}/{fn}" loading="lazy">'
-            f'</a><figcaption>{name}</figcaption></figure>'
-            for name, fn in covs if os.path.exists(os.path.join(od, fn)))
+        def _fig(name, fn):
+            key = (r["slug"], fn.replace("cover_", "").replace(".png", ""))
+            hit = ab.get(key) or {}
+            badge = ""
+            if hit:
+                badge = (f'<b class="ctr">{hit["ctr"]:.1f}%</b>'
+                         f'<i>{hit["impressions"]} 曝光</i>')
+            return (f'<figure><a href="{rel}/{fn}" target="_blank">'
+                    f'<img src="{rel}/{fn}" loading="lazy"></a>'
+                    f'<figcaption>{name}{badge}</figcaption></figure>')
+        imgs = "".join(_fig(name, fn) for name, fn in covs
+                       if os.path.exists(os.path.join(od, fn)))
         cards.append(
             f'<section><h2>{r["slug"]} <small>{r["score"]} · {r["grade"][0]}</small></h2>'
             f'<div class="row">{imgs}</div></section>')
@@ -151,6 +182,7 @@ p.hint{{color:#8b9bb4;margin:0 0 28px}}
 section{{margin:0 0 36px;border-top:1px solid #1d2431;padding-top:18px}}
 .row{{display:flex;gap:14px;flex-wrap:wrap}}
 figure{{margin:0;width:210px}} img{{width:100%;border-radius:10px;display:block;border:1px solid #1d2431}}
+.ctr{{color:#FFD400;margin-left:6px}}.ctr+i{{color:#8fa0b8;font-style:normal;font-size:11px;margin-left:4px}}
 figcaption{{color:#8b9bb4;font-size:12px;margin-top:6px;text-align:center}}
 </style>
 <h1>封面挑选 / A/B 台账</h1>

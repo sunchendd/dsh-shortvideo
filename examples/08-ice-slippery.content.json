@@ -87,7 +87,8 @@
         "冰点只降 0.1 度"
       ],
       "sub": "那它凭什么这么滑？",
-      "style": "slam"
+      "style": "slam",
+      "ghost": "0.1"
     },
     "rule": {
       "kind": "formula",

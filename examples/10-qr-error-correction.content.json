@@ -94,7 +94,8 @@
         "照样能扫"
       ],
       "sub": "不是运气，是提前算好的冗余",
-      "style": "slam"
+      "style": "slam",
+      "ghost": "三成"
     },
     "rule": {
       "kind": "bits",

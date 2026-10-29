@@ -85,7 +85,8 @@
         "一辆车"
       ],
       "sub": "他开掉一扇空的 —— 换吗？",
-      "style": "slam"
+      "style": "slam",
+      "ghost": "3"
     },
     "rule": {
       "kind": "timeline",

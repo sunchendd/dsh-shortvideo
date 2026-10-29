@@ -482,6 +482,33 @@ _KINDS = {
           "digits": _digits}
 
 
+# ---------------------------------------------------------------- 背景水印
+
+def _ghost(img, spec, p):
+    """背景大字水印：一个超大、低对比的主视觉元素，用来托住"太空"的画面。
+
+    为什么有用：竖屏前 3 秒如果只有两行白字漂在黑底上，视觉重量很轻；
+    垫一个 400px 级别的水印字/数字，画面立刻"满"起来，但不抢主文案。
+    """
+    txt = spec.get("ghost")
+    if not txt:
+        return
+    a = _appear(p, 0.0, 0.25) * float(spec.get("ghost_alpha", 1.0))
+    if a <= 0.01:
+        return
+    size = int(spec.get("ghost_size") or R.W * 0.42)
+    f = R.font(size, bold=True)
+    w = f.getlength(str(txt))
+    if w > R.W * 1.02:                      # 太宽就等比缩
+        size = int(size * R.W * 1.02 / w)
+        f = R.font(size, bold=True)
+    # 默认用一个"比底色略亮的深蓝"，像设计稿里的水印字，而不是荧光色（会抢主文案）
+    color = spec.get("ghost_color") or (44, 58, 82)
+    # 放在副标题下方：水印要"托住"画面，不能压到副标题的阅读
+    S.text(img, (R.W / 2, int(spec.get("ghost_y") or R.H * 0.665)), str(txt), size,
+           fill=color, bold=True, anchor="mm", alpha=a)
+
+
 # ---------------------------------------------------------------- 题材包入口
 
 def build(ctx):
@@ -491,5 +518,11 @@ def build(ctx):
         fn = _KINDS.get(str((spec or {}).get("kind") or "big"))
         if fn is None:
             fn = _big
-        out[shot_id] = (lambda f, s: (lambda img, t, dur, _ctx, _S: f(img, t, dur, s)))(fn, spec)
+
+        def _draw(img, t, dur, _ctx, _S, f=fn, s=spec):
+            p = t / dur if dur else 1
+            _ghost(img, s or {}, p)
+            f(img, t, dur, s)
+
+        out[shot_id] = _draw
     return out

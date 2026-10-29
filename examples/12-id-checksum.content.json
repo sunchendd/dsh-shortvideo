@@ -89,7 +89,8 @@
         "不是随便编的"
       ],
       "sub": "它是拿前面那些位算出来的",
-      "style": "slam"
+      "style": "slam",
+      "ghost": "X"
     },
     "rule": {
       "kind": "timeline",

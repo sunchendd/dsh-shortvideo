@@ -63,46 +63,44 @@ def grab_frames(path, fps=2.0, tmpdir="/tmp/qa_frames"):
     return frames, [i / fps for i in range(len(frames))]
 
 
-def _stats(img):
-    """一帧的四项指标。先把图缩到 1/3，指标是比例量，缩了不影响判定但快 9 倍。"""
-    small = img.convert("RGB").resize((W // 3, H // 3), Image.BILINEAR)
-    px = small.load()
+def _stats(img, scale=3):
+    """一帧的四项指标。用 ImageChops 在 C 层算差异，比逐像素快一个数量级。
+
+    scale：先缩小再算（比例量，缩了不改变判定）。
+    """
+    from PIL import ImageChops
+    small = img.convert("RGB").resize((W // scale, H // scale), Image.BILINEAR)
     w, h = small.size
-    # 背景基准：取四角 12x12 的平均色（我们的底图四角总是背景）
-    corners = [px[x, y] for x in range(0, 12) for y in range(0, 12)]
-    corners += [px[w - 1 - x, h - 1 - y] for x in range(0, 12) for y in range(0, 12)]
-    br = sum(c[0] for c in corners) / len(corners)
-    bg = sum(c[1] for c in corners) / len(corners)
-    bb = sum(c[2] for c in corners) / len(corners)
-    ink = edge = body = 0
-    luma_sum = 0
-    cap_ink = 0
-    cap_total = 0
-    safe_x, safe_y = SAFE // 3, SAFE // 3
-    band0, band1 = CAPTION_BAND[0] // 3, CAPTION_BAND[1] // 3
-    body0, body1 = 140 // 3, 1550 // 3      # 内容区：排除顶栏和底部字幕/进度条
+    px = small.load()
+    # 背景基准：四角 12x12 的平均色（我们的底图四角总是背景）
+    cs = [px[x, y] for x in range(0, 12) for y in range(0, 12)]
+    cs += [px[w - 1 - x, h - 1 - y] for x in range(0, 12) for y in range(0, 12)]
+    bg = tuple(int(sum(c[i] for c in cs) / len(cs)) for i in range(3))
+    diff = ImageChops.difference(small, Image.new("RGB", small.size, bg)).convert("L")
+
+    def above(box, thr=40):
+        """box 内差异超过阈值的像素数。"""
+        region = diff.crop(box)
+        hist = region.histogram()
+        return sum(hist[thr + 1:])
+
     total = w * h
-    for y in range(h):
-        for x in range(w):
-            r, g, b = px[x, y]
-            diff = abs(r - br) + abs(g - bg) + abs(b - bb)
-            luma_sum += (r * 299 + g * 587 + b * 114) // 1000
-            if diff > 40:
-                ink += 1
-                if x < safe_x or y < safe_y or x >= w - safe_x or y >= h - safe_y:
-                    edge += 1
-                if band0 <= y < band1:
-                    cap_ink += 1
-                if body0 <= y < body1:
-                    body += 1
-            if band0 <= y < band1:
-                cap_total += 1
+    safe_x, safe_y = int(SAFE / scale), int(SAFE / scale)
+    body0, body1 = int(140 / scale), int(1550 / scale)
+    band0, band1 = int(CAPTION_BAND[0] / scale), int(CAPTION_BAND[1] / scale)
+    ink = above((0, 0, w, h))
+    edge = (above((0, 0, w, safe_y)) + above((0, h - safe_y, w, h))
+            + above((0, 0, safe_x, h)) + above((w - safe_x, 0, w, h)))
+    cap_ink = above((0, band0, w, band1))
+    body = above((0, body0, w, body1))
+    # 平均亮度：用亮度直方图加权，避免逐像素
+    lum_hist = small.convert("L").histogram()
+    luma = sum(i * c for i, c in enumerate(lum_hist)) / max(1, total)
     return {
         "ink": round(ink / total, 4),
-        "edge": round(edge / total, 4),
-        "luma": round(luma_sum / total, 1),
-        "cap": round(cap_ink / max(1, cap_total), 4),
-        # 内容区墨量：把"只有字幕、画面全空"跟"画面真有东西"区分开
+        "edge": round(min(1.0, edge / total), 4),
+        "luma": round(luma, 1),
+        "cap": round(cap_ink / max(1, (band1 - band0) * w), 4),
         "body": round(body / max(1, (body1 - body0) * w), 4),
     }
 

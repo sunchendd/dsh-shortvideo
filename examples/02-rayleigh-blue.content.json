@@ -87,7 +87,8 @@
         "黑的"
       ],
       "sub": "蓝，是空气撞出来的",
-      "style": "slam"
+      "style": "slam",
+      "ghost": "400"
     },
     "rule": {
       "kind": "flow",

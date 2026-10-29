@@ -90,7 +90,8 @@
         "记住了碎玻璃"
       ],
       "sub": "那段视频里，其实一片都没有",
-      "style": "slam"
+      "style": "slam",
+      "ghost": "32%"
     },
     "rule": {
       "kind": "timeline",

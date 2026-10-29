@@ -87,7 +87,8 @@
         "≠ 0.3"
       ],
       "sub": "电脑算错了？",
-      "style": "slam"
+      "style": "slam",
+      "ghost": "0.3"
     },
     "rule": {
       "kind": "digits",
