@@ -7,14 +7,18 @@
 #
 # 做的事：
 #   1) 把 skills/shortvideo 同步到 <skills_dir>/shortvideo（保留 .venv 与 tts_cache）
+#   1b) 同步 4 个角色技能（创意总监/短视频大师/一张图总结/AI 画室），纯提示词无依赖
 #   2) 在该目录建 .venv 并装 requirements.txt（Pillow / edge-tts / imageio-ffmpeg）
 #   3) 检查中文字体（缺了给 apt 命令）
 #   4) 用 --preview 跑一条最小样例，确认整条链路可用
 set -euo pipefail
 
-SRC_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)/skills/shortvideo"
+REPO_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+SRC_DIR="$REPO_DIR/skills/shortvideo"
 SKILLS_DIR="${DSH_SKILLS_DIR:-$HOME/.dsh/skills}"
 DEST_DIR="$SKILLS_DIR/shortvideo"
+# 角色技能（纯提示词，无依赖）：创意总监 / 短视频大师 / 一张图总结 / AI 画室
+ROLE_SKILLS=(xhs-creative-director shortvideo-master one-image-summary ai-art-studio)
 VENV="$DEST_DIR/.venv"
 PIP_INDEX="${SHORTVIDEO_PIP_INDEX:-}"
 DO_DEPS=1
@@ -39,6 +43,18 @@ else
   (cd "$SRC_DIR" && tar -cf - --exclude '.venv' --exclude '__pycache__' .) \
     | (cd "$DEST_DIR" && tar -xf -)
 fi
+
+echo "==> 同步角色技能：${ROLE_SKILLS[*]}"
+for role in "${ROLE_SKILLS[@]}"; do
+  [ -d "$REPO_DIR/skills/$role" ] || continue
+  mkdir -p "$SKILLS_DIR/$role"
+  if command -v rsync >/dev/null 2>&1; then
+    rsync -a --delete --exclude '__pycache__' "$REPO_DIR/skills/$role/" "$SKILLS_DIR/$role/"
+  else
+    cp -r "$REPO_DIR/skills/$role/." "$SKILLS_DIR/$role/"
+  fi
+  echo "    $SKILLS_DIR/$role"
+done
 
 if [ "$DO_DEPS" = "1" ]; then
   if [ ! -x "$VENV/bin/python" ]; then
@@ -82,6 +98,7 @@ cat <<EOF
 ✅ 安装完成
 
   skill 目录 : $DEST_DIR
+  角色技能   : ${ROLE_SKILLS[*]}（$SKILLS_DIR/<name>）
   Python     : $VENV/bin/python   （make.py 会自动切到这个 venv）
 
 直接出片：

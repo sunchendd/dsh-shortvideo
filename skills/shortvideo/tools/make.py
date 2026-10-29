@@ -205,6 +205,16 @@ class FrameRenderer:
                                     (i + 1) / nframes, mode, self.w, self.h)
         return img
 
+    def _live_emphasis(self, item, lt):
+        """当前帧正在念的词（卡拉OK 式高亮）；没有词表就用镜头级 emphasis。"""
+        base = item.get("emphasis") or []
+        for w in item.get("words") or ():
+            if w["start"] - 0.02 <= lt <= w["end"] + 0.02:
+                tok = str(w.get("text") or "").replace(" ", "")
+                if tok and len(tok) <= 12:
+                    return [tok] + [x for x in base if x not in tok]
+        return base
+
     def frame(self, idx, i):
         item = self.timeline[idx]
         img = self.scene_frame(idx, i)
@@ -212,7 +222,7 @@ class FrameRenderer:
         subs = item.get("subs") or []
         if subs:
             text, a = sub_at(subs, item["start"] + lt)
-            S.caption(img, text, a, emphasis=item.get("emphasis"))
+            S.caption(img, text, a, emphasis=self._live_emphasis(item, lt))
         S.progress_bar(img, (item["start"] + lt) / self.total)
         return img
 
@@ -546,6 +556,7 @@ def main():
 
     topic = load_topic(args.topic)
     ctx = dict(cfg.get("ctx", {}))
+    ctx["content"] = cfg          # 题材包可以读 title/cover/deck 等全文
     ctx.update(topic.prepare(ctx) if hasattr(topic, "prepare") else {})
     scene_fns = topic.build(ctx)
     missing = [s["id"] for s in cfg["shots"] if s["id"] not in scene_fns]
@@ -554,7 +565,13 @@ def main():
 
     out_dir = os.path.dirname(args.out) or "out"
     os.makedirs(out_dir, exist_ok=True)
-    build = args.build_dir or os.path.normpath(os.path.join(out_dir, os.pardir, "build"))
+    # build 目录：约定 <proj>/out/x.mp4 -> <proj>/build；其他路径则在输出目录下就地建 build
+    if args.build_dir:
+        build = args.build_dir
+    elif os.path.basename(os.path.abspath(out_dir)) == "out":
+        build = os.path.normpath(os.path.join(out_dir, os.pardir, "build"))
+    else:
+        build = os.path.join(out_dir, "build")
     if args.clean and os.path.isdir(build):
         shutil.rmtree(build)
     os.makedirs(build, exist_ok=True)
@@ -593,9 +610,12 @@ def main():
     tts.concat(segs, total, audio)
     print(f"[time] 总时长 {total:.2f}s")
 
+    words_fn = getattr(voice, "words_for", None)
     for item in timeline:
         item["subs"] = build_subs(item["narration"], item["start"] + lead,
                                   item["dur"] - lead - tail)
+        # 词级时间戳（edge-tts WordBoundary）→ 字幕逐词高亮；没有就退化成整句高亮
+        item["words"] = words_fn(item["wav"]) if words_fn else []
 
     if not args.no_lint:
         print_lint(lint_script(cfg, timeline), strict=args.strict)

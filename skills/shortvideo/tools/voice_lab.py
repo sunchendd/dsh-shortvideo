@@ -332,10 +332,14 @@ def print_diag(records):
     print("-" * len(hdr))
     for r in records:
         p = r["prosody"]
-        print(f"{r['preset']:<10}{r['mood']:<9}{r['dur']:>7.2f}{r['rms_dbfs']:>8.2f}"
-              f"{r['speech_dbfs']:>8.2f}{r['f0_median']:>8.1f}{r['f0_p10']:>7.1f}"
+
+        def fmt(v, width, prec=2):
+            return f"{'-inf':>{width}}" if v is None else f"{v:>{width}.{prec}f}"
+        print(f"{r['preset']:<10}{r['mood']:<9}{r['dur']:>7.2f}{fmt(r['rms_dbfs'], 8)}"
+              f"{fmt(r['speech_dbfs'], 8)}{r['f0_median']:>8.1f}{r['f0_p10']:>7.1f}"
               f"{r['f0_p90']:>7.1f}{r['f0_semis']:>6.2f}"
-              f"   {p['rate']}/{p['pitch']}/{p['volume']}")
+              f"   {p['rate']}/{p['pitch']}/{p['volume']}"
+              f"{'  [静音!]' if r['silent'] else ''}")
 
 
 # ------------------------------------------------------------------ 验收
@@ -390,10 +394,12 @@ def print_metrics(records):
     print(hdr)
     print("-" * len(hdr))
     for r in records:
-        print(f"{r['preset']:<10}{r['mood']:<9}{r['dur']:>7.2f}{r['peak_dbfs']:>9.2f}"
-              f"{r['rms_dbfs']:>8.2f}{r['speech_dbfs']:>8.2f}{r['chars_per_sec']:>8.2f}"
+        def fmt(v, width, prec=2):
+            return f"{'-inf':>{width}}" if v is None else f"{v:>{width}.{prec}f}"
+        print(f"{r['preset']:<10}{r['mood']:<9}{r['dur']:>7.2f}{fmt(r['peak_dbfs'], 9)}"
+              f"{fmt(r['rms_dbfs'], 8)}{fmt(r['speech_dbfs'], 8)}{r['chars_per_sec']:>8.2f}"
               f"{r['f0_median']:>8.1f}{r['f0_p10']:>7.1f}{r['f0_p90']:>7.1f}"
-              f"{r['f0_semis']:>6.2f}{'  [静音!]' if r['silent'] else ''}")
+              f"{r['f0_semis']:>6.2f}{'  [静音! 合成失败]' if r['silent'] else ''}")
 
 
 def print_checks(issues):

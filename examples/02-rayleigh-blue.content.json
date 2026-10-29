@@ -1,0 +1,180 @@
+{
+  "title": "天空的蓝",
+  "subtitle": "瑞利散射，一次撞击的颜色",
+  "voice": {
+    "preset": "xiaoxiao"
+  },
+  "fps": 30,
+  "size": [
+    1080,
+    1920
+  ],
+  "lead_in": 0.15,
+  "tail": 0.55,
+  "cover": {
+    "kicker": "生活物理",
+    "serial": "02",
+    "headline": [
+      "天空的蓝",
+      "是空气",
+      "撞出来的"
+    ],
+    "highlight": [
+      "撞出来的"
+    ],
+    "sub": "蓝光散射比红光强近六倍",
+    "tags": [
+      "#物理启蒙",
+      "#天空",
+      "#好奇心"
+    ],
+    "cta": "下条讲晚霞"
+  },
+  "shots": [
+    {
+      "id": "hook",
+      "mood": "hook",
+      "min_dur": 5.4,
+      "narration": "天空本来是黑的。蓝，是空气撞出来的。",
+      "emphasis": [
+        "黑的"
+      ]
+    },
+    {
+      "id": "rule",
+      "mood": "rule",
+      "min_dur": 6.6,
+      "narration": "阳光是七色混成的白。穿进大气，一路撞上氮和氧的分子。",
+      "emphasis": [
+        "七色"
+      ]
+    },
+    {
+      "id": "insight",
+      "mood": "explain",
+      "min_dur": 8.2,
+      "narration": "波长越短，被撞得越狠。散射强度和波长的四次方成反比。",
+      "emphasis": [
+        "四次方"
+      ]
+    },
+    {
+      "id": "reveal",
+      "mood": "reveal",
+      "min_dur": 7.2,
+      "narration": "四百五十纳米对七百纳米，算出来近六倍。所以满天是被撞散的蓝。",
+      "emphasis": [
+        "近六倍",
+        "蓝"
+      ]
+    },
+    {
+      "id": "solve",
+      "mood": "win",
+      "min_dur": 8.6,
+      "narration": "夕阳是同一件事的反面。光走的路更长，蓝先散完，你才看见红。",
+      "emphasis": [
+        "反面",
+        "红"
+      ]
+    }
+  ],
+  "deck": {
+    "hook": {
+      "kind": "big",
+      "lines": [
+        "天空本来是",
+        "黑的"
+      ],
+      "sub": "蓝，是空气撞出来的",
+      "style": "slam"
+    },
+    "rule": {
+      "kind": "bits",
+      "items": [
+        {
+          "label": "红",
+          "on": 1
+        },
+        {
+          "label": "橙",
+          "on": 1
+        },
+        {
+          "label": "黄",
+          "on": 1
+        },
+        {
+          "label": "绿",
+          "on": 1
+        },
+        {
+          "label": "青",
+          "on": 1
+        },
+        {
+          "label": "蓝",
+          "on": 1
+        },
+        {
+          "label": "紫",
+          "on": 1
+        }
+      ],
+      "note": "阳光是七色混成的白，进大气就一路撞分子"
+    },
+    "insight": {
+      "kind": "bars",
+      "items": [
+        {
+          "label": "红 700",
+          "v": 1.0
+        },
+        {
+          "label": "绿 530",
+          "v": 3.0
+        },
+        {
+          "label": "蓝 450",
+          "v": 5.86
+        }
+      ],
+      "note": "散射强度 ∝ 1 / 波长⁴"
+    },
+    "reveal": {
+      "kind": "compare",
+      "left": {
+        "label": "700 nm 红光",
+        "value": "1×",
+        "note": "穿得过去"
+      },
+      "right": {
+        "label": "450 nm 蓝光",
+        "value": "5.86×",
+        "note": "被撞散"
+      },
+      "note": "蓝光被撞散近六倍，所以满天都是蓝"
+    },
+    "solve": {
+      "kind": "cards",
+      "items": [
+        {
+          "t": "傍晚光走得更长",
+          "d": "蓝光沿路散完"
+        },
+        {
+          "t": "剩下的就是红",
+          "d": "所以你看见橙红色的夕阳"
+        },
+        {
+          "t": "同一件事的两个面",
+          "d": "白天看蓝，傍晚看红"
+        }
+      ]
+    }
+  },
+  "transition": {
+    "type": "fade",
+    "dur": 0.24
+  }
+}

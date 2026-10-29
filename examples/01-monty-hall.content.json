@@ -1,0 +1,148 @@
+{
+  "title": "换还是不换",
+  "subtitle": "蒙提霍尔，反直觉的概率",
+  "voice": {
+    "preset": "yunxi"
+  },
+  "fps": 30,
+  "size": [
+    1080,
+    1920
+  ],
+  "lead_in": 0.15,
+  "tail": 0.55,
+  "cover": {
+    "kicker": "反常识概率",
+    "serial": "01",
+    "headline": [
+      "换门",
+      "还是守门"
+    ],
+    "highlight": [
+      "换门"
+    ],
+    "sub": "三扇门只剩两扇，概率却偏了一半",
+    "tags": [
+      "#概率直觉",
+      "#逻辑思维",
+      "#面试题"
+    ],
+    "cta": "答案在最后 3 秒"
+  },
+  "shots": [
+    {
+      "id": "hook",
+      "mood": "hook",
+      "min_dur": 6.4,
+      "narration": "三扇门只有一辆车。他开掉一扇空的，换吗？",
+      "emphasis": [
+        "换吗"
+      ]
+    },
+    {
+      "id": "rule",
+      "mood": "rule",
+      "min_dur": 7.2,
+      "narration": "规则是：你先指一扇。他再开一扇空门。然后只问一句，换不换。",
+      "emphasis": [
+        "空门"
+      ]
+    },
+    {
+      "id": "insight",
+      "mood": "explain",
+      "min_dur": 8.6,
+      "narration": "直觉说，剩两扇，各一半。错。你指的那扇，一直是三分之一。",
+      "emphasis": [
+        "三分之一"
+      ]
+    },
+    {
+      "id": "reveal",
+      "mood": "reveal",
+      "min_dur": 6.6,
+      "narration": "另一扇从没变过，是三分之二。换门，赢面直接翻倍。",
+      "emphasis": [
+        "三分之二",
+        "翻倍"
+      ]
+    },
+    {
+      "id": "solve",
+      "mood": "win",
+      "min_dur": 8.0,
+      "narration": "记住一句话：换。信息没洗牌，概率就不会平分。下条讲它的变体。",
+      "emphasis": [
+        "换"
+      ]
+    }
+  ],
+  "deck": {
+    "hook": {
+      "kind": "big",
+      "lines": [
+        "三扇门",
+        "一辆车"
+      ],
+      "sub": "他开掉一扇空的 —— 换吗？",
+      "style": "slam"
+    },
+    "rule": {
+      "kind": "steps",
+      "items": [
+        {
+          "t": "你先指一扇门"
+        },
+        {
+          "t": "他再开一扇空门"
+        },
+        {
+          "t": "然后只问：换不换"
+        }
+      ]
+    },
+    "insight": {
+      "kind": "cards",
+      "items": [
+        {
+          "t": "直觉：各一半",
+          "d": "剩下两扇，看起来公平"
+        },
+        {
+          "t": "但门从没洗牌",
+          "d": "只是有一扇被打开给你看"
+        },
+        {
+          "t": "你指的那扇",
+          "d": "从头到尾都是 1/3"
+        }
+      ]
+    },
+    "reveal": {
+      "kind": "compare",
+      "left": {
+        "label": "守门",
+        "value": "1/3",
+        "note": "原地不动"
+      },
+      "right": {
+        "label": "换门",
+        "value": "2/3",
+        "note": "赢面翻倍"
+      },
+      "note": "换门直接把胜率翻一倍"
+    },
+    "solve": {
+      "kind": "big",
+      "lines": [
+        "换"
+      ],
+      "sub": "信息没洗牌，概率就不会平分",
+      "style": "pop"
+    }
+  },
+  "transition": {
+    "type": "fade",
+    "dur": 0.24
+  }
+}
