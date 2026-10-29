@@ -359,7 +359,109 @@ def _digits(img, t, dur, spec):
         S.caption(img, str(spec["note"]), _appear(p, 0.5), y=int(R.H * 0.66), size=44)
 
 
-_KINDS = {"big": _big, "cards": _cards, "bars": _bars, "compare": _compare,
+def _stat(img, t, dur, spec):
+    """巨型数字 + 单位 + 说明（数字冲击镜；带滚动计数动画）。"""
+    value = spec.get("value")
+    if value is None:
+        return
+    p = t / dur if dur else 1
+    a = _appear(p, 0.04, 0.25)
+    try:
+        target = float(str(value).replace(",", ""))
+        pct = _ease(R.clamp((p - 0.04) / 0.7))
+        shown = target * pct
+        text = (f"{shown:.{spec.get('digits', 2) if target % 1 else 0}f}"
+                if spec.get("count", True) else str(value))
+        if spec.get("count", True) and target % 1 == 0:
+            text = f"{int(round(shown))}"
+    except ValueError:
+        text = str(value)
+    unit = str(spec.get("unit") or "")
+    size = 200
+    while size > 60 and R.font(size, bold=True).getlength(text + unit) > R.W - 160:
+        size -= 6
+    S.kinetic_text(img, (R.W / 2, int(R.H * 0.38)), text, size, fill=tuple(spec.get("color") or R.ACCENT),
+                   t=t - 0.05, dur=0.45, style="slam", stroke=R.BG_BOT,
+                   stroke_w=max(4, size // 24), shadow=0.9, alpha=a)
+    if unit:
+        S.text(img, (R.W / 2, int(R.H * 0.38) + size * 0.62), unit, int(size * 0.30),
+               fill=R.TEXT, bold=True, anchor="mm", alpha=a)
+    if spec.get("label"):
+        S.text(img, (R.W / 2, int(R.H * 0.38) + size * 0.62 + 90), str(spec["label"]),
+               int(size * 0.24), fill=R.DIM, bold=False, anchor="mm", alpha=_appear(p, 0.25))
+    if spec.get("note"):
+        _note(img, spec["note"], alpha=_appear(p, 0.55))
+
+
+def _timeline(img, t, dur, spec):
+    """横向时间轴：节点依次点亮，当前节点放大并高亮（过程/历史/因果链）。"""
+    items = spec.get("items") or []
+    if not items:
+        return
+    p = t / dur if dur else 1
+    n = len(items)
+    y = int(R.H * 0.44)
+    x0, x1 = 140, R.W - 140
+    step = (x1 - x0) / max(1, n - 1) if n > 1 else 0
+    cur = min(n - 1, int(R.clamp(p * 1.1) * n))
+    S.panel(img, (x0 - 20, y - 3, x1 + 20, y + 3), fill=(255, 255, 255), alpha=0.10, radius=3)
+    grown = x0 + step * (cur + R.clamp((p * 1.1 * n) - cur))
+    S.panel(img, (x0 - 20, y - 3, max(x0, grown), y + 3), fill=R.ACCENT, alpha=0.9, radius=3)
+    for i, it in enumerate(items):
+        cx = x0 + step * i
+        done = i <= cur
+        r = 26 if i == cur else 18
+        col = R.ACCENT if i == cur else (R.TILE_ON if done else R.FAINT)
+        S.panel(img, (cx - r, y - r, cx + r, y + r), fill=col, alpha=1.0 if done else 0.5, radius=r)
+        S.text(img, (cx, y), str(it.get("k", it.get("at", i + 1))), 30,
+               fill=R.BG_BOT if done else R.DIM, bold=True, anchor="mm")
+        a = _appear(p, _seq_at(i, n, p, (0.05, 0.6)))
+        S.text(img, (cx, y + 74), str(it.get("t", "")), 38,
+               fill=R.TEXT if done else R.DIM, bold=(i == cur), anchor="mm", alpha=max(a, 0.25))
+        if it.get("d"):
+            S.text(img, (cx, y + 122), str(it["d"]), 28, fill=R.DIM, bold=False,
+                   anchor="mm", alpha=max(a, 0.2))
+    if spec.get("note"):
+        _note(img, spec["note"], alpha=_appear(p, 0.6))
+
+
+def _flow(img, t, dur, spec):
+    """竖向因果链：A → B → C，逐级点亮（讲机制/推理用）。"""
+    items = spec.get("items") or []
+    if not items:
+        return
+    p = t / dur if dur else 1
+    n = len(items)
+    row_h = min(230, int(R.H * 0.56 / max(1, n)))
+    top = int(R.H * 0.40 - row_h * n / 2)
+    bw = R.W - 300
+    for i, it in enumerate(items):
+        a = _appear(p, _seq_at(i, n, p, (0.05, 0.62)))
+        if a <= 0:
+            continue
+        y = top + row_h * i
+        box_h = row_h * 0.78
+        col = R.ACCENT if i == n - 1 else R.TILE_ON
+        S.panel(img, (150, y, 150 + bw, y + box_h), fill=(10, 14, 26), alpha=0.62 * a,
+                radius=22, outline=col)
+        if it.get("d"):
+            S.text(img, (150 + bw / 2, y + box_h * 0.34), str(it.get("t", "")), 42,
+                   fill=R.TEXT, bold=True, anchor="mm", alpha=a)
+            S.text(img, (150 + bw / 2, y + box_h * 0.72), str(it["d"]), 28,
+                   fill=R.DIM, bold=False, anchor="mm", alpha=a)
+        else:
+            S.text(img, (150 + bw / 2, y + box_h / 2), str(it.get("t", "")), 44,
+                   fill=R.TEXT, bold=True, anchor="mm", alpha=a)
+        if i < n - 1:
+            ay = y + box_h
+            S.arrow(img, (150 + bw / 2, ay + 6), (150 + bw / 2, ay + row_h * 0.20),
+                    color=col, width=4, head=14, alpha=a)
+    if spec.get("note"):
+        _note(img, spec["note"], alpha=_appear(p, 0.7))
+
+
+_KINDS = {
+    "stat": _stat, "timeline": _timeline, "flow": _flow,"big": _big, "cards": _cards, "bars": _bars, "compare": _compare,
           "formula": _formula, "steps": _steps, "list": _list, "bits": _bits,
           "digits": _digits}
 

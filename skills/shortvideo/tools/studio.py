@@ -1,0 +1,194 @@
+"""量产流水线：一个目录里的所有 content.json → 评分 → 出片 → 封面 → 信息图 → 台账。
+
+为什么要有它：单条出片只是"能做"，能按选题批量跑、按分数择优、把结果记成台账，才是"能持续产出"。
+
+用法：
+  python studio.py --dir examples                     # 只评分，出报告（秒级）
+  python studio.py --dir examples --render            # 评分 + 出片 + 封面 + 信息图
+  python studio.py --dir examples --render --from-score 90   # 只渲达标的
+  python studio.py --dir examples --only 01,03 --render
+
+产物（都在 --dir 下）：
+  studio-report.md     人看：分数 / 时长 / 体积 / 音量 / 缺失项
+  studio-report.json   机器看：同上 +
+  studio-index.html    封面 A/B 上传页（三版封面并排，点开大图，用它挑封面）
+  每条片子落在 <dir>/out/<slug>/：成片 + cover_f1/f3/f6/9x16 + cover_frame + summary.png
+"""
+import argparse
+import glob
+import json
+import os
+import subprocess
+import sys
+import time
+
+HERE = os.path.dirname(os.path.abspath(__file__))
+sys.path.insert(0, HERE)
+
+PY = sys.executable
+GRADE_ORDER = {"S": 4, "A": 3, "B": 2, "C": 1, "D": 0}
+
+
+def _run(cmd, quiet=True):
+    r = subprocess.run(cmd, capture_output=True, text=True)
+    if r.returncode != 0 and not quiet:
+        print(r.stdout[-2000:])
+        print(r.stderr[-2000:], file=sys.stderr)
+    return r
+
+
+def score_one(content_path):
+    r = _run([PY, os.path.join(HERE, "score.py"), "--content", content_path, "--json"])
+    if r.returncode != 0:
+        return {"score": 0, "grade": "D 解析失败", "extra": [["错误", 0, 0, r.stderr[-300:]]]}
+    try:
+        return json.loads(r.stdout)
+    except json.JSONDecodeError:
+        return {"score": 0, "grade": "D 解析失败", "extra": []}
+
+
+def render_one(content_path, out_dir, jobs):
+    t0 = time.time()
+    slug = os.path.basename(content_path).replace(".content.json", "")
+    os.makedirs(out_dir, exist_ok=True)
+    mp4 = os.path.join(out_dir, slug + ".mp4")
+    r = _run([PY, os.path.join(HERE, "make.py"), "--content", content_path, "--topic", "deck",
+              "--out", mp4, "--jobs", str(jobs)], quiet=False)
+    ok = os.path.exists(mp4)
+    facts = {}
+    if ok:
+        sc = _run([PY, os.path.join(HERE, "score.py"), "--content", content_path,
+                   "--video", mp4, "--json"])
+        try:
+            facts = json.loads(sc.stdout).get("video") or {}
+        except json.JSONDecodeError:
+            facts = {}
+    # 信息图（有 spec 就出）
+    d = os.path.dirname(os.path.abspath(content_path))
+    specs = glob.glob(os.path.join(d, "oneimage-" + slug.replace("content.json", "") + "*.json"))
+    if not specs:
+        specs = [p for p in glob.glob(os.path.join(d, "oneimage-*.json")) if slug in p]
+    summary = ""
+    if specs:
+        summary = os.path.join(out_dir, slug + "-summary.png")
+        _run([PY, os.path.join(HERE, "oneimage.py"), "--spec", specs[0], "--out", summary])
+        if not os.path.exists(summary):
+            summary = ""
+    return {"slug": slug, "mp4": mp4 if ok else "", "summary": summary,
+            "video": facts, "secs": round(time.time() - t0, 1),
+            "log_tail": (r.stdout or "").strip().splitlines()[-6:]}
+
+
+def write_report(rows, d, rendered):
+    md = ["# 生产台账", "",
+          f"生成时间：{time.strftime('%Y-%m-%d %H:%M')}　条目：{len(rows)}　"
+          f"已出片：{sum(1 for r in rows if r['mp4'])}", "",
+          "| 条目 | 清单完成度 | 时长 | 分辨率 | 体积 | 峰值 | 封面 | 信息图 |",
+          "|---|---|---|---|---|---|---|---|"]
+    for r in rows:
+        v = r["video"]
+        cov = "✅" if r["mp4"] and os.path.exists(os.path.join(os.path.dirname(r["mp4"]),
+                                                              "cover_f1.png")) else "—"
+        md.append(f"| {r['slug']} | {r['score']} {r['grade'][0]} | {v.get('dur', '—')} | "
+                  f"{v.get('size', '—')} | {v.get('size_mb', '—')}MB | {v.get('peak_db', '—')}dB | "
+                  f"{cov} | {'✅' if r['summary'] else '—'} |")
+    holes = [(r["slug"], e) for r in rows for e in (r.get("extra") or [])
+             if not e.get("pass", False)]
+    if holes:
+        md += ["", "## 待改进", ""]
+        for slug, e in holes:
+            md.append(f"- **{slug}** · {e['dim']}：{e['msg']}")
+    with open(os.path.join(d, "studio-report.md"), "w", encoding="utf-8") as f:
+        f.write("\n".join(md) + "\n")
+    with open(os.path.join(d, "studio-report.json"), "w", encoding="utf-8") as f:
+        json.dump({"generated": time.time(), "items": rows}, f, ensure_ascii=False, indent=2)
+    return [(s, m) for s, m in holes]
+
+
+def write_index(rows, d):
+    """封面挑选页：三版封面并排，方便上传前对比（也当作 A/B 记录表用）。"""
+    cards = []
+    for r in rows:
+        if not r["mp4"]:
+            continue
+        od = os.path.dirname(r["mp4"])
+        rel = os.path.relpath(od, d)
+        covs = [("f1 数字反差", "cover_f1.png"), ("f3 截图红圈", "cover_f3.png"),
+                ("f6 遮一半", "cover_f6.png"), ("9x16 竖版", "cover_9x16.png")]
+        imgs = "".join(
+            f'<figure><a href="{rel}/{fn}" target="_blank"><img src="{rel}/{fn}" loading="lazy">'
+            f'</a><figcaption>{name}</figcaption></figure>'
+            for name, fn in covs if os.path.exists(os.path.join(od, fn)))
+        cards.append(
+            f'<section><h2>{r["slug"]} <small>{r["score"]} · {r["grade"][0]}</small></h2>'
+            f'<div class="row">{imgs}</div></section>')
+    html = f"""<!doctype html><meta charset="utf-8">
+<title>封面挑选 / A/B 台账</title>
+<style>
+body{{background:#0e1116;color:#eef2ff;font:15px/1.6 -apple-system,"PingFang SC",sans-serif;margin:0;padding:32px}}
+h1{{font-size:22px;margin:0 0 4px}} small{{color:#8b9bb4;font-weight:400}}
+p.hint{{color:#8b9bb4;margin:0 0 28px}}
+section{{margin:0 0 36px;border-top:1px solid #1d2431;padding-top:18px}}
+.row{{display:flex;gap:14px;flex-wrap:wrap}}
+figure{{margin:0;width:210px}} img{{width:100%;border-radius:10px;display:block;border:1px solid #1d2431}}
+figcaption{{color:#8b9bb4;font-size:12px;margin-top:6px;text-align:center}}
+</style>
+<h1>封面挑选 / A/B 台账</h1>
+<p class="hint">平台只支持 3:4 / 1:1 / 4:3 封面；同一条最多挂 4 张，10 小时后按点击率保留最优。</p>
+{''.join(cards) or '<p>还没有出片，先跑 --render。</p>'}
+"""
+    path = os.path.join(d, "studio-index.html")
+    with open(path, "w", encoding="utf-8") as f:
+        f.write(html)
+    return path
+
+
+def main():
+    ap = argparse.ArgumentParser(description="批量：评分 → 出片 → 封面 → 信息图 → 台账")
+    ap.add_argument("--dir", default=".")
+    ap.add_argument("--render", action="store_true", help="真的出片（默认只评分）")
+    ap.add_argument("--jobs", type=int, default=3, help="每条片子并行分段数")
+    ap.add_argument("--only", default="", help="只跑这些（逗号分隔的 slug 片段）")
+    ap.add_argument("--from-score", type=float, default=0, help="低于该分数不出片")
+    args = ap.parse_args()
+
+    d = os.path.abspath(args.dir)
+    files = sorted(glob.glob(os.path.join(d, "*.content.json")))
+    if args.only:
+        keys = [k.strip() for k in args.only.split(",") if k.strip()]
+        files = [f for f in files if any(k in os.path.basename(f) for k in keys)]
+    if not files:
+        print(f"[studio] {d} 下没有 *.content.json")
+        return
+
+    rows = []
+    print(f"[studio] {len(files)} 条，{'出片' if args.render else '仅评分'}模式\n")
+    for f in files:
+        slug = os.path.basename(f).replace(".content.json", "")
+        sc = score_one(f)
+        row = {"slug": slug, "score": sc.get("score"), "grade": sc.get("grade", "?"),
+               "extra": sc.get("extra") or [], "mp4": "", "summary": "", "video": {}}
+        if args.render and (sc.get("score") or 0) >= args.from_score:
+            out_dir = os.path.join(d, "out", slug)
+            got = render_one(f, out_dir, args.jobs)
+            row.update(got)
+            print(f"  {slug:<20} {row['score']:>5} {row['grade'][0]}  → {got['mp4'] or '失败'} "
+                  f"({got['secs']}s)")
+        else:
+            print(f"  {slug:<20} {row['score']:>5} {row['grade'][0]}")
+            if row["extra"]:
+                for e in [x for x in row["extra"] if not x.get("pass", False)][:3]:
+                    print(f"      · {e['dim']}: {e['msg']}")
+        rows.append(row)
+
+    holes = write_report(rows, d, args.render)
+    idx = write_index(rows, d)
+    total = sum(1 for r in rows if r["mp4"])
+    avg = sum(r["score"] or 0 for r in rows) / max(1, len(rows))
+    print(f"\n[studio] 平均完成度 {avg:.1f}　出片 {total}/{len(rows)}")
+    print(f"[studio] 台账 {os.path.join(d, 'studio-report.md')}")
+    print(f"[studio] 封面页 {idx}")
+
+
+if __name__ == "__main__":
+    main()

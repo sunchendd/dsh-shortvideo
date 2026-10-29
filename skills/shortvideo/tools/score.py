@@ -59,33 +59,33 @@ def _shot_secs(shot):
 
 # ---------------------------------------------------------------- 各维度
 
-def score_hook(cfg, shots, add):
+def score_hook(cfg, shots, miss, ok=lambda *a: None):
     pts, mx = 0.0, 20.0
     if not shots:
-        add("钩子", 0, mx, "没有镜头")
+        miss("钩子", 0, mx, "没有镜头")
         return 0, mx
     first = _clauses(shots[0]["narration"])
     head = first[0] if first else ""
     if len(head) <= HOOK_MAX:
         pts += 10
     else:
-        add("钩子", 0, 10, f"首句 {len(head)} 字（≤{HOOK_MAX}），3 秒念不完：{head}")
+        miss("钩子", 0, 10, f"首句 {len(head)} 字（≤{HOOK_MAX}），3 秒念不完：{head}")
     hook_text = shots[0]["narration"]
     has_signal = any(sig in hook_text for sig in HOOK_SIGNALS) or re.search(r"[？?]|[吗呢][。？?]?$", hook_text)
     if has_signal:
         pts += 5
     else:
-        add("钩子", 0, 5, "首镜没有反常识/数字/疑问等钩子信号词")
+        miss("钩子", 0, 5, "首镜没有反常识/数字/疑问等钩子信号词")
     if NUM_RE.search(shots[0]["narration"]):
         pts += 5
     else:
-        add("钩子", 0, 5, "首镜没有具体数字（数字是点击率最稳的钩子）")
+        miss("钩子", 0, 5, "首镜没有具体数字（数字是点击率最稳的钩子）")
     if pts == mx:
-        add("钩子", pts, mx, "首句短、有钩子信号、含具体数字")
+        ok("钩子", "首句短、有钩子信号、含具体数字")
     return pts, mx
 
 
-def score_rhythm(cfg, shots, add):
+def score_rhythm(cfg, shots, miss, ok=lambda *a: None):
     pts, mx = 0.0, 20.0
     secs = [_shot_secs(s) for s in shots]
     total = sum(secs)
@@ -96,23 +96,23 @@ def score_rhythm(cfg, shots, add):
         limit = 6.2 if s.get("id") == "hook" else 5.4
         worst = max(worst, dens / limit)
         if dens > limit:
-            add("节奏", 0, 5, f"{s.get('id')} 语速 {dens:.1f} 字/秒 > {limit}（会赶）")
+            miss("节奏", 0, 5, f"{s.get('id')} 语速 {dens:.1f} 字/秒 > {limit}（会赶）")
     if worst <= 1.0:
         pts += 8
     elif worst <= 1.1:
         pts += 5
-        add("节奏", 0, 3, "有镜头的语速略超上限")
+        miss("节奏", 0, 3, "有镜头的语速略超上限")
     if TOTAL_RANGE[0] <= total <= TOTAL_RANGE[1]:
         pts += 6
     else:
-        add("节奏", 0, 6, f"总时长 {total:.0f}s 不在 {TOTAL_RANGE[0]}~{TOTAL_RANGE[1]}s 甜区")
+        miss("节奏", 0, 6, f"总时长 {total:.0f}s 不在 {TOTAL_RANGE[0]}~{TOTAL_RANGE[1]}s 甜区")
     avg = total / max(1, len(shots))
     if 4.0 <= avg <= 9.5:
         pts += 6
     else:
-        add("节奏", 0, 6, f"平均镜头 {avg:.1f}s（建议 4~9.5s，太碎或太拖都掉完播）")
+        miss("节奏", 0, 6, f"平均镜头 {avg:.1f}s（建议 4~9.5s，太碎或太拖都掉完播）")
     if pts == mx:
-        add("节奏", pts, mx, f"总长 {total:.0f}s，平均镜头 {avg:.1f}s，语速都在舒适区")
+        ok("节奏", f"总长 {total:.0f}s，平均镜头 {avg:.1f}s，语速都在舒适区")
     return pts, mx
 
 
@@ -129,35 +129,35 @@ def _ngram_repeat(text, n=4):
     return len(dup) / len(grams), sorted(dup, key=lambda g: -dup[g])[:5]
 
 
-def score_info(cfg, shots, add):
+def score_info(cfg, shots, miss, ok=lambda *a: None):
     pts, mx = 0.0, 15.0
     text = " ".join(s["narration"] for s in shots)
     n = _chars(text)
     if 90 <= n <= 200:
         pts += 6
     else:
-        add("信息密度", 0, 6, f"总字数 {n}（90~200 较合适）")
+        miss("信息密度", 0, 6, f"总字数 {n}（90~200 较合适）")
     nums = len(NUM_RE.findall(text))
     if nums >= 3:
         pts += 5
     else:
-        add("信息密度", 0, 5, f"具体数字只有 {nums} 个（≥3 个才有实感）")
+        miss("信息密度", 0, 5, f"具体数字只有 {nums} 个（≥3 个才有实感）")
     if len(shots) >= 4:
         pts += 4
     else:
-        add("信息密度", 0, 4, "镜头数 <4，信息层次不够")
+        miss("信息密度", 0, 4, "镜头数 <4，信息层次不够")
     ratio, dups = _ngram_repeat(text)
     if ratio <= 0.02:
         pass                      # 不单独给分，只在超标时扣
     else:
         pts = max(0.0, pts - 3)
-        add("信息密度", 0, 3, f"4 字重复率 {ratio * 100:.1f}%（{dups}），批量生成易被判非原创")
+        miss("信息密度", 0, 3, f"4 字重复率 {ratio * 100:.1f}%（{dups}），批量生成易被判非原创")
     if pts == mx:
-        add("信息密度", pts, mx, f"{n} 字 / {nums} 个数字 / {len(shots)} 个镜头 / 无明显重复")
+        ok("信息密度", f"{n} 字 / {nums} 个数字 / {len(shots)} 个镜头 / 无明显重复")
     return pts, mx
 
 
-def score_visual(cfg, shots, add):
+def score_visual(cfg, shots, miss, ok=lambda *a: None):
     pts, mx = 0.0, 15.0
     deck = cfg.get("deck") or {}
     kinds = {str((v or {}).get("kind") or "") for v in deck.values()}
@@ -165,79 +165,79 @@ def score_visual(cfg, shots, add):
         pts += 6
     elif len(kinds) == 2:
         pts += 4
-        add("视觉", 0, 2, f"只用了 {len(kinds)} 种画面类型，容易一个样子到底")
+        miss("视觉", 0, 2, f"只用了 {len(kinds)} 种画面类型，容易一个样子到底")
     else:
-        add("视觉", 0, 6, "deck 画面类型不足（建议 ≥3 种 kind 交替）")
+        miss("视觉", 0, 6, "deck 画面类型不足（建议 ≥3 种 kind 交替）")
     emph = sum(len(s.get("emphasis") or []) for s in shots)
     if 3 <= emph <= 10:
         pts += 4
     else:
-        add("视觉", 0, 4, f"关键词高亮 {emph} 个（建议每镜 1~2 个，共 3~10 个）")
+        miss("视觉", 0, 4, f"关键词高亮 {emph} 个（建议每镜 1~2 个，共 3~10 个）")
     trans = (cfg.get("transition") or {}).get("type")
     per_shot = any(s.get("transition_in") for s in shots)
     if trans or per_shot:
         pts += 3
     else:
-        add("视觉", 0, 3, "没配转场（镜头硬切会显得糙）")
+        miss("视觉", 0, 3, "没配转场（镜头硬切会显得糙）")
     if cfg.get("chrome", True):
         pts += 2
     else:
-        add("视觉", 0, 2, "关掉了顶部分段进度点（chorme）：观众不知道还剩几段")
+        miss("视觉", 0, 2, "关掉了顶部分段进度点（chorme）：观众不知道还剩几段")
     if pts == mx:
-        add("视觉", pts, mx, f"{len(kinds)} 种画面 kind，{emph} 处关键词高亮，有转场")
+        ok("视觉", f"{len(kinds)} 种画面 kind，{emph} 处关键词高亮，有转场")
     return pts, mx
 
 
-def score_cover(cfg, shots, add):
+def score_cover(cfg, shots, miss, ok=lambda *a: None):
     pts, mx = 0.0, 15.0
     cov = cfg.get("cover") or {}
     head = cov.get("headline") or []
     if head and all(_width(x) <= 6 for x in head) and len(head) <= 3:
         pts += 5
     else:
-        add("封面标题", 0, 5, f"封面主标题每行需 ≤6 字宽且 ≤3 行，当前 {head}")
+        miss("封面标题", 0, 5, f"封面主标题每行需 ≤6 字宽且 ≤3 行，当前 {head}")
     if cov.get("highlight"):
         pts += 3
     else:
-        add("封面标题", 0, 3, "封面没有 highlight（关键词没有对比色强调）")
+        miss("封面标题", 0, 3, "封面没有 highlight（关键词没有对比色强调）")
     if cov.get("sub") and len(str(cov["sub"])) <= 20:
         pts += 3
     else:
-        add("封面标题", 0, 3, "封面 sub 缺失或 >20 字")
+        miss("封面标题", 0, 3, "封面 sub 缺失或 >20 字")
     tags = cov.get("tags") or []
     if 2 <= len(tags) <= 5:
         pts += 2
     else:
-        add("封面标题", 0, 2, f"话题标签 {len(tags)} 个（建议 2~5）")
+        miss("封面标题", 0, 2, f"话题标签 {len(tags)} 个（建议 2~5）")
     pub = cfg.get("publish_title") or cfg.get("title") or ""
     if 10 <= len(pub) <= 22:
         pts += 2
     else:
-        add("封面标题", 0, 2, f"标题 {len(pub)} 字（建议 12~20）")
+        miss("封面标题", 0, 2, f"标题 {len(pub)} 字（建议 12~20）")
     if pts == mx:
-        add("封面标题", pts, mx, "封面三行内、有高亮、有副标、有标签，标题长度达标")
+        ok("封面标题", "封面三行内、有高亮、有副标、有标签，标题长度达标")
     return pts, mx
 
 
-def score_engage(cfg, shots, add):
+def score_engage(cfg, shots, miss, ok=lambda *a: None):
     pts, mx = 0.0, 15.0
     text = " ".join(s["narration"] for s in shots) + " " + str(cfg.get("title") or "")
     tail = shots[-1]["narration"] if shots else ""
     if re.search(r"(关注|收藏|评论|留言|评论区)", tail):
         pts += 6
     else:
-        add("互动合规", 0, 6, "结尾没有互动引导（CES 里关注的权重是点赞的 8 倍）")
+        miss("互动合规", 0, 6, "结尾没有互动引导（CES 里关注的权重是点赞的 8 倍）")
     bad = set(REDLINE.findall(text))
     if bad:
-        add("互动合规", 0, 6, f"出现平台红线词：{sorted(bad)}")
+        miss("互动合规", 0, 6, f"出现平台红线词：{sorted(bad)}")
     else:
         pts += 6
     if cfg.get("disclosure", "AI 配音"):
         pts += 3
     else:
-        add("互动合规", 0, 3, "没有 AI 合成语音标识（合成人声需显著标识）")
+        miss("互动合规", 0, 3, "没有 AI 合成语音标识（合成人声需显著标识）")
     if pts == mx:
-        add("互动合规", pts, mx, "有互动引导、无红线词、有 AI 标识")
+        ok("互动合规", "有互动引导、无红线词、有 AI 标识")
     return pts, mx
 
 
@@ -279,10 +279,14 @@ GRADE = ((85, "S 爆款潜力"), (75, "A 可发"), (65, "B 需打磨"), (50, "C 
 def run(cfg, video=None):
     shots = cfg.get("shots") or []
     rows = []
-    add = lambda dim, got, mx, msg: rows.append((dim, got, mx, msg))  # noqa: E731
+    def miss(dim, got, mx, msg):
+        rows.append({"dim": dim, "msg": msg, "pass": False})
+
+    def good(dim, msg):
+        rows.append({"dim": dim, "msg": msg, "pass": True})
     total = 0.0
     for fn in (score_hook, score_rhythm, score_info, score_visual, score_cover, score_engage):
-        got, mx = fn(cfg, shots, add)
+        got, mx = fn(cfg, shots, miss, good)
         total += got
     res = {"score": round(total, 1), "grade": next(g for s, g in GRADE if total >= s),
            "extra": rows}
@@ -304,12 +308,13 @@ def main():
         return
     print(f"\n爆款潜力 {res['score']}/100  [{res['grade']}]\n" + "─" * 52)
     dims = {}
-    for dim, got, mx, msg in res["extra"]:
-        dims.setdefault(dim, []).append(msg)
-    for dim, msgs in dims.items():
-        print(f"\n■ {dim}")
-        for msg in msgs:
-            print(f"   - {msg}")
+    for row in res["extra"]:
+        dims.setdefault(row["dim"], []).append(row)
+    for dim, rows_ in dims.items():
+        bad = [r for r in rows_ if not r["pass"]]
+        print(f"\n■ {dim}" + ("  ✅" if not bad else f"  ⚠ {len(bad)} 项"))
+        for r in rows_:
+            print(("   - " if not r["pass"] else "   ✔ ") + r["msg"])
     if "video" in res:
         v = res["video"]
         print(f"\n■ 成片  {v.get('size', '?')} / {v.get('fps', '?')}fps / {v.get('dur', '?')}s / "

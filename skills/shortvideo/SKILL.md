@@ -147,6 +147,9 @@ $PY $TOOLS/make.py --content content.json --topic deck --out out/x.mp4 --preview
 | `list` | 逐条出现的清单 | 三条建议 |
 | `bits` | 格子阵（0/1、开/关） | 二进制、开关 |
 | `digits` | 数字串逐字排，可高亮重复段/截断点 | 浮点、进制、哈希 |
+| `stat` | 巨型数字滚动计数 + 单位 + 说明 | 倍数、增长率、反差数据 |
+| `timeline` | 横向时间轴，节点依次点亮 | 过程、历史、因果链 |
+| `flow` | 竖向因果链 A→B→C，逐级点亮 | 讲机制、讲推理 |
 
 要更"专属"的视觉（真实数据结构动画、几何推导）再写题材包，参照 `$TOPICS/` 里的
 `sorting.py`（真实跑排序记录 trace）和 `lightsout.py`（矩阵求逆）。
@@ -239,6 +242,21 @@ $PY $TOOLS/score.py --content content.json --video out/x.mp4
 六维：钩子 20 / 节奏 20 / 信息密度 15 / 视觉 15 / 封面标题 15 / 互动合规 15。
 它把本文件与 `docs/xhs-playbook.md` 的清单变成数字，改一版看一次分数即可知道有没有变好。
 **注意口径**：满分只代表"完全符合 playbook 清单"，不等于必爆——真实分发还看选题时机与账号权重。
+
+## 批量干活：`studio.py`
+
+```bash
+$PY $TOOLS/studio.py --dir examples                      # 只评分，秒级出报告
+$PY $TOOLS/studio.py --dir examples --render             # 评分 + 出片 + 封面 + 信息图
+$PY $TOOLS/studio.py --dir examples --render --from-score 90   # 只渲达标的
+```
+
+产物都在 `--dir` 下：
+- `studio-report.md` / `.json`：生产台账（分数 / 时长 / 分辨率 / 体积 / 峰值 / 缺什么）
+- `studio-index.html`：**封面挑选页**，三版 3:4 封面并排，点开大图挑一张去发（也能当 A/B 记录页）
+- `out/<slug>/`：成片 + `cover_f1/f3/f6/9x16` + `cover_frame` + `<slug>-summary.png`
+
+选题一多就走这条路：先把 N 个 content.json 写完 → `--dir` 评分排序 → 只渲 ≥90 的 → 用封面页挑图发。
 
 ## 质量检查单（交付前必过）
 

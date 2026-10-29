@@ -1,0 +1,67 @@
+{
+  "generated": 1793178937.9019775,
+  "items": [
+    {
+      "slug": "01-monty-hall",
+      "score": 100.0,
+      "grade": "S 爆款潜力",
+      "extra": [
+        [
+          "钩子",
+          20.0,
+          20.0,
+          "首句短、有钩子信号、含具体数字"
+        ],
+        [
+          "节奏",
+          20.0,
+          20.0,
+          "总长 38s，平均镜头 7.6s，语速都在舒适区"
+        ],
+        [
+          "信息密度",
+          15.0,
+          15.0,
+          "133 字 / 8 个数字 / 5 个镜头 / 无明显重复"
+        ],
+        [
+          "视觉",
+          15.0,
+          15.0,
+          "4 种画面 kind，6 处关键词高亮，有转场"
+        ],
+        [
+          "封面标题",
+          15.0,
+          15.0,
+          "封面三行内、有高亮、有副标、有标签，标题长度达标"
+        ],
+        [
+          "互动合规",
+          15.0,
+          15.0,
+          "有互动引导、无红线词、有 AI 标识"
+        ]
+      ],
+      "mp4": "/root/dsh-shortvideo/examples/out/01-monty-hall/01-monty-hall.mp4",
+      "summary": "/root/dsh-shortvideo/examples/out/01-monty-hall/01-monty-hall-summary.png",
+      "video": {
+        "size_mb": 1.6,
+        "dur": 37.8,
+        "size": "1080x1920",
+        "fps": 30.0,
+        "peak_db": -1.0,
+        "mean_db": -24.7
+      },
+      "secs": 13.5,
+      "log_tail": [
+        "[ok] 封面 /root/dsh-shortvideo/examples/out/01-monty-hall/cover_f6.png",
+        "[ok] 封面 /root/dsh-shortvideo/examples/out/01-monty-hall/cover_9x16.png",
+        "[ok] 帧截图 /root/dsh-shortvideo/examples/out/01-monty-hall/cover_frame.png",
+        "[check] 流：视频=有 音频=有 时长=37.8s",
+        "[check] 音量：峰值 -1.0 dB / 均值 -24.7 dB",
+        "[check] 通过"
+      ]
+    }
+  ]
+}
