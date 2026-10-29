@@ -176,7 +176,8 @@ class FrameRenderer:
         if intro is False:
             intro = {}
         self.intro = intro if isinstance(intro, dict) else {}
-        self.intro_dur = float(self.intro.get("dur", 0.8) or 0)
+        self.intro_style = str(self.intro.get("style") or "bar")
+        self.intro_dur = float(self.intro.get("dur", 1.7 if self.intro_style == "bar" else 0.8) or 0)
         self.ttype = str(trans.get("type") or "").lower()
         self.tdur = float(trans.get("dur", 0.24) or 0)
         self._prev = {}
@@ -238,7 +239,7 @@ class FrameRenderer:
             S.caption(img, text, a, emphasis=self._live_emphasis(item, lt))
         if self.intro and idx == 0 and lt <= self.intro_dur:
             S.intro(img, lt, str(self.intro.get("title") or ""),
-                    str(self.intro.get("sub") or ""), self.intro_dur)
+                    str(self.intro.get("sub") or ""), self.intro_dur, self.intro_style)
         if self.chrome:
             S.seg_dots(img, idx, len(self.timeline))
         if self.disclosure:

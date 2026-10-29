@@ -637,16 +637,47 @@ class SceneAPI:
     # ------------------------------------------------------------ 片头（0.6~0.9s 的品牌开场）
 
     @staticmethod
-    def intro(img, t, title="", sub="", dur=0.8, style="sweep"):
-        """片头动效：压暗 → 强调线扫过 → 栏目名砸入 → 整体上滑淡出。
+    def intro(img, t, title="", sub="", dur=1.7, style="bar"):
+        """片头：默认是**顶部栏目条**（不挡钩子画面），需要时可用 takeover 全屏版。
 
-        位置很讲究：只占前 ~0.8s，盖住钩子镜的头两帧，让人先记住"这是谁的号"，
-        再听第一句话。次数多了就是账号的视觉签名。
+        为什么默认不用全屏：前 3 秒是完播率的生死线，全屏片头会白白吃掉 1/4 的黄金时间。
+        顶部条从左侧滑入、停留、滑出，既打了账号签名，又不影响钩子大字第一帧就出现。
         """
+        if not title or dur <= 0 or t < 0 or t > dur:
+            return
+        if style == "takeover":
+            SceneAPI._intro_takeover(img, t, title, sub, dur)
+            return
+        p = R.clamp(t / dur)
+        # 0~0.22 滑入，0.22~0.72 停留，0.72~1 滑出
+        if p < 0.22:
+            k = R.ease_out(p / 0.22)
+        elif p > 0.72:
+            k = 1 - R.ease_in_out((p - 0.72) / 0.28)
+        else:
+            k = 1.0
+        if k <= 0.01:
+            return
+        f = R.font(34, bold=True)
+        tw = f.getlength(title)
+        bar_w = tw + 64
+        bar_h = 62
+        x = int(-bar_w + (bar_w + 44) * k)      # 从左侧滑到 x=44
+        y = 128
+        SceneAPI.panel(img, (x, y, x + bar_w, y + bar_h), fill=R.ACCENT,
+                       alpha=0.95, radius=bar_h // 2)
+        ImageDraw.Draw(img, "RGBA").text((x + 32, y + bar_h / 2), title, font=f,
+                                         fill=(10, 14, 26, 255), anchor="lm")
+        if sub and k > 0.6:
+            SceneAPI.text(img, (x + bar_w + 20, y + bar_h / 2), sub, 30, fill=R.DIM,
+                          bold=False, anchor="lm", alpha=(k - 0.6) / 0.4)
+
+    @staticmethod
+    def _intro_takeover(img, t, title, sub, dur):
+        """全屏片头（更"大片"但会挡画面，慎用）。"""
         if dur <= 0 or t < 0 or t > dur:
             return
         p = R.clamp(t / dur)
-        # 0~0.55 保持，0.55~1 淡出，且整体上移
         fade = 1.0 if p < 0.58 else R.clamp(1 - (p - 0.58) / 0.42)
         if fade <= 0.01:
             return
@@ -654,28 +685,26 @@ class SceneAPI:
         cy = int(R.H * 0.44) + lift
         # 压暗底
         layer, ox, oy = _layer((0, 0, R.W, R.H), pad=0)
-        d0 = ImageDraw.Draw(layer)
-        d0.rectangle((0, 0, R.W, R.H), fill=(6, 9, 16, int(246 * fade)))
+        ImageDraw.Draw(layer).rectangle((0, 0, R.W, R.H),
+                                        fill=(6, 9, 16, int(246 * fade)))
         _blend(img, layer, ox, oy)
-        # 片头名下垫一块同色实底：钩子的大字不至于从片头字后面透出来
-        band_h = 150
-        SceneAPI.panel(img, (R.W / 2 - 430, cy - band_h / 2, R.W / 2 + 430, cy + band_h / 2),
-                fill=R.BG_TOP, alpha=0.98 * fade, radius=26)
-        # 强调线：从中间向两侧扫开（前 32%）
+        # 片头名下垫实底，避免与钩子大字重叠
+        SceneAPI.panel(img, (R.W / 2 - 430, cy - 75, R.W / 2 + 430, cy + 75),
+                       fill=R.BG_TOP, alpha=0.98 * fade, radius=26)
+        # 强调线扫开
         grow = R.ease_out(R.clamp(p / 0.32))
         half = int(R.W * 0.34 * grow)
         if half > 2:
             ImageDraw.Draw(img, "RGBA").rectangle(
                 (R.W / 2 - half, cy + 74, R.W / 2 + half, cy + 84),
                 fill=tuple(R.ACCENT) + (int(235 * fade),))
-        # 栏目名：1.18 倍砸到 1.0 倍
-        scale = 1.18 - 0.18 * R.ease_out(R.clamp(p / 0.34))
         if title:
-            size = int(92 * scale)
-            SceneAPI.kinetic_text(img, (R.W / 2, cy), title, size, fill=R.TEXT,
+            scale = 1.18 - 0.18 * R.ease_out(R.clamp(p / 0.34))
+            SceneAPI.kinetic_text(img, (R.W / 2, cy), title, int(92 * scale), fill=R.TEXT,
                                   t=t - 0.04, dur=0.3, style="slam",
                                   stroke=R.BG_BOT, stroke_w=5, shadow=0.85, alpha=fade)
         if sub:
             a = R.clamp((p - 0.26) / 0.2) * fade
             SceneAPI.text(img, (R.W / 2, cy + 132), sub, 40, fill=R.ACCENT,
                           bold=True, anchor="mm", alpha=a)
+
