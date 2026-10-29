@@ -508,7 +508,7 @@ def lint_script(cfg, timeline, degraded=()):
         elif density > hi_warn:
             out.append(("warn", f"{shot.get('id')}: {density:.1f} 音节/秒偏快（正文舒适区 4.0~5.2）"))
         if n_char > 38:
-            out.append(("warn", f"{shot.get('id')}: {n} 字超单镜上限 38 字（字幕会顶满两行）"))
+            out.append(("warn", f"{shot.get('id')}: {n_char} 字超单镜上限 38 字（字幕会顶满两行）"))
         hold_min = 0.7 if str(cfg.get("format") or "").lower() in ("short", "15s", "quick") else 1.0
         if item["dur"] - adur < hold_min:
             out.append(("warn", f"{shot.get('id')}: 镜头留白仅 {item['dur'] - adur:.2f}s（建议 ≥{hold_min:g}s，"
@@ -787,9 +787,13 @@ def main():
     print(f"[time] 总时长 {total:.2f}s")
 
     # 配音降级检测：网络抖动时 tts 会写等长静音占位，那不是文案问题，别让体检误判
+    # 注意：这里必须用 timeline[i]（= shot 字典 + 时间轴字段），
+    # 曾经写成 shots[i]（未定义变量）——因为前两个条件短路，平时不会抛，
+    # 只有真的出现静音段（网络抖动把配音降级成静音）时才 NameError，
+    # 也就是"出错时才炸"的坑：异常路径比正常路径更需要跑一次。
     degraded = [i for i, it in enumerate(timeline)
                 if it.get("wav") and _is_silent_wav(it["wav"])
-                and len(re.sub(r"\s", "", shots[i].get("narration", ""))) > 2]
+                and len(re.sub(r"\s", "", it.get("narration", ""))) > 2]
 
     words_fn = getattr(voice, "words_for", None)
     for item in timeline:
@@ -799,7 +803,7 @@ def main():
         item["words"] = words_fn(item["wav"]) if words_fn else []
 
     if not args.no_lint:
-        print_lint(lint_script(cfg, timeline), strict=args.strict)
+        print_lint(lint_script(cfg, timeline, degraded=degraded), strict=args.strict)
 
     # ---------- 审片模式 ----------
     if args.preview:

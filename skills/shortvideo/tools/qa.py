@@ -108,7 +108,8 @@ def _stats(img, scale=3):
 
 def check_video(path, fps=2.0, keep_frames=False):
     dur = probe_duration(path)
-    frames, times = grab_frames(path, fps, tmpdir=f"/tmp/qa_{abs(hash(path)) % 10000}")
+    stem = os.path.splitext(os.path.basename(path))[0]
+    frames, times = grab_frames(path, fps, tmpdir=f"/tmp/qa_{stem}_{os.getpid()}")
     rows = []
     for fp, t in zip(frames, times):
         try:

@@ -83,7 +83,7 @@ def analyse(slug, content_path, video_path, fps=2.0):
     wavs = shot_wavs(build)
     frames, times = ([], [])
     if os.path.exists(video_path):
-        frames, times = qa.grab_frames(video_path, fps, f"/tmp/pace_{slug}")
+        frames, times = qa.grab_frames(video_path, fps, f"/tmp/pace_{slug}_{os.getpid()}")
 
     rows, t0 = [], 0.0
     for i, shot in enumerate(shots):

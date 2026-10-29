@@ -51,6 +51,11 @@ def tighten(path, pad=1.5, floor=4.5, cap=8.0, dry_run=False):
         sid = shot.get("id") or str(i)
         adur = wav_dur(os.path.join(build, f"{i:02d}_{sid}.wav"))
         if not adur:
+            # 静默跳过最坑：--out 写成 out/<slug>.mp4 时 build 不在 out/<slug>/ 下，
+            # 这里读不到 wav 就 continue，用户只会看到"调整 0 个镜头"而不知为何
+            if not dry_run and i == 0:
+                print(f"  [!] {os.path.basename(path)}: 读不到 {build}/{i:02d}_{sid}.wav，"
+                      f"未收紧（确认 --out 是否为 out/<slug>/<slug>.mp4）")
             continue
         kind = str((deck.get(sid) or {}).get("kind") or "big")
         my_pad = KIND_PAD.get(kind, pad)
