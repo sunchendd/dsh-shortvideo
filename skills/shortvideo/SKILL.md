@@ -366,6 +366,22 @@ $PY $TOOLS/make.py --content examples/01-x.content.json --topic deck --out examp
 短版一镜 ≈ 12 个字。写超了就一定是 5.5+ 音节/秒，靠调 rate 是救不回来的
 （实测 -12% 只多 0.2s），只能删字。
 
+## 排期：`plan.py` 把片库排成发布日历
+
+```bash
+python3 tools/plan.py --dir examples --per-week 3 --out docs/publish-plan.md
+python3 tools/plan.py --dir examples --start 2026-11-01 --json
+```
+
+排序不是随便排，四条硬规则：
+
+1. **同题不连发**：按学科轮转取件，相邻两条尽量不同学科
+2. **长短配对**：同一选题的长版和短版**必须在同一周**（互相导流，否则自相竞争）
+3. **强弱交替**：短的、钩子强的先发（新号前几条决定推不推）
+4. **首尾周不满就并入相邻周**，避免"发一周停一周"
+
+同题识别靠 `TOPIC_KEYS`（二维码/咖啡因/视觉盲点/微波/近视…），新选题要加一行。
+
 ## 工具约定与口径（不看会踩的"隐性规则"）
 
 ### 1. 成片路径是硬约定
