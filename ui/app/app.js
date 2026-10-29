@@ -1377,6 +1377,9 @@ function bindKeys() {
     if (meta && e.key.toLowerCase() === "k") {
       e.preventDefault(); PAL.open ? closePalette() : openPalette(); return;
     }
+    // Esc 必须在 PAL.open 的拦截之前处理：命令面板打开时，其余按键要让位，
+    // 但"关闭它"这件事本身不能被吞掉（之前就是被 `if (PAL.open) return` 挡住的）。
+    if (e.key === "Escape") { e.preventDefault(); escClose(); return; }
     if (PAL.open) return;
     if (meta && e.key.toLowerCase() === "s") { e.preventDefault(); doSave(); return; }
     if (meta && e.key.toLowerCase() === "e") { e.preventDefault(); $("#btnExport").click(); return; }
@@ -1392,7 +1395,6 @@ function bindKeys() {
       case "ArrowRight": e.preventDefault(); pause(); seek(S.t + (e.shiftKey ? 1 : 1 / 30), { force: true, select: true }); break;
       case "Home": e.preventDefault(); pause(); seek(0, { force: true, select: true }); break;
       case "End": e.preventDefault(); pause(); seek(S.proj.total - 0.1, { force: true, select: true }); break;
-      case "Escape": escClose(); break;
     }
   });
 }
