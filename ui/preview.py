@@ -402,6 +402,18 @@ def _deliver_info(slug):
     info["topics"] = cfg.get("topics") or []
     info["tags"] = (cfg.get("cover") or {}).get("tags") or []
     info["duration"] = round(sum(float(x.get("min_dur") or 0) for x in cfg.get("shots") or []), 1)
+    info["size"] = "x".join(str(v) for v in (cfg.get("size") or [1080, 1920]))
+    info["fps"] = int(cfg.get("fps") or 30)
+    rj = os.path.join(d, ".render.json")
+    if os.path.exists(rj):
+        try:
+            meta = json.load(open(rj, encoding="utf-8"))
+            info["size"] = meta.get("size") or info["size"]
+            info["fps"] = meta.get("fps") or info["fps"]
+            info["preset"] = meta.get("preset")
+            info["rendered_at"] = meta.get("at")
+        except Exception:  # noqa: BLE001
+            pass
 
     mp4 = os.path.join(d, f"{slug}.mp4")
     if os.path.exists(mp4):
@@ -508,9 +520,21 @@ def _run_stage(slug, stage, opts=None):
         preset = (opts or {}).get("preset") or "xhs"
         cmd = [PY, os.path.join(TOOLS, "make.py"), "--content", content,
                "--topic", "deck", "--out", mp4, "--jobs", "2"]
-        if preset == "draft":            # 快速预览：720x1280 / 24fps，约 1/3 耗时
-            cmd += ["--size", "720x1280", "--fps", "24"]
+        if preset == "draft":
+            # 快速预览：720x1280 / 24fps / veryfast，约 1/3 耗时。
+            # 注意 make.py 原来没有 --size，第一次接的时候直接 argparse 报错，
+            # 而前端把"失败"当成了"完成"——两个都修了。
+            cmd += ["--size", "720x1280", "--fps", "24", "--preset", "veryfast", "--crf", "26"]
         r = subprocess.run(cmd, cwd=REPO, capture_output=True, text=True, timeout=3600)
+        if r.returncode == 0 and os.path.exists(mp4):
+            # 快速预览是 720x1280，交付界面不能还写着 1080x1920 —— 以实际出片为准
+            try:
+                json.dump({"preset": preset, "size": "720x1280" if preset == "draft" else "1080x1920",
+                           "fps": 24 if preset == "draft" else 30,
+                           "at": time.strftime("%Y-%m-%d %H:%M:%S")},
+                          open(os.path.join(d, ".render.json"), "w", encoding="utf-8"))
+            except OSError:
+                pass
         return r.returncode == 0, ((r.stdout or "") + (r.stderr or ""))[-1500:]
     if stage == "assets":
         code = ("import sys,json;sys.path.insert(0,%r);import cover;"

@@ -67,6 +67,7 @@ async function boot() {
   if (!target) return showEmpty("没有可编辑的项目");
   await loadProject(target);
   bindKeys();
+  bindPalette();
   bindUI();
   fitStage();
   new ResizeObserver(fitStage).observe(document.querySelector(".canvaswrap"));
@@ -659,7 +660,8 @@ async function openDeliver(auto = false) {
   $("#dlTitle").textContent = auto ? "导出完成" : "成片交付";
   $("#dlVideo").src = d.video + "?v=" + Date.now();
   $("#dlStat").textContent =
-    `${d.duration}s · ${d.size_mb}MB · ${S.proj.size[0]}×${S.proj.size[1]} · h264+aac`;
+    `${d.duration}s · ${d.size_mb}MB · ${(d.size || "").replace("x", "×")} · ${d.fps || 30}fps · h264+aac` +
+    (d.preset === "draft" ? " · 快速预览画质" : "");
   $("#dlPubTitle").value = d.publish_title || "";
   const count = () => {
     const n = $("#dlPubTitle").value.trim().length;
@@ -754,18 +756,27 @@ async function startExport() {
   pollJob(r.job, (line) => {
     $("#exLog").textContent = line;
     // make.py 会输出「渲染 120/1104 30fps ETA 12s」的进度行，抓出来做真实进度
-    const m = line.match(/渲染\s+(\d+)\/(\d+)/);
+    const all = line.match(/渲染\s+(\d+)\/(\d+)/g) || [];
+    const m = all.length ? all[all.length - 1].match(/渲染\s+(\d+)\/(\d+)/) : null;
     if (m) {
       const pct = 20 + 70 * (+m[1] / +m[2]);
       $("#exBar").style.width = pct.toFixed(1) + "%";
     } else if (/\[tts\]/.test(line)) $("#exBar").style.width = "12%";
     else if (/\[render\]/.test(line)) $("#exBar").style.width = "20%";
     else if (/\[ok\]/.test(line)) $("#exBar").style.width = "96%";
-  }, () => {
-    $("#exBar").style.width = "100%";
+  }, (ok) => {
     const secs = ((performance.now() - t0) / 1000).toFixed(0);
-    $("#exLog").textContent += `\n\n导出完成，用时 ${secs}s。`;
     $("#exGo").disabled = false;
+    if (!ok) {
+      $("#exBar").style.width = "100%";
+      $("#exBar").style.background = "var(--bad)";
+      $("#exLog").textContent += `\n\n导出失败（${secs}s），看上面的日志。`;
+      toast("导出失败");
+      return;
+    }
+    $("#exBar").style.background = "";
+    $("#exBar").style.width = "100%";
+    $("#exLog").textContent += `\n\n导出完成，用时 ${secs}s。`;
     toast("导出完成");
     _thumbCacheClear();
     renderTimeline();
@@ -787,18 +798,100 @@ async function pollJob(id, onLine, done) {
       last = text;
       onLine(text.slice(-600));
     }
-    if (j.status === "done") return done && done();
-    if (j.status === "fail") { toast("失败，看日志"); return done && done(); }
+    // done(ok)：把成功/失败都交给回调，别让调用方自己猜
+    if (j.status === "done") return done && done(true);
+    if (j.status === "fail") { toast("失败，看日志"); return done && done(false); }
     await sleep(700);
   }
 }
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
+
+/* ------------------------------------------------------------ 命令面板
+   剪辑软件里"换一条片子"和"跑一个动作"都该是一次按键的事，
+   而不是回到首页再点三层。⌘K 一个入口把两件事合在一起。 */
+const PAL = { items: [], idx: 0, open: false };
+
+async function openPalette() {
+  PAL.open = true;
+  $("#palette").hidden = false;
+  $("#palInput").value = "";
+  const list = await jget("/api/projects").catch(() => ({ projects: [] }));
+  const acts = [
+    { label: "导出成片", hint: "⌘E", run: () => $("#btnExport").click() },
+    { label: "跑质检", hint: "", run: () => runQA() },
+    { label: "查看交付面板", hint: "", run: () => openDeliver(false) },
+    { label: "新建项目", hint: "", run: () => { location.href = "/"; } },
+    { label: "回到片库", hint: "Esc", run: () => { location.href = "/"; } },
+    { label: "立即保存", hint: "⌘S", run: () => doSave() },
+    { label: "切换主题：瓷白", run: () => setTheme("porcelain") },
+    { label: "切换主题：午夜", run: () => setTheme("midnight") },
+    { label: "切换主题：宣纸", run: () => setTheme("rice-paper") },
+  ];
+  const projs = (list.projects || []).slice(0, 40).map((p) => ({
+    label: p.title, kind: p.slug, hint: p.duration + "s",
+    run: () => { location.href = "/app/#" + encodeURIComponent(p.slug); },
+  }));
+  PAL.items = [...acts.map((a) => ({ ...a, kind: "命令" })),
+               ...projs.map((p) => ({ ...p, kind: "项目" }))];
+  PAL.idx = 0;
+  renderPalette("");
+  $("#palInput").focus();
+}
+
+function setTheme(t) {
+  commit(() => { S.proj.theme = t; });
+  $("#fTheme").value = t;
+  requestFrame(true);
+}
+
+function renderPalette(q) {
+  const kw = q.trim().toLowerCase();
+  const rows = PAL.items.filter((it) =>
+    !kw || (it.label + " " + (it.kind || "")).toLowerCase().includes(kw));
+  PAL.shown = rows;
+  PAL.idx = Math.min(PAL.idx, Math.max(0, rows.length - 1));
+  $("#palList").innerHTML = rows.map((it, i) => `
+    <div class="palitem ${i === PAL.idx ? "on" : ""}" data-i="${i}">
+      <span class="kind">${esc(it.kind || "")}</span>
+      <span>${esc(it.label)}</span>
+      <span class="k">${esc(it.hint || "")}</span>
+    </div>`).join("") || `<div class="palitem">没有匹配项</div>`;
+  $("#palList").querySelectorAll("[data-i]").forEach((el) => {
+    el.onclick = () => runPalette(+el.dataset.i);
+  });
+}
+
+function runPalette(i) {
+  const it = (PAL.shown || [])[i];
+  closePalette();
+  if (it) it.run();
+}
+
+function closePalette() {
+  PAL.open = false;
+  $("#palette").hidden = true;
+}
+
+function bindPalette() {
+  $("#palInput").oninput = (e) => { PAL.idx = 0; renderPalette(e.target.value); };
+  $("#palette").onclick = (e) => { if (e.target.id === "palette") closePalette(); };
+  $("#palInput").onkeydown = (e) => {
+    if (e.key === "ArrowDown") { e.preventDefault(); PAL.idx = Math.min(PAL.idx + 1, (PAL.shown || []).length - 1); renderPalette($("#palInput").value); }
+    else if (e.key === "ArrowUp") { e.preventDefault(); PAL.idx = Math.max(0, PAL.idx - 1); renderPalette($("#palInput").value); }
+    else if (e.key === "Enter") { e.preventDefault(); runPalette(PAL.idx); }
+    else if (e.key === "Escape") { closePalette(); }
+  };
+}
 
 /* ------------------------------------------------------------ 快捷键 */
 function bindKeys() {
   window.addEventListener("keydown", (e) => {
     const typing = /^(INPUT|TEXTAREA|SELECT)$/.test(document.activeElement.tagName);
     const meta = e.metaKey || e.ctrlKey;
+    if (meta && e.key.toLowerCase() === "k") {
+      e.preventDefault(); PAL.open ? closePalette() : openPalette(); return;
+    }
+    if (PAL.open) return;
     if (meta && e.key.toLowerCase() === "s") { e.preventDefault(); doSave(); return; }
     if (meta && e.key.toLowerCase() === "e") { e.preventDefault(); $("#btnExport").click(); return; }
     if (meta && e.key.toLowerCase() === "z") {

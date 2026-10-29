@@ -916,6 +916,8 @@ def main():
     ap.add_argument("--out", default="out/video.mp4")
     ap.add_argument("--preview", action="store_true", help="每镜头 2 张关键帧，秒级审片")
     ap.add_argument("--fps", type=int, default=None)
+    ap.add_argument("--size", default=None,
+                    help="覆盖分辨率，如 720x1280（快速预览用；默认读 content.json 的 size）")
     ap.add_argument("--jobs", type=int, default=None,
                     help="并行分段数（默认 auto=min(4, 核数//2)；1=单进程边渲边编）")
     ap.add_argument("--keep-segments", action="store_true", help="保留并行中间分段文件")
@@ -949,6 +951,11 @@ def main():
         pass
     fps = args.fps or cfg.get("fps", 30)
     w, h = cfg.get("size", [R.W, R.H])
+    if args.size:
+        try:
+            w, h = (int(x) for x in str(args.size).lower().split("x"))
+        except ValueError:
+            raise SystemExit(f"[x] --size 需要 WxH，收到 {args.size!r}")
     R.W, R.H, R.FPS = w, h, fps
 
     topic = load_topic(args.topic)
