@@ -366,12 +366,27 @@ $PY $TOOLS/make.py --content examples/01-x.content.json --topic deck --out examp
 短版一镜 ≈ 12 个字。写超了就一定是 5.5+ 音节/秒，靠调 rate 是救不回来的
 （实测 -12% 只多 0.2s），只能删字。
 
+## 发布齐套：视频 + 封面 + 一张图 + 标题
+
+`checklist.py` 的第 9 道门查"齐套"。实测第一次跑时 **24 条只有 2 条齐套**——
+视频封面都在，但 21 条没 `summary.png`、3 条短版连 oneimage spec 都没有。
+这种缺失不影响成片质量，但**发不出去**（小红书图文笔记要用一张图）。
+
+```bash
+# 补一张图（缺 spec 时先写 spec）
+python3 tools/oneimage.py --spec examples/oneimage-<slug>.json \
+    --out examples/out/<slug>/summary.png
+```
+
 ## 排期：`plan.py` 把片库排成发布日历
 
 ```bash
 python3 tools/plan.py --dir examples --per-week 3 --out docs/publish-plan.md
 python3 tools/plan.py --dir examples --start 2026-11-01 --json
 ```
+
+`plan.py --stats` 先看结构（学科分布 / 长短配比 / 薄弱学科 / 单一学科是否超 25%），
+确认多样性之后再排期。
 
 排序不是随便排，四条硬规则：
 

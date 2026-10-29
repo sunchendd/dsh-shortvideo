@@ -162,6 +162,17 @@ def _text_outline(img, xy, s, size, fill, stroke=None, anchor="mm", stroke_w=Non
         stroke_width=sw, stroke_fill=(tuple(stroke) if stroke else (0, 0, 0)) + (255,))
 
 
+def highlight_box(cy, size, x0, x1, pad_x=10):
+    """高亮块的纵向范围：必须包住整个 CJK 字形。
+
+    旧写法用 line_h*0.14 ~ line_h*0.86，块只有 ~0.72 行高，
+    而中文字形几乎占满 em 框——结果字的上下被切掉，
+    深色字落到深色底上直接看不见（实测「三成」只剩中间一横）。
+    """
+    half = size * 0.60
+    return (x0, cy - half, x1, cy + half)
+
+
 def _highlight_block(img, box, color):
     """关键词高亮色块（F6 用：色块 + 深色字）。"""
     layer, ox, oy = _scenes._layer(box, pad=1)
@@ -198,9 +209,10 @@ def _variant_f1(c, w=W34, h=H34):
         if hit:
             k = ln.find(hit)
             pre, hw = f.getlength(ln[:k]), f.getlength(hit)
-            _highlight_block(img, (max(MARGIN - 4, x0 + pre - 10), y + line_h * 0.14,
-                                   min(w - MARGIN + 4, x0 + pre + hw + 10),
-                                   y + line_h * 0.86), accent2)
+            _highlight_block(img, highlight_box(
+                y + line_h / 2, size,
+                max(MARGIN - 4, x0 + pre - 10),
+                min(w - MARGIN + 4, x0 + pre + hw + 10)), accent2)
             d = ImageDraw.Draw(img, "RGBA")
             before, after = ln[:k], ln[k + len(hit):]
             if before:
@@ -261,9 +273,10 @@ def _variant_short(c, w=W34, h=H34):
         if hit:
             k = ln.find(hit)
             pre, hw = f.getlength(ln[:k]), f.getlength(hit)
-            _highlight_block(img, (max(MARGIN - 6, x0 + pre - 14), y + line_h * 0.12,
-                                   min(w - MARGIN + 6, x0 + pre + hw + 14),
-                                   y + line_h * 0.88), accent2)
+            _highlight_block(img, highlight_box(
+                y + line_h / 2, size,
+                max(MARGIN - 6, x0 + pre - 14),
+                min(w - MARGIN + 6, x0 + pre + hw + 14)), accent2)
             d = ImageDraw.Draw(img, "RGBA")
             before, after = ln[:k], ln[k + len(hit):]
             if before:
@@ -362,9 +375,10 @@ def _variant_f6(c, w=W34, h=H34):
         if hit:
             k = ln.find(hit)
             pre, hw = f.getlength(ln[:k]), f.getlength(hit)
-            _highlight_block(img, (max(MARGIN - 4, x + pre - 10), y + line_h * 0.14,
-                                   min(w - MARGIN + 4, x + pre + hw + 10),
-                                   y + line_h * 0.86), accent2)
+            _highlight_block(img, highlight_box(
+                y + line_h / 2, size,
+                max(MARGIN - 4, x + pre - 10),
+                min(w - MARGIN + 4, x + pre + hw + 10)), accent2)
             before, after = ln[:k], ln[k + len(hit):]
             if before:
                 d.text((x, y + line_h / 2), before, font=f, fill=FG + (178,), anchor="lm")

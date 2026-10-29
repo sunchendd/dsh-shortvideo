@@ -91,6 +91,28 @@ def check_one(content_path, out_dir, strict=False):
     return row
 
 
+def add_asset_gate(rows, out_dir):
+    """发布齐套：视频 + 封面 + 一张图 + 发布标题，四件缺一不可。
+
+    实测：24 条里只有 2 条真正齐套——视频和封面都在，但 21 条没有 summary.png、
+    3 条短版连 oneimage spec 都没有。这种缺失不影响成片质量，但发不出去。
+    """
+    for row in rows:
+        slug = row["slug"]
+        d = os.path.join(out_dir, slug)
+        missing = []
+        if not os.path.exists(os.path.join(d, f"{slug}.mp4")):
+            missing.append("视频")
+        if not (os.path.exists(os.path.join(d, "cover_short.png"))
+                or os.path.exists(os.path.join(d, "cover_f1.png"))):
+            missing.append("封面")
+        if not os.path.exists(os.path.join(d, "summary.png")):
+            missing.append("一张图")
+        row["gates"]["齐套"] = "warn" if missing else "ok"
+        if missing:
+            row["problems"].append(f"发布物料缺：{'/'.join(missing)}")
+
+
 def add_voice_gate(rows, content_paths, strict=False):
     """配音门：情绪是否真的生效（mood_tuning 白写 / 全片扁平都算不合格）。"""
     try:
@@ -180,6 +202,7 @@ def main():
 
     add_loudness_gate(rows, out_dir)
     add_voice_gate(rows, paths, args.strict)
+    add_asset_gate(rows, out_dir)
 
     if args.json:
         payload = {"total": len(rows), "go": sum(1 for r in rows if r["ok"]),

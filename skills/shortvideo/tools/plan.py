@@ -164,6 +164,7 @@ def main():
     ap.add_argument("--per-week", type=int, default=3)
     ap.add_argument("--start")
     ap.add_argument("--json", action="store_true")
+    ap.add_argument("--stats", action="store_true", help="只看学科分布与长短配比")
     ap.add_argument("--out", help="把 Markdown 写到文件")
     args = ap.parse_args()
 
@@ -173,6 +174,23 @@ def main():
         print("[plan] 没有找到已出片的 content.json")
         return 1
     plan = schedule(rows, args.per_week, start)
+
+    if args.stats:
+        from collections import Counter
+        subj = Counter(r["subject"] for r in plan)
+        kinds = Counter("短版" if r["short"] else "长版" for r in plan)
+        print(f"■ 片库结构（{len(plan)} 条）")
+        for name, n in subj.most_common():
+            bar = "█" * n
+            print(f"  {name:<10}{n:>3}  {bar}")
+        print(f"\n  长短配比：长版 {kinds['长版']} / 短版 {kinds['短版']}")
+        weak = [k for k, v in subj.items() if v == 1]
+        if weak:
+            print(f"  薄弱学科（只有 1 条）：{'、'.join(weak)} → 下一批选题优先补")
+        top = subj.most_common(1)[0]
+        if top[1] >= len(plan) * 0.25:
+            print(f"  [!] {top[0]} 占 {top[1]/len(plan)*100:.0f}%，超过 25%，注意选题多样性")
+        return 0
 
     if args.json:
         print(json.dumps(plan, ensure_ascii=False, indent=2))

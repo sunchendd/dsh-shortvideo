@@ -19,6 +19,7 @@ from PIL import Image, ImageDraw
 
 import art
 from cover import (ACCENT, ACCENT2, FG, GREY, MARGIN, _fit, _highlight_block, _kicker, _paste,
+                   highlight_box,
                    _tags, _text_outline)
 from shortvideo import runtime as R
 from shortvideo import scenes as _scenes
@@ -89,7 +90,7 @@ def _draw_title(img, c, w, y0, y1):
             pre, hw = f.getlength(ln[:k]), f.getlength(hit)
             hx0 = max(MARGIN - 4, x + pre - 10)
             hx1 = min(w - MARGIN + 4, x + pre + hw + 10)
-            _highlight_block(img, (hx0, y + line_h * 0.14, hx1, y + line_h * 0.86), accent2)
+            _highlight_block(img, highlight_box(y + line_h / 2, size, hx0, hx1), accent2)
             d = ImageDraw.Draw(img, "RGBA")
             before, after = ln[:k], ln[k + len(hit):]
             if before:
