@@ -320,10 +320,17 @@ function filmReady() {
   return f && f.src && f.readyState >= 2 && !f.error;
 }
 
-function useFilm() {
+/** 成片标签：改过但没导出时必须显眼，否则用户会拿旧片子当新片子发。 */
+function updateFilmTag() {
   const tag = $("#liveTag");
-  if (tag) tag.textContent = S.edited ? "成片音画 · 改动未导出" : "成片音画";
-  if (tag) tag.style.color = S.edited ? "var(--warn)" : "var(--ok)";
+  if (!tag) return;
+  tag.textContent = S.edited ? "成片音画 · 改动未导出" : "成片音画";
+  tag.style.color = S.edited ? "var(--warn)" : "var(--ok)";
+  tag.title = S.edited ? "当前播放的还是上次导出的成片，改动要重新导出才进片" : "";
+}
+
+function useFilm() {
+  updateFilmTag();
   const f = filmEl();
   if (!f.src) f.src = `/files/${encodeURIComponent(S.slug)}/${encodeURIComponent(S.slug)}.mp4`;
   $("#stage").classList.add("live");
@@ -422,8 +429,12 @@ function renderInspector() {
   const chars = sh.narration.replace(/[\s，。！？、；：""'']/g, "").length;
   const rate = chars / Math.max(0.5, sh.duration);
   const bad = rate > 6.2;
+  renderSubs(sh);
+  const clauseN = splitClauses(sh.narration).length;
+  // "句"和"字幕段"不是一个数：按句号算 2 句，按逗号切却有 4 段字幕。
+  // 只显示 2 句会让用户以为导出是两屏字幕。
   $("#fMeta").innerHTML =
-    `${subs.length} 句 · ${chars} 字 · <span class="pill ${bad ? "bad" : "ok"}">` +
+    `${subs.length} 句 / ${clauseN} 段字幕 · ${chars} 字 · <span class="pill ${bad ? "bad" : "ok"}">` +
     `语速 ${rate.toFixed(1)} 字/秒</span>` +
     (bad ? `<div style="margin-top:6px;color:var(--bad)">偏快：删 1~2 字或把时长加到 ${(chars / 6).toFixed(1)}s</div>` : "") +
     numMismatchHint(sh);
@@ -557,6 +568,30 @@ function deleteShot() {
   toast("已删除镜头");
 }
 
+/** 与流水线 make.py 的 CLAUSE 完全一致：字幕就是按这个切的。 */
+function splitClauses(s) {
+  const m = String(s || "").match(/[^，。；：？！,;?!]+[，。；：?!]?/g) || [];
+  return m.map((x) => x.trim().replace(/[，。；：？！,;?!]+$/, "").trim()).filter(Boolean);
+}
+
+/** 字幕断句预览：用户看不见导出后的分行，等到成片才发现"这句顶成两行"。 */
+function renderSubs(sh) {
+  const box = $("#fSubs");
+  if (!box) return;
+  const lines = splitClauses(sh.narration);
+  if (!lines.length) {
+    box.innerHTML = `<span class="meta">还没有口播文案</span>`;
+    return;
+  }
+  box.innerHTML = lines.map((l, i) => {
+    const n = l.length;
+    const cls = n > 34 ? "bad" : n > 17 ? "warn" : "";
+    return `<div class="subline ${cls}" title="${n} 字">
+      <span class="sn">${i + 1}</span><span class="st">${esc(l)}</span>
+      <span class="sc">${n}</span></div>`;
+  }).join("");
+}
+
 function splitSentences(s) {
   return (s || "").split(/(?<=[。！？；?])/).map((x) => x.trim()).filter(Boolean);
 }
@@ -631,6 +666,7 @@ function beginEdit() {
 
 function commit(mutate, { save = true, undo = true } = {}) {
   S.edited = true;
+  updateFilmTag();
   if (undo) { S.undo.push(snapshot()); S.redo = []; if (S.undo.length > 60) S.undo.shift(); }
   mutate();
   renderTimeline();
@@ -1280,6 +1316,15 @@ async function startExport() {
     $("#exBar").style.width = "100%";
     $("#exLog").textContent += `\n\n导出完成，用时 ${secs}s。`;
     toast("导出完成");
+    // 成片换了：清掉"改动未导出"标记，并让 <video> 重新拉一次，
+    // 否则按空格播的还是浏览器缓存里的旧文件。
+    S.edited = false;
+    updateFilmTag();
+    try {
+      const f = filmEl();
+      f.src = `/files/${encodeURIComponent(S.slug)}/${encodeURIComponent(S.slug)}.mp4?v=${Date.now()}`;
+      f.load();
+    } catch {}
     _thumbCacheClear();
     renderTimeline();
     setTimeout(() => openDeliver(true), 400);

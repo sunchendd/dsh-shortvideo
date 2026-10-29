@@ -533,3 +533,15 @@ input, textarea, select { font: inherit; color: inherit; }
   margin-top: 22px; padding-top: 14px; border-top: 1px solid var(--line);
 }
 .tournever { display: flex; align-items: center; gap: 7px; font-size: 12px; color: var(--ink2); }
+
+/* 字幕断句预览 */
+.subline {
+  display: grid; grid-template-columns: 16px 1fr auto; gap: 8px; align-items: baseline;
+  font: 12px/1.7 var(--sans); color: var(--ink1); padding: 3px 0;
+  border-bottom: 1px dashed var(--line);
+}
+.subline .sn { font: 10px var(--mono); color: var(--ink3); }
+.subline .sc { font: 10px var(--mono); color: var(--ink3); }
+.subline.warn .sc { color: var(--warn); }
+.subline.bad .sc { color: var(--bad); }
+.subline.bad .st { color: var(--bad); }

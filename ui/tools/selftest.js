@@ -110,6 +110,10 @@ async function waitServer(port, tries = 80) {
     out.saveState = (q("#saveState") || {}).textContent;
     out.deckAfterEdit = JSON.stringify(S.proj.shots[1].deck).includes("自检改动XYZ");
 
+    // 字幕断句预览 + "改动未导出"标记
+    out.subLines = qa("#fSubs .subline").length;
+    out.staleTag = (q("#liveTag") || {}).textContent || "";
+
     // 删除 → 撤销 → 重做
     const n0 = S.proj.shots.length;
     await click("#btnDel"); await sleep2(900);
@@ -166,6 +170,8 @@ async function waitServer(port, tries = 80) {
     check("画布有画面", r.coverFrame === true);
     check("点镜头能选中", r.selected === 1, `sel=${r.selected}`);
     check("改画面文字会存", r.deckAfterEdit === true && /保存/.test(r.saveState || ""), r.saveState);
+    check("字幕断句预览有行", r.subLines > 0, `${r.subLines} 行`);
+    check("改过之后标记为未导出", /改动未导出/.test(r.staleTag || ""), r.staleTag);
     check("删除镜头生效", r.shots && r.shots.n1 === r.shots.n0 - 1, JSON.stringify(r.shots));
     check("撤销能恢复被删的镜头", r.shots && r.shots.n2 === r.shots.n0, JSON.stringify(r.shots));
     check("重做能再次删除", r.shots && r.shots.n3 === r.shots.n0 - 1, JSON.stringify(r.shots));
