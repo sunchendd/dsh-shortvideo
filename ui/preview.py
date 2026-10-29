@@ -508,6 +508,28 @@ def _sample_from_video(voice_key, out_path):
     return None
 
 
+def _publish_meta(slug):
+    """发布元数据（选中的封面、改过的发布标题）存在 out/<slug>/publish.json。"""
+    path = os.path.join(OUT, slug, "publish.json")
+    if not os.path.exists(path):
+        return {}
+    try:
+        return json.load(open(path, encoding="utf-8"))
+    except Exception:  # noqa: BLE001
+        return {}
+
+
+def _save_publish(slug, patch):
+    d = os.path.join(OUT, slug)
+    os.makedirs(d, exist_ok=True)
+    path = os.path.join(d, "publish.json")
+    cur = _publish_meta(slug)
+    cur.update({k: v for k, v in (patch or {}).items() if v is not None})
+    cur["at"] = time.strftime("%Y-%m-%d %H:%M:%S")
+    json.dump(cur, open(path, "w", encoding="utf-8"), ensure_ascii=False, indent=2)
+    return cur
+
+
 def _deliver_info(slug):
     """导出完成后"交付"界面要的全部东西。
 
@@ -517,6 +539,7 @@ def _deliver_info(slug):
     d = os.path.join(OUT, slug)
     content = os.path.join(EX, f"{slug}.content.json")
     info = {"slug": slug, "video": None, "covers": [], "summary": None,
+            "picked_cover": _publish_meta(slug).get("cover") or "",
             "publish_title": "", "topics": [], "tags": [], "duration": 0.0,
             "size_mb": 0.0, "qa": _qa_items(slug)}
     cfg = {}
@@ -1080,6 +1103,13 @@ class Handler(BaseHTTPRequestHandler):
                 "stage": "script", "template": tpl}), "slug": slug})
         if u.path == "/api/project" and not slug:
             return self._send(400, {"error": "slug required"})
+        if u.path == "/api/publish":
+            slug = str(body.get("slug") or "").strip()
+            if not slug:
+                return self._send(400, {"error": "slug required"})
+            cur = _save_publish(slug, {"cover": body.get("cover"),
+                                       "title": body.get("title")})
+            return self._send(200, {"ok": True, "publish": cur})
         if u.path == "/api/stage":
             slug, stage = body.get("slug"), body.get("stage")
             if not slug or stage not in [k for k, _, _ in STAGES]:

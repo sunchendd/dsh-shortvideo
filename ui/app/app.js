@@ -943,16 +943,24 @@ async function openDeliver(auto = false) {
   $("#dlPubTitle").oninput = count;
   $("#dlTopics").innerHTML = (d.topics && d.topics.length ? d.topics : d.tags || [])
     .map((t) => `<span class="chip">${esc(t)}</span>`).join("") || `<span class="meta">没有话题，建议加 2~3 个</span>`;
-  $("#dlCovers").innerHTML = d.covers.map((c, i) => `
-    <label class="${i === 0 ? "on" : ""}" data-cover="${esc(c.url)}">
-      <input type="radio" name="cover" ${i === 0 ? "checked" : ""}>
+  // 上次选过的封面要记住：选了 A 下次打开还是 A（存在 out/<slug>/publish.json）
+  const picked = d.picked_cover || (d.covers[0] && d.covers[0].url) || "";
+  $("#dlCovers").innerHTML = d.covers.map((c) => `
+    <label class="${c.url === picked ? "on" : ""}" data-cover="${esc(c.url)}">
+      <input type="radio" name="cover" ${c.url === picked ? "checked" : ""}>
       <img src="${c.url}" alt=""><span>${esc(c.label)}</span>
     </label>`).join("");
+  const markChosen = () => {
+    const on = $("#dlCovers label.on");
+    $("#dlChosen").textContent = on ? "已选：" + on.querySelector("span").textContent : "";
+  };
+  markChosen();
   $("#dlCovers").querySelectorAll("label").forEach((l) => {
-    l.onclick = () => {
+    l.onclick = async () => {
       $("#dlCovers").querySelectorAll("label").forEach((x) => x.classList.remove("on"));
       l.classList.add("on");
-      const a = $("#dlDown");
+      markChosen();
+      await jpost("/api/publish", { slug: S.slug, cover: l.dataset.cover }).catch(() => null);
     };
   });
   $("#dlDown").href = d.video;
