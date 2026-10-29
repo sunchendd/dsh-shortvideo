@@ -58,6 +58,9 @@ cd project
 | **爆款封面三版式** | 出片自动产出 `cover_f1/f3/f6.png`(3:4) + `cover_9x16.png` | 平台封面只支持 3:4/1:1/4:3，官方建议竖版；支持 A/B 4 张 |
 | **脚本体检** | `make.py ... --strict` 打印 `[lint]` | 钩子≤13字、语速≤4.6字/秒、单镜≤38字、留白≥1s、红线词 |
 | **信息图 / 底图** | `tools/oneimage.py` · `tools/art.py` | 一张图总结 / AI 画室 |
+| **程序化 BGM** | 默认自动垫（人声侧链压低 28~39%），`--no-bgm` 关闭 | 纯标准库合成，无版权风险 |
+| **爆款评分器** | `tools/score.py --content x.json --video out/x.mp4` | 六维 0~100 + 逐条扣分原因 |
+| **分段进度点 / AI 标识** | 默认开启（`"chrome": false` 关） | 完播 + 平台合规（合成人声需标识） |
 | **转场与动效** | `"transition": {"type":"fade|slide|slide_up|wipe","dur":0.24}` | 每条可单独 `transition_in` 覆盖 |
 
 ### 角色技能（多 agent 协作）
