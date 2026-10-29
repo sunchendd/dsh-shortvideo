@@ -855,7 +855,7 @@ async function openPanel(name, btn) {
       ["空格", "播放 / 暂停"], ["← →", "逐帧"], ["⇧← ⇧→", "跳 1 秒"],
       ["Home / End", "首帧 / 末帧"], ["⌘Z", "撤销"], ["⇧⌘Z", "重做"],
       ["⌘S", "立即保存"], ["⌘E", "导出"], ["滚轮", "横向滚动时间线"],
-      ["Ctrl+滚轮", "缩放时间线"], ["Esc", "回片库"],
+      ["Ctrl+滚轮", "缩放时间线"], ["Esc", "逐层关闭（面板/弹窗/抽屉）"],
     ].map(([k, d]) => `<div class="asset"><div style="width:44px;text-align:center;font:11px var(--mono);color:var(--ink1)">${k}</div>
       <div><div class="t">${d}</div></div></div>`).join("");
   } else {
@@ -1199,10 +1199,26 @@ function bindKeys() {
       case "ArrowRight": e.preventDefault(); pause(); seek(S.t + (e.shiftKey ? 1 : 1 / 30), { force: true, select: true }); break;
       case "Home": e.preventDefault(); pause(); seek(0, { force: true, select: true }); break;
       case "End": e.preventDefault(); pause(); seek(S.proj.total - 0.1, { force: true, select: true }); break;
-      case "Escape": location.href = "/"; break;
+      case "Escape": escClose(); break;
     }
   });
 }
+
+/** Esc 逐层关闭：命令面板 → 弹窗 → 抽屉 → 检查器抽屉。
+    原来 Esc 是直接 location.href="/"，用户关个弹窗就被踢回片库、上下文全丢。 */
+function escClose() {
+  if (!$("#palette").hidden) return closePalette();
+  const modal = ["#exportScrim", "#deliverScrim", "#newScrim"]
+    .map((s) => $(s)).find((el) => el && el.classList.contains("on"));
+  if (modal) return modal.classList.remove("on");
+  if ($("#drawer").classList.contains("on")) return closePanel();
+  if (document.body.classList.contains("insp-open")) {
+    return document.body.classList.remove("insp-open");
+  }
+  stopPlayIfAny();
+}
+
+function stopPlayIfAny() { if (S.playing) pause(); }
 
 /* ------------------------------------------------------------ 小工具 */
 function esc(s) {
