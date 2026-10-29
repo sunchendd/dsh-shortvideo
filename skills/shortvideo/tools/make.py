@@ -757,7 +757,17 @@ def main():
     os.makedirs(build, exist_ok=True)
 
     print(f"[font] {R.font_info()}")
-    voice = tts.build_voice(cfg.get("voice", {}))
+
+    # 共享配音缓存：默认落到 skill 根目录下的 .audiocache。
+    # edge-tts 是外部依赖（要连 speech.platform.bing.com），网络/代理一断，
+    # 没有缓存就只能出静音片；而放在 build/ 里的缓存一 --clean 就没了。
+    # 共享目录还让"同一句话"在不同片子里只合成一次。
+    voice_cfg = dict(cfg.get("voice") or {})
+    if voice_cfg.get("cache", True) is not False and not voice_cfg.get("cache_dir"):
+        voice_cfg["cache_dir"] = os.path.join(
+            os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))),
+            ".audiocache")
+    voice = tts.build_voice(voice_cfg)
     print(f"[voice] {voice.name}")
 
     # ---------- 配音 + 对轴（能并行就并行） ----------

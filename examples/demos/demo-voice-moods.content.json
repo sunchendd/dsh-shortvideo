@@ -1,0 +1,123 @@
+{
+  "title": "同一句话的五种念法",
+  "publish_title": "同一句话，五种情绪念出来差多少",
+  "serial": "声1",
+  "kicker": "音色样片",
+  "category": "演示",
+  "format": "short",
+  "voice": {
+    "preset": "yunxi"
+  },
+  "bgm": {
+    "style": "lofi",
+    "gain": -30.0
+  },
+  "shots": [
+    {
+      "id": "hook",
+      "mood": "hook",
+      "narration": "同一句话，用五种情绪念出来，你听出差别了吗",
+      "min_dur": 5.2,
+      "caption": "钩子：快、上扬、抓人｜开头 3 秒要抢注意力"
+    },
+    {
+      "id": "rule",
+      "mood": "rule",
+      "narration": "同一句话，用五种情绪念出来，你听出差别了吗",
+      "min_dur": 5.2,
+      "caption": "规则：稳、匀速｜讲定义不要有起伏"
+    },
+    {
+      "id": "explain",
+      "mood": "explain",
+      "narration": "同一句话，用五种情绪念出来，你听出差别了吗",
+      "min_dur": 5.2,
+      "caption": "原理：慢、压低｜讲道理要让人跟上"
+    },
+    {
+      "id": "reveal",
+      "mood": "reveal",
+      "narration": "同一句话，用五种情绪念出来，你听出差别了吗",
+      "min_dur": 5.2,
+      "caption": "反转：加强、提亮｜情绪最高点"
+    },
+    {
+      "id": "win",
+      "mood": "win",
+      "narration": "同一句话，用五种情绪念出来，你听出差别了吗",
+      "min_dur": 5.2,
+      "caption": "收尾：饱满、收住｜给结论和引导"
+    }
+  ],
+  "deck": {
+    "hook": {
+      "kind": "big",
+      "lines": [
+        "钩子",
+        "快、上扬、抓人"
+      ],
+      "emphasis": [
+        "快、上扬、抓人"
+      ]
+    },
+    "rule": {
+      "kind": "big",
+      "lines": [
+        "规则",
+        "稳、匀速"
+      ],
+      "emphasis": [
+        "稳、匀速"
+      ]
+    },
+    "explain": {
+      "kind": "big",
+      "lines": [
+        "原理",
+        "慢、压低"
+      ],
+      "emphasis": [
+        "慢、压低"
+      ]
+    },
+    "reveal": {
+      "kind": "big",
+      "lines": [
+        "反转",
+        "加强、提亮"
+      ],
+      "emphasis": [
+        "加强、提亮"
+      ]
+    },
+    "win": {
+      "kind": "big",
+      "lines": [
+        "收尾",
+        "饱满、收住"
+      ],
+      "emphasis": [
+        "饱满、收住"
+      ]
+    }
+  },
+  "cover": {
+    "headline": [
+      "同一句话",
+      "五种念法"
+    ],
+    "highlight": [
+      "五种念法"
+    ],
+    "kicker": "音色样片",
+    "sub": "钩子 / 规则 / 原理 / 反转 / 收尾",
+    "tags": [
+      "#配音",
+      "#情绪",
+      "#科普视频"
+    ],
+    "cta": "听出差别了吗",
+    "serial": "声1"
+  },
+  "disclosure": "AI 配音"
+}

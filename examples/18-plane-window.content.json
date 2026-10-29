@@ -1,0 +1,181 @@
+{
+  "title": "飞机舷窗为什么不能是方的",
+  "subtitle": "应力集中：方角能把局部应力放大二十一倍",
+  "voice": {
+    "preset": "yunxi",
+    "mood_tuning": {
+      "hook": {
+        "rate": "+12%"
+      },
+      "explain": {
+        "rate": "-8%"
+      },
+      "reveal": {
+        "rate": "+3%"
+      },
+      "win": {
+        "rate": "+9%"
+      }
+    }
+  },
+  "fps": 30,
+  "size": [
+    1080,
+    1920
+  ],
+  "lead_in": 0.15,
+  "tail": 0.55,
+  "disclosure": "AI 配音",
+  "bgm": {
+    "style": "pulse",
+    "gain": -28
+  },
+  "cover": {
+    "kicker": "结构反常识",
+    "serial": "18",
+    "headline": [
+      "方角舷窗",
+      "应力高21倍"
+    ],
+    "highlight": [
+      "21倍"
+    ],
+    "sub": "飞机窗户为什么全是圆角",
+    "tags": [
+      "#科普",
+      "#航空",
+      "#结构"
+    ],
+    "cta": "看到最后 →"
+  },
+  "shots": [
+    {
+      "id": "hook",
+      "min_dur": 5.8,
+      "narration": "飞机窗户为什么不能是方的？方角处应力高二十一倍。",
+      "emphasis": [
+        "二十一倍"
+      ]
+    },
+    {
+      "id": "rule",
+      "min_dur": 7.0,
+      "narration": "万米高空，舱内外差五十三千帕，一块舷窗要扛二百七十公斤。",
+      "emphasis": [
+        "五十三千帕"
+      ],
+      "transition_in": {
+        "type": "fade",
+        "dur": 0.24
+      }
+    },
+    {
+      "id": "insight",
+      "min_dur": 7.9,
+      "narration": "机身像气球被吹鼓，力沿着蒙皮绕开口走，可尖角会把力挤成一束。",
+      "emphasis": [
+        "尖角"
+      ],
+      "transition_in": {
+        "type": "slide_up",
+        "dur": 0.24
+      }
+    },
+    {
+      "id": "reveal",
+      "min_dur": 7.2,
+      "narration": "圆孔只放大三倍，方角二十一倍；一九五四年彗星客机就这么裂开。",
+      "emphasis": [
+        "三倍"
+      ],
+      "transition_in": {
+        "type": "fade",
+        "dur": 0.24
+      }
+    },
+    {
+      "id": "solve",
+      "min_dur": 8.0,
+      "narration": "舷窗一律做成圆角，半径越大越安全。你见过方角舷窗吗？评论区说说。",
+      "emphasis": [
+        "圆角"
+      ],
+      "transition_in": {
+        "type": "slide_up",
+        "dur": 0.24
+      }
+    }
+  ],
+  "deck": {
+    "hook": {
+      "kind": "big",
+      "lines": [
+        "飞机窗户",
+        "为什么不能是方的"
+      ],
+      "sub": "方角处应力高 21 倍",
+      "style": "slam",
+      "ghost": "21"
+    },
+    "rule": {
+      "kind": "stat",
+      "value": "53",
+      "unit": "千帕",
+      "label": "万米高空的舱内外压差",
+      "note": "一块舷窗要扛 270 公斤",
+      "digits": 0
+    },
+    "insight": {
+      "kind": "flow",
+      "items": [
+        {
+          "t": "机身像气球被吹鼓",
+          "d": "压差一直都在"
+        },
+        {
+          "t": "力沿着蒙皮绕开口走",
+          "d": "板面把载荷分流"
+        },
+        {
+          "t": "尖角把力挤成一束",
+          "d": "应力集中在这里翻倍"
+        }
+      ],
+      "note": "圆角越大，力散得越开"
+    },
+    "reveal": {
+      "kind": "compare",
+      "left": {
+        "label": "圆孔",
+        "value": "3",
+        "note": "倍峰值应力"
+      },
+      "right": {
+        "label": "方角",
+        "value": "21",
+        "note": "倍峰值应力"
+      },
+      "note": "一九五四年彗星客机从方角开口裂开"
+    },
+    "solve": {
+      "kind": "steps",
+      "items": [
+        {
+          "t": "舷窗一律做成圆角"
+        },
+        {
+          "t": "圆角半径越大越安全"
+        },
+        {
+          "t": "看到方角就想起应力集中"
+        }
+      ],
+      "note": "圆角不是装饰，是保命"
+    }
+  },
+  "transition": {
+    "type": "fade",
+    "dur": 0.24
+  },
+  "publish_title": "舷窗为什么不能是方的？尖角应力高21倍"
+}

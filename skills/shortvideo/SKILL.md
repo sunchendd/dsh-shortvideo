@@ -450,6 +450,15 @@ $PY $TOOLS/make.py --content examples/01-x.content.json --topic deck --out examp
 
 **写 mood_tuning 的前提**：确认该镜有 mood（自动推断也算），否则 tuning 不生效。
 
+### 配音缓存是共享的：`.audiocache/`
+
+`make.py` 默认把配音缓存放到 skill 根目录的 `.audiocache/`（可用 `voice.cache_dir` 覆盖）。
+原因：edge-tts 是**外部依赖**，实测会因代理 407 / 连接被重置整条降级成静音，
+而放在 `build/tts_cache/` 里的缓存一 `--clean` 就没了。
+
+实测：网络断掉 + `--clean` 重渲 → 仍能用共享缓存产出真实配音（3.02s/2.60s/4.44s/4.66s）。
+同一句话在不同片子里也只合成一次。
+
 ### 检查情绪到底有没有生效：`voiceaudit.py`
 
 ```bash

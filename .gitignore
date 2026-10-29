@@ -17,3 +17,6 @@ solve_90.png
 studio-report.md
 studio-report.json
 studio-index.html
+
+# 配音缓存备份：网络/代理不可用时唯一能重渲的音频来源（edge-tts 是外部依赖）
+.audiocache/
