@@ -160,7 +160,7 @@ def _rerender_covers(slug, theme=None):
             json.dump(scfg, open(spec, "w", encoding="utf-8"), ensure_ascii=False, indent=2)
         except Exception:  # noqa: BLE001
             pass
-        _run([PY, os.path.join(TOOLS, "oneimage.py"), "--spec", spec,
+        _run([PY, os.path.join(TOOLS, "summary2.py"), "--spec", spec,
               "--out", os.path.join(OUT, slug, "summary.png")])
     return ok, "\n".join(log)
 
@@ -207,7 +207,7 @@ def _create(slug, req):
          % (TOOLS, content, os.path.join(OUT, slug))], "covers")
     spec = os.path.join(EX, f"oneimage-{slug}.json")
     if os.path.exists(spec):
-        run([PY, os.path.join(TOOLS, "oneimage.py"), "--spec", spec,
+        run([PY, os.path.join(TOOLS, "summary2.py"), "--spec", spec,
              "--out", os.path.join(OUT, slug, "summary.png")], "oneimage")
     return True, "\n".join(log)
 
