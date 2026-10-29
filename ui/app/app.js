@@ -85,6 +85,7 @@ async function loadProject(slug) {
   S.sel = 0;
   S.t = 0;
   S.undo = []; S.redo = [];
+  S.edited = false;
   S.lastSaved = JSON.stringify(snapshot());
   $("#titleInput").value = S.proj.title;
   $("#fTheme").innerHTML = THEMES
@@ -99,6 +100,14 @@ async function loadProject(slug) {
   renderInspector();
   requestFrame(true);
   refreshQA();
+  const f = filmEl();
+  f.removeAttribute("src");
+  f.load();
+  S.filmOk = await ensureFilm();
+  if (S.filmOk) {
+    $("#stage").classList.add("live");   // 只加标记，画面仍显示静帧，播放时才切视频
+    $("#stage").classList.remove("live");
+  }
   toast("已打开 " + slug);
 }
 
@@ -254,6 +263,8 @@ function requestFrame(force = false) {
 }
 
 function seek(t, opts = {}) {
+  if (S.playing) pause();
+  useFrames();
   S.t = clamp(t, 0, S.proj.total - 1 / 30);
   updatePlayhead();
   requestFrame(!!opts.force);
@@ -268,11 +279,80 @@ function markSelection() {
 }
 
 /* ------------------------------------------------------------ 播放 */
+/* 播放有两档：
+   - 已经导出过成片 → 直接播那个 mp4，**有声音**，播放头跟视频 currentTime 走；
+   - 没导出（或成片比当前版本旧）→ 退回逐帧动画，无声，但画面是当前编辑结果。
+   剪辑台里"按空格没声音"是很伤的，所以优先走第一档，并在画面上标出来。 */
+function filmEl() { return $("#film"); }
+
+function filmReady() {
+  const f = filmEl();
+  return f && f.src && f.readyState >= 2 && !f.error;
+}
+
+function useFilm() {
+  const tag = $("#liveTag");
+  if (tag) tag.textContent = S.edited ? "成片音画 · 改动未导出" : "成片音画";
+  if (tag) tag.style.color = S.edited ? "var(--warn)" : "var(--ok)";
+  const f = filmEl();
+  if (!f.src) f.src = `/files/${encodeURIComponent(S.slug)}/${encodeURIComponent(S.slug)}.mp4`;
+  $("#stage").classList.add("live");
+  $("#frame").style.display = "none";
+  f.style.display = "block";
+}
+
+function useFrames() {
+  $("#stage").classList.remove("live");
+  const f = filmEl();
+  if (!f.paused) f.pause();
+  f.style.display = "none";
+  $("#frame").style.display = "block";
+}
+
+async function ensureFilm() {
+  const f = filmEl();
+  if (f.src) return filmReady();
+  f.src = `/files/${encodeURIComponent(S.slug)}/${encodeURIComponent(S.slug)}.mp4`;
+  return await new Promise((res) => {
+    f.onloadeddata = () => res(true);
+    f.onerror = () => res(false);
+    setTimeout(() => res(filmReady()), 1500);
+  });
+}
+
 function togglePlay() {
   if (S.playing) return pause();
   if (S.t >= S.proj.total - 0.05) S.t = 0;
   S.playing = true;
   $("#playIcon").innerHTML = `<path d="M7 4h4v16H7zM13 4h4v16h-4z"/>`;
+  // 有成片就播成片（带声音），播放头由视频驱动
+  if (S.filmOk) {
+    useFilm();
+    const f = filmEl();
+    f.currentTime = S.t;
+    f.play().catch((err) => {
+      S._playErr = (err && err.name) || String(err);
+      // 浏览器可能因为"没有用户手势"拒绝带声音播放：此时退回逐帧动画继续播，
+      // 而不是把自己 pause 掉（原来那版会让空格看起来没反应）。
+      S.filmOk = false;
+      useFrames();
+      startFrameLoop();
+    });
+    $("#playIcon").innerHTML = `<path d="M7 4h4v16H7zM13 4h4v16h-4z"/>`;
+    const sync = () => {
+      if (!S.playing) return;
+      S.t = Math.min(f.currentTime, S.proj.total);
+      updatePlayhead();
+      if (f.ended) { pause(); return; }
+      S.raf = requestAnimationFrame(sync);
+    };
+    S.raf = requestAnimationFrame(sync);
+    return;
+  }
+  startFrameLoop();
+}
+
+function startFrameLoop() {
   const t0 = performance.now() - S.t * 1000;
   const tick = () => {
     if (!S.playing) return;
@@ -288,8 +368,15 @@ function togglePlay() {
 function pause() {
   S.playing = false;
   cancelAnimationFrame(S.raf);
+  const f = filmEl();
+  if (f && !f.paused) f.pause();
   $("#playIcon").innerHTML = `<path d="M7 4l13 8-13 8z"/>`;
-  requestFrame(true);
+  if ($("#stage").classList.contains("live")) {
+    // 停在成片画面上的那一帧；如果要看编辑后的画面，用 ←→ 逐帧或点时间线
+    updatePlayhead();
+  } else {
+    requestFrame(true);
+  }
 }
 
 /* ------------------------------------------------------------ 检查器 */
@@ -414,6 +501,7 @@ function beginEdit() {
 }
 
 function commit(mutate, { save = true, undo = true } = {}) {
+  S.edited = true;
   if (undo) { S.undo.push(snapshot()); S.redo = []; if (S.undo.length > 60) S.undo.shift(); }
   mutate();
   renderTimeline();

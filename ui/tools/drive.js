@@ -43,6 +43,8 @@ const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 async function main() {
   const chrome = spawn(CHROME, [
     "--headless", "--no-sandbox", "--disable-gpu", "--disable-dev-shm-usage",
+    // headless 默认禁止带声音的自动播放；测"播放成片"这条路径需要放开
+    "--autoplay-policy=no-user-gesture-required",
     "--hide-scrollbars", `--remote-debugging-port=${PORT}`,
     `--window-size=${W},${H}`, "about:blank",
   ], { stdio: "ignore" });
