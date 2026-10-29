@@ -264,7 +264,7 @@ def _bits(img, t, dur, spec):
         return
     p = t / dur if dur else 1
     n = len(items)
-    cols = min(n, 6)
+    cols = n if n <= 7 else 6      # 七种颜色这类刚好一行排满
     rows = math.ceil(n / cols)
     gap = 16
     cell = min(150, int((R.W - 220 - gap * (cols - 1)) / cols))

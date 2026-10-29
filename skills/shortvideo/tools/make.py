@@ -433,16 +433,19 @@ def lint_script(cfg, timeline):
         if len(head) > 13:
             out.append(("warn", f"钩子首句 {len(head)} 字（建议 ≤13 字），3 秒念不完：{head}"))
 
-    # 2) 每镜语速：以配音实际时长算"字/秒"，超过 5.4 就是赶（人类口播舒适区 4.0~4.6）
+    # 2) 每镜语速：以配音实际时长算"字/秒"。
+    #    正文舒适区 4.0~4.6；钩子镜头允许更快（前 3 秒本来就要"赶着抓人"），上限 6.2。
     for shot, item in zip(shots, timeline):
         n = len(re.sub(r"\s", "", shot.get("narration", "")))
         adur = item.get("adur") or item["dur"]
         density = n / adur if adur else 0
-        if density > 5.4:
+        is_hook = shot.get("id") == "hook"
+        hi_err, hi_warn = (6.2, 5.8) if is_hook else (5.4, 4.8)
+        if density > hi_err:
             out.append(("error", f"{shot.get('id')}: {density:.1f} 字/秒（{n}字/{adur:.1f}s）"
-                                  f"语速过快，建议压到 ≤4.6（删 1/6 字或加时长）"))
-        elif density > 4.8:
-            out.append(("warn", f"{shot.get('id')}: {density:.1f} 字/秒偏快（舒适区 4.0~4.6）"))
+                                  f"语速过快，建议压到 ≤{hi_warn}（删 1/6 字或加时长）"))
+        elif density > hi_warn:
+            out.append(("warn", f"{shot.get('id')}: {density:.1f} 字/秒偏快（正文舒适区 4.0~4.6）"))
         if n > 38:
             out.append(("warn", f"{shot.get('id')}: {n} 字超单镜上限 38 字（字幕会顶满两行）"))
         if item["dur"] - adur < 1.0:
@@ -463,9 +466,11 @@ def lint_script(cfg, timeline):
         if bad:
             out.append(("error", f"{where}含平台红线词：{sorted(bad)}"))
 
-    # 5) 标题长度 / 封面字段
-    if title and not (10 <= len(title) <= 22):
-        out.append(("warn", f"标题 {len(title)} 字（建议 12~20 字）"))
+    # 5) 发布标题长度（content.json 的 title 多是工作标题，长一点短一点无所谓；
+    #    真要发布时用 publish_title 覆盖，此时才校验）
+    pub = cfg.get("publish_title") or ""
+    if pub and not (10 <= len(pub) <= 22):
+        out.append(("warn", f"发布标题 {len(pub)} 字（建议 12~20 字）：{pub}"))
     for ln in (cov.get("headline") or []):
         if len(str(ln)) > 6:
             out.append(("warn", f"封面主标题每行建议 ≤6 字，当前「{ln}」{len(str(ln))} 字"))

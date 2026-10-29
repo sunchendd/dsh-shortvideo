@@ -40,6 +40,20 @@ whenToUse: 用户想制作知识讲解/数学/科普类竖屏短视频，或要�
 
 ## 具体操作步骤（agent 执行手册）
 
+## 角色分工（多 skill 协作）
+
+本技能只管"把稿子变成片子"。上游创意与下游图文由同仓库的 4 个角色技能负责：
+
+| 技能 | 角色 | 产出 |
+|---|---|---|
+| `xhs-creative-director` | 创意总监 | 选题打分、角度、钩子、`content.json`（含 cover/deck）、标题 5 条 |
+| `shortvideo-master` | 短视频大师（导演/后期） | 分镜节奏、视觉配方、动效、审片清单、性能预算 |
+| `one-image-summary` | 一张图总结大师 | 1080x1440 信息图（`tools/oneimage.py`） |
+| `ai-art-studio` | AI 画室 | 程序化底图/主视觉（`tools/art.py`，5 风格 4 配色） |
+
+推荐流水线：创意总监出稿 → `make.py --preview --strict` 体检+审片 → 短视频大师调画面 →
+全量出片 → 一张图总结出配套图文 → 三版封面拿去做 A/B。
+
 ### 第 0 步：定位工具与题材目录
 
 ```
@@ -97,7 +111,47 @@ install.sh 会：建 `$SKILL_DIR/.venv` 并装 `requirements.txt`、检查中文
 （edge-tts 本身既不读代理也不认系统 CA，直连会卡住）。建议在 `content.json` 里把
 `"proxy": "http://<代理>:<端口>"` 固定下来，避免 cron/无环境变量的场景退化成静音。
 
-### 第 3 步：题材包（核心创作环节）
+### 第 2.5 步：先跑脚本体检（30 秒，省一轮返工）
+
+```bash
+$PY $TOOLS/make.py --content content.json --topic deck --out out/x.mp4 --preview --strict
+```
+
+`[lint]` 会按小红书爆款阈值逐条判：钩子首句 ≤13 字、每镜配音字/秒 ≤4.6
+（>5.4 直接 error）、单镜 ≤38 字、镜头留白 ≥1s、总长 30~90s、标题 10~22 字、
+封面每行 ≤6 字、红线词（绝对化/医疗/带联系方式）、结尾互动引导。
+依据与出处见 `docs/xhs-playbook.md`。
+
+### 第 3 步：选题材包 —— 先想清楚"要不要写代码"
+
+**80% 的科普题材用内置 `deck` 就够了**：在 content.json 顶层写 `deck`，不写一行 Python：
+
+```json
+"deck": {
+  "hook":    {"kind": "big", "lines": ["0.1 + 0.2", "≠ 0.3"], "sub": "电脑算错了？"},
+  "rule":    {"kind": "digits", "text": "0.1 = 0.0001100110011…", "highlight": "0011"},
+  "insight": {"kind": "cards", "items": [{"t": "52 位尾数", "d": "再多装不下"}]},
+  "reveal":  {"kind": "formula", "parts": ["0.1 + 0.2", "=", "0.30000000000000004"]},
+  "solve":   {"kind": "steps", "items": [{"t": "别用等号比浮点"}]}
+}
+```
+
+| kind | 画什么 | 适合 |
+|---|---|---|
+| `big` | 1~3 行大字错峰砸入（描边+阴影） | 钩子、结论 |
+| `cards` | 1~4 张卡片，序号+标题+说明依次点亮 | 规则、要点、清单 |
+| `bars` | 横向条形对比（按数值比例、峰值强调） | 数据、倍数 |
+| `compare` | 左右两栏大数值 + VS | 反常识、翻倍 |
+| `formula` | 公式块，自动缩字号/自动断行 | 定理、等式 |
+| `steps` | 竖排序号步骤，当前步高亮 | 流程、实战 |
+| `list` | 逐条出现的清单 | 三条建议 |
+| `bits` | 格子阵（0/1、开/关） | 二进制、开关 |
+| `digits` | 数字串逐字排，可高亮重复段/截断点 | 浮点、进制、哈希 |
+
+要更"专属"的视觉（真实数据结构动画、几何推导）再写题材包，参照 `$TOPICS/` 里的
+`sorting.py`（真实跑排序记录 trace）和 `lightsout.py`（矩阵求逆）。
+
+### 第 3b 步：题材包（需要专属视觉时才写）
 
 参照 `$TOPICS/` 里现成的题材（熄灯矩阵、排序可视化），写 `project/topic_<name>.py`：
 
@@ -139,9 +193,36 @@ $PY $TOOLS/make.py --content content.json --topic topic_<name> --out out/<name>.
 | `--clean` | 清空 `build/`（含 TTS 缓存），用于换音色/改台词后重跑 |
 | `--no-check` | 跳过成片自检（默认会用 ffmpeg 校验流/时长/峰值电平） |
 | `--fps` | 覆盖 content.json 的帧率（24 更省，30 更顺） |
+| `--strict` | 脚本体检有 error 就中止（CI/批量生成建议开） |
+| `--no-lint` | 跳过脚本体检 |
+| `--no-cover` | 不生成封面图 |
+
+产出物（默认全出）：`out/x.mp4` 成片、`cover_f1/f3/f6.png` 三版 3:4 爆款封面
+（平台支持封面 A/B，最多 4 张，10 小时后按点击率选优）、`cover_9x16.png`
+（首帧/主页用）、`cover_frame.png`（F3 用的净帧截图）。
+
+### 配音音色（3 款人格化音色）
+
+```json
+"voice": {"preset": "xiaoxiao"}     // 或 yunxi / yunjian；也可只写 name
+```
+
+| preset | 音色 | 人格 | 推荐题材 |
+|---|---|---|---|
+| `xiaoxiao` | zh-CN-XiaoxiaoNeural | 活泼亲切女主（248Hz） | 科普讲解、生活好奇心 |
+| `yunxi` | zh-CN-YunxiNeural | 阳光邻家男声（175Hz） | 反常识、冷知识 |
+| `yunjian` | zh-CN-YunjianNeural | 浑厚沉稳男声（119Hz） | 悬念揭秘、重磅结论 |
+
+每个音色有独立的 5 情绪韵律表（hook/rule/explain/reveal/win 的 rate/pitch/volume 各不相同，
+例如浑厚男声不会用 +15% 语速），并做了响度对齐（-20dBFS 语音电平，避免五段连播电平跳变）。
+逐镜微调：`"mood_tuning": {"hook": {"rate": "+15%"}}`。试听：`$PY $TOOLS/voice_lab.py --preset all`。
+
+字幕是**逐词高亮**的（卡拉OK 式）：用 edge-tts 的 WordBoundary 时间戳，跟着配音点亮当前词，
+缓存命中时不重新合成也能复用（`<wav>.words.json`）。
 
 ## 质量检查单（交付前必过）
 
+- [ ] `[lint]` 全绿（或只留 `[!]` 且已确认可接受）
 - [ ] `--preview` 关键帧无文字溢出、无重叠、无豆腐块（缺字形）
 - [ ] 成片时长 = 各镜头配音+0.7s 之和（`make.py` 的 `[check] 时长` 行应无偏差警告）
 - [ ] `[check] 流：视频=有 音频=有`，峰值 ≤ -0.2dB 不削波（自动打印）
@@ -154,4 +235,5 @@ $PY $TOOLS/make.py --content content.json --topic topic_<name> --out out/<name>.
 - 企业代理会重置部分 WSS 连接：已做重试 + 两轮补采，仍失败则该镜降级静音（字幕照常）
 - 分段并行编码会让文件略大（每段一个首帧关键帧，约 +30~50%）；要最小体积用 `--jobs 1`
 - 无 BGM；需要时后期在剪映里垫低音量鼓点
+- 配音是合成语音：平台要求显著标识"AI 合成"，片尾/简介里要写明
 - 复杂 3D/真实照片类题材不适合（程序化视觉的表达边界）

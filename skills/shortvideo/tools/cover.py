@@ -198,8 +198,9 @@ def _variant_f1(c, w=W34, h=H34):
         if hit:
             k = ln.find(hit)
             pre, hw = f.getlength(ln[:k]), f.getlength(hit)
-            _highlight_block(img, (x0 + pre - 10, y + line_h * 0.14,
-                                   x0 + pre + hw + 10, y + line_h * 0.86), accent2)
+            _highlight_block(img, (max(MARGIN - 4, x0 + pre - 10), y + line_h * 0.14,
+                                   min(w - MARGIN + 4, x0 + pre + hw + 10),
+                                   y + line_h * 0.86), accent2)
             d = ImageDraw.Draw(img, "RGBA")
             before, after = ln[:k], ln[k + len(hit):]
             if before:
@@ -298,8 +299,9 @@ def _variant_f6(c, w=W34, h=H34):
         if hit:
             k = ln.find(hit)
             pre, hw = f.getlength(ln[:k]), f.getlength(hit)
-            _highlight_block(img, (x + pre - 10, y + line_h * 0.14,
-                                   x + pre + hw + 10, y + line_h * 0.86), accent2)
+            _highlight_block(img, (max(MARGIN - 4, x + pre - 10), y + line_h * 0.14,
+                                   min(w - MARGIN + 4, x + pre + hw + 10),
+                                   y + line_h * 0.86), accent2)
             before, after = ln[:k], ln[k + len(hit):]
             if before:
                 d.text((x, y + line_h / 2), before, font=f, fill=FG + (178,), anchor="lm")

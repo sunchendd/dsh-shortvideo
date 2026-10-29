@@ -46,6 +46,47 @@ cd project
 常用开关：`--preview`（秒级审片）、`--jobs N`（并行分段，默认 auto）、
 `--preset veryfast`（更快）、`--clean`（清缓存重跑）、`--no-check`（跳过自检）。
 
+## 小红书爆款能力（v2 起）
+
+不只是"能出片"，而是按社区方法论（`docs/xhs-playbook.md`，283 行带 25 个来源）逐条落地：
+
+| 能力 | 怎么用 | 依据 |
+|---|---|---|
+| **3 款人格化音色** | `"voice": {"preset": "xiaoxiao"\|"yunxi"\|"yunjian"}` | 每音色独立 5 情绪韵律表 + 响度对齐 -20dBFS |
+| **逐词高亮字幕** | 自动（edge-tts WordBoundary 时间戳） | 跟着配音点亮当前词，剪映式卡拉OK |
+| **不写代码出片** | content.json 里写 `deck`（9 种 kind） | `big/cards/bars/compare/formula/steps/list/bits/digits` |
+| **爆款封面三版式** | 出片自动产出 `cover_f1/f3/f6.png`(3:4) + `cover_9x16.png` | 平台封面只支持 3:4/1:1/4:3，官方建议竖版；支持 A/B 4 张 |
+| **脚本体检** | `make.py ... --strict` 打印 `[lint]` | 钩子≤13字、语速≤4.6字/秒、单镜≤38字、留白≥1s、红线词 |
+| **信息图 / 底图** | `tools/oneimage.py` · `tools/art.py` | 一张图总结 / AI 画室 |
+| **转场与动效** | `"transition": {"type":"fade|slide|slide_up|wipe","dur":0.24}` | 每条可单独 `transition_in` 覆盖 |
+
+### 角色技能（多 agent 协作）
+
+| 技能 | 角色 | 干什么 |
+|---|---|---|
+| `xhs-creative-director` | 创意总监 | 选题打分、角度、钩子、标题、`content.json` |
+| `shortvideo-master` | 短视频大师 | 分镜节奏、视觉配方、动效、审片 |
+| `one-image-summary` | 一张图总结大师 | 1080x1440 信息图 |
+| `ai-art-studio` | AI 画室 | 程序化底图/主视觉（5 风格 4 配色） |
+
+`./install.sh` 会把这 4 个角色技能一起装到 `~/.dsh/skills/`。
+
+### 看看效果
+
+`examples/` 里有 3 条按爆款阈值写的完整脚本（题材内核都跑数验证过）：
+
+| 条目 | 题材 | 音色 | 成片 |
+|---|---|---|---|
+| `01-monty-hall` | 蒙提霍尔（换门翻倍，20 万次模拟 0.6666 vs 0.3334） | yunxi | `out/01-monty-hall.mp4` 36.8s |
+| `02-rayleigh-blue` | 瑞利散射（(700/450)⁴ = 5.86 倍） | xiaoxiao | `out/02-rayleigh-blue.mp4` 36.0s |
+| `03-float-point` | 浮点数（repr(0.1+0.2) 第 17 位） | yunjian | `out/03-float-point.mp4` 37.2s |
+
+```bash
+cd examples
+$PY ../skills/shortvideo/tools/make.py --content 01-monty-hall.content.json --topic deck --out out/01.mp4
+$PY ../skills/shortvideo/tools/oneimage.py --spec oneimage-01-monty-hall.json --out out/01.png
+```
+
 ## 内置题材包（examples，也是开发模板）
 
 | 题材 | content | topic 模块 | 讲什么 |
