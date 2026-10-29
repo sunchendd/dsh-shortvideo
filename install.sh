@@ -37,7 +37,10 @@ done
 echo "==> 同步技能代码：$SRC_DIR -> $DEST_DIR"
 mkdir -p "$DEST_DIR"
 if command -v rsync >/dev/null 2>&1; then
+  # --delete 但保留编辑器与示例（它们不在 skills/shortvideo 下，
+  # 之前没排除，装完 ui/ 和 examples/ 立刻被删掉，sv 直接 lost）
   rsync -a --delete --exclude '.venv' --exclude '__pycache__' --exclude 'tts_cache' \
+        --exclude 'ui' --exclude 'examples' --exclude 'sv' \
         "$SRC_DIR/" "$DEST_DIR/"
 else
   (cd "$SRC_DIR" && tar -cf - --exclude '.venv' --exclude '__pycache__' .) \
@@ -111,6 +114,20 @@ else
   echo "        sudo apt-get install -y fonts-wqy-zenhei   # 或 fonts-noto-cjk"
 fi
 
+echo "==> 同步编辑器与示例：$REPO_DIR/ui -> $DEST_DIR/ui"
+mkdir -p "$DEST_DIR/ui" "$DEST_DIR/examples"
+if command -v rsync >/dev/null 2>&1; then
+  rsync -a --delete --exclude '__pycache__' "$REPO_DIR/ui/" "$DEST_DIR/ui/"
+else
+  cp -r "$REPO_DIR/ui/." "$DEST_DIR/ui/"
+fi
+# 只拷配置（content.json / oneimage-*.json），不拷出片产物
+cp -f "$REPO_DIR"/examples/*.content.json "$DEST_DIR/examples/" 2>/dev/null || true
+cp -f "$REPO_DIR"/examples/oneimage-*.json "$DEST_DIR/examples/" 2>/dev/null || true
+cp -f "$REPO_DIR/sv" "$DEST_DIR/sv" && chmod +x "$DEST_DIR/sv"
+mkdir -p "$HOME/.local/bin"
+ln -sf "$DEST_DIR/sv" "$HOME/.local/bin/sv"
+
 if [ "$DO_SMOKE" = "1" ] && [ -x "$VENV/bin/python" ]; then
   echo "==> 冒烟测试（--preview，数秒）"
   TMP="$(mktemp -d)"
@@ -129,6 +146,12 @@ cat <<EOF
   skill 目录 : $DEST_DIR
   角色技能   : ${ROLE_SKILLS[*]}（$SKILLS_DIR/<name>）
   Python     : $VENV/bin/python   （make.py 会自动切到这个 venv）
+
+打开剪辑台（推荐）：
+  sv                      # 启动后浏览器打开 http://127.0.0.1:8099
+  sv list                 # 列出项目
+  sv new "为什么飞机窗户是圆的"
+  sv export <slug>
 
 直接出片：
   cd <你的 project 目录>

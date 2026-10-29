@@ -26,8 +26,31 @@ import threading
 import time
 from collections import OrderedDict
 
-REPO = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-TOOLS = os.path.join(REPO, "skills", "shortvideo", "tools")
+def _find_root(start):
+    """向上找带 examples/ 的目录（开发布局与插件布局都能命中）。"""
+    cur = os.path.abspath(start)
+    for _ in range(6):
+        if os.path.isdir(os.path.join(cur, "examples")):
+            return cur
+        nxt = os.path.dirname(cur)
+        if nxt == cur:
+            break
+        cur = nxt
+    return os.path.dirname(os.path.abspath(start))
+
+
+REPO = os.environ.get("SV_ROOT") or _find_root(__file__)
+
+
+def _tools_dir(root):
+    for cand in (os.path.join(root, "skills", "shortvideo", "tools"),
+                 os.path.join(root, "tools")):
+        if os.path.isdir(cand):
+            return cand
+    return os.path.join(root, "skills", "shortvideo", "tools")
+
+
+TOOLS = _tools_dir(REPO)
 EX = os.path.join(REPO, "examples")
 for p in (TOOLS,):
     if p not in sys.path:

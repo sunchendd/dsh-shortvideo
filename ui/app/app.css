@@ -384,6 +384,9 @@ input, textarea, select { font: inherit; color: inherit; }
 .btn.primary:hover { background: #2f74e6; }
 
 /* ---------------------------------------------------------------- 命令面板 */
+/* 注意：作者样式里的 display:flex 会盖掉 UA 的 [hidden]{display:none}，
+   于是"隐藏"的命令面板其实一直铺在界面上。必须显式处理。 */
+.palette[hidden] { display: none !important; }
 .palette {
   position: fixed; inset: 0; z-index: 80; background: #000000a8;
   display: flex; justify-content: center; align-items: flex-start; padding-top: 14vh;

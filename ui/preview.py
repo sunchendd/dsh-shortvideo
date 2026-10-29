@@ -38,11 +38,36 @@ import urllib.parse
 import preview_render as PV
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 
-REPO = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+def _find_root(start):
+    """向上找带 examples/ 的目录当仓库根。
+
+    装成插件后 ui/ 会被拷到 <skill>/ui，仓库根在上一层；
+    开发时 ui/ 在仓库根下，根也在上一层。用"有没有 examples/"判定，两种布局都能跑。
+    """
+    cur = os.path.abspath(start)
+    for _ in range(6):
+        if os.path.isdir(os.path.join(cur, "examples")):
+            return cur
+        nxt = os.path.dirname(cur)
+        if nxt == cur:
+            break
+        cur = nxt
+    return os.path.dirname(os.path.abspath(start))
+
+
+REPO = os.environ.get("SV_ROOT") or _find_root(__file__)
 EX = os.path.join(REPO, "examples")
 OUT = os.path.join(EX, "out")
 PY = sys.executable
-TOOLS = os.path.join(REPO, "skills", "shortvideo", "tools")
+def _tools_dir(root):
+    """工具目录：开发布局在 skills/shortvideo/tools，装成插件后在 <skill>/tools。"""
+    for cand in (os.path.join(root, "skills", "shortvideo", "tools"),
+                 os.path.join(root, "tools")):
+        if os.path.isdir(cand):
+            return cand
+    return os.path.join(root, "skills", "shortvideo", "tools")
+
+TOOLS = _tools_dir(REPO)
 
 sys.path.insert(0, TOOLS)
 
@@ -898,8 +923,17 @@ def main():
     ap = argparse.ArgumentParser(description="片库预览台")
     ap.add_argument("--port", type=int, default=8099)
     ap.add_argument("--host", default="127.0.0.1")
+    ap.add_argument("--export", default=None, metavar="SLUG",
+                    help="不开服务器，直接导出这条片子（sv export）")
     a = ap.parse_args()
-    srv = ThreadingHTTPServer((a.host, a.port), Handler)
+    if a.export:
+        ok, tail = _run_stage(a.export, "render")
+        print(tail)
+        raise SystemExit(0 if ok else 1)
+    try:
+        srv = ThreadingHTTPServer((a.host, a.port), Handler)
+    except OSError as e:
+        raise SystemExit(f"[x] 端口 {a.port} 被占用（{e}）。换一个：sv app --port 8100")
     print(f"[preview] http://{a.host}:{a.port}  ({len(_slug_list())} 条片子)", flush=True)
     try:
         srv.serve_forever()
