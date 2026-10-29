@@ -133,8 +133,11 @@ def _big(img, t, dur, spec):
     # 扫线要"慢慢拉长"而不是"唰一下就完"：钩子镜 7s 长，字幕按词高亮会出现
     # 1.4s 完全不变的窗口（实测 19 号 1.7~3.1s 像素零变化），
     # 把扫线时长拉到镜长的 55%，这段就一直在动。
-    sweep_at = float(spec.get("sweep_at") or 0.15)
-    sw = R.clamp((p - sweep_at) / float(spec.get("sweep_span") or 0.55))
+    # 扫线要"铺满镜长"：长镜（7s）用 0.15~0.70，短镜（3.7s）用 0.32~0.95，
+    # 否则短镜的扫线在 1.5s 就跑完，后面 1.3s 画面完全静止（short-07 实测）。
+    short_shot = (dur or 9.0) < 5.0
+    sweep_at = float(spec.get("sweep_at") or (0.32 if short_shot else 0.15))
+    sw = R.clamp((p - sweep_at) / float(spec.get("sweep_span") or (0.62 if short_shot else 0.55)))
     if sw > 0:
         y_line = int(y0 + line_h * n - line_h * 0.12)
         half = (R.W * 0.30) * _ease(sw)
@@ -144,7 +147,10 @@ def _big(img, t, dur, spec):
         # 副标按**绝对时间**入场（t≥1.1s），不用 p*dur：
         # 钩子镜往往 7s 长，按 45% 算要到 3.3s 才动，于是 1.7~3.1s 画面完全静止——
         # 实测 27 条里有 12 条在前 3 秒存在 0.9~1.4s 的静止段（hookaudit 查出来的）。
-        a = R.clamp((t - 1.05) / 0.45)
+        # 短镜头的副标要更晚：3.7s 的钩子镜里，扫线（6px 细线）在手机上根本看不出动，
+        # 必须有一个"整块元素出现"才算第二拍。按镜长给到 55%，长镜仍是 1.05s。
+        sub_at = 1.05 if (dur or 9) >= 5.0 else max(1.05, (dur or 4) * 0.55)
+        a = R.clamp((t - sub_at) / 0.45)
         _note(img, spec["sub"], y=int(y0 + line_h * n + 96), size=int(size * 0.34),
               alpha=a, color=accent)
 

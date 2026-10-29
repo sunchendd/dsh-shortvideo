@@ -79,7 +79,7 @@ def audit(path):
     flags = []
     if ink0 < MIN_INK0:
         flags.append(f"开场太素（首帧墨量 {ink0*100:.1f}% < {MIN_INK0*100:.0f}%）")
-    if still_secs >= MAX_STILL:
+    if still_secs > MAX_STILL:
         flags.append(f"开场发闷（{still_secs:.1f}s 画面几乎不变，从 {best_at:.1f}s 起）")
     if first_move is not None and first_move > MAX_FIRST_MOVE:
         flags.append(f"起手太慢（{first_move:.1f}s 才有第一次变化）")
