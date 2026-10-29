@@ -90,7 +90,10 @@ def _card(slug):
             files[name] = f"/files/{slug}/{name}"
     return {
         "slug": slug,
-        "title": cfg.get("title") or slug,
+        # 短版的 content.json 里没有 title，标题在 publish_title（成片标题）里；
+        # 直接取 title 会让短版在片库里显示成 slug，实测 9 条全中。
+        "title": (cfg.get("title") or cfg.get("publish_title") or cfg.get("topic")
+                  or " / ".join((cfg.get("cover") or {}).get("headline") or []) or slug),
         "theme": cfg.get("theme") or "midnight",
         "format": "short" if str(cfg.get("format") or "").lower() == "short" else "long",
         "seconds": _duration(cfg),
