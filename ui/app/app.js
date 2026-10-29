@@ -1036,7 +1036,17 @@ async function startExport() {
     if (m) {
       const pct = 20 + 70 * (+m[1] / +m[2]);
       $("#exBar").style.width = pct.toFixed(1) + "%";
-    } else if (/\[tts\]/.test(line)) $("#exBar").style.width = "12%";
+      const eta = line.match(/ETA\s+(\d+)\s*s/);
+      if (eta) {
+        $("#exEta").textContent = `还剩 ~${eta[1]} 秒`;
+      } else {
+        // 没有 ETA 就按已用时间与进度估一个（比"转圈"诚实）
+        const done = +m[1], all2 = +m[2];
+        const used = (performance.now() - t0) / 1000;
+        const left = done > 8 ? (used / done) * (all2 - done) : 0;
+        $("#exEta").textContent = left > 0 ? `还剩 ~${Math.round(left)} 秒` : "估算中…";
+      }
+    } else if (/\[tts\]/.test(line)) { $("#exBar").style.width = "12%"; $("#exEta").textContent = "配音中…"; }
     else if (/\[render\]/.test(line)) $("#exBar").style.width = "20%";
     else if (/\[ok\]/.test(line)) $("#exBar").style.width = "96%";
   }, (ok) => {

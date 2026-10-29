@@ -668,8 +668,16 @@ def _stage_status(slug):
     return st, detail
 
 
-def _run_stage(slug, stage, opts=None):
-    """跑一道工序，返回 (ok, 日志尾巴)。每道工序都是幂等的，可以反复重跑。"""
+def _run_stage(slug, stage, opts=None, jid=None):
+    """跑一道工序，返回 (ok, 日志尾巴)。每道工序都是幂等的，可以反复重跑。
+
+    jid 给了就把子进程输出**实时**推进 job log（导出进度条要动就得靠这个）。
+    """
+    def run(cmd, timeout=3600):
+        if jid:
+            return _stream_subprocess(cmd, REPO, jid, timeout=timeout)
+        r = subprocess.run(cmd, cwd=REPO, capture_output=True, text=True, timeout=timeout)
+        return r.returncode == 0, ((r.stdout or "") + (r.stderr or ""))[-1500:]
     d = os.path.join(OUT, slug)
     content = os.path.join(EX, f"{slug}.content.json")
     mp4 = os.path.join(d, f"{slug}.mp4")
@@ -677,9 +685,8 @@ def _run_stage(slug, stage, opts=None):
         brief = os.path.join(d, "brief.json")
         if not os.path.exists(brief):
             return False, f"没有 {brief}：脚本工序需要先有 brief（新建项目时写入）"
-        r = subprocess.run([PY, os.path.join(TOOLS, "draft.py"), "--from-json", brief,
-                            "--out", content], cwd=REPO, capture_output=True, text=True, timeout=600)
-        return r.returncode == 0, ((r.stdout or "") + (r.stderr or ""))[-1500:]
+        return run([PY, os.path.join(TOOLS, "draft.py"), "--from-json", brief,
+                    "--out", content], timeout=600)
     if stage == "render":
         preset = (opts or {}).get("preset") or "xhs"
         cmd = [PY, os.path.join(TOOLS, "make.py"), "--content", content,
@@ -689,8 +696,8 @@ def _run_stage(slug, stage, opts=None):
             # 注意 make.py 原来没有 --size，第一次接的时候直接 argparse 报错，
             # 而前端把"失败"当成了"完成"——两个都修了。
             cmd += ["--size", "720x1280", "--fps", "24", "--preset", "veryfast", "--crf", "26"]
-        r = subprocess.run(cmd, cwd=REPO, capture_output=True, text=True, timeout=3600)
-        if r.returncode == 0 and os.path.exists(mp4):
+        ok_run, tail_run = run(cmd)
+        if ok_run and os.path.exists(mp4):
             # 快速预览是 720x1280，交付界面不能还写着 1080x1920 —— 以实际出片为准
             try:
                 json.dump({"preset": preset, "size": "720x1280" if preset == "draft" else "1080x1920",
@@ -699,7 +706,7 @@ def _run_stage(slug, stage, opts=None):
                           open(os.path.join(d, ".render.json"), "w", encoding="utf-8"))
             except OSError:
                 pass
-        return r.returncode == 0, ((r.stdout or "") + (r.stderr or ""))[-1500:]
+        return ok_run, tail_run
     if stage == "assets":
         code = ("import sys,json;sys.path.insert(0,%r);import cover;"
                 "cfg=json.load(open(%r,encoding='utf-8'));cover.build_covers(cfg,%r,None)")
@@ -738,6 +745,43 @@ def _run_stage(slug, stage, opts=None):
     return False, f"未知工序 {stage}"
 
 
+def _stream_subprocess(cmd, cwd, jid, timeout=1800):
+    """跑子进程并把输出**实时**写进 job log。
+
+    原来用 subprocess.run(capture_output=True)：日志和进度要等进程结束才一次性出现，
+    界面上的进度条等于摆设（看起来"卡在启动渲染…"十几秒然后突然 100%）。
+    make.py 的进度是用 \r 刷同一行的，所以要按 \r 也切行，否则一行都读不到。
+    """
+    t0 = time.time()
+    try:
+        # PYTHONUNBUFFERED：子进程 stdout 接的是管道，默认块缓冲 8KB，
+        # 不写这个的话进度行要攒满一块才出来（表现为"日志卡着不动，最后一次性刷完"）
+        env = dict(os.environ, PYTHONUNBUFFERED="1")
+        p = subprocess.Popen(cmd, cwd=cwd, stdout=subprocess.PIPE,
+                             stderr=subprocess.STDOUT, text=True, bufsize=1,
+                             errors="replace", env=env)
+    except Exception as e:  # noqa: BLE001
+        return False, f"启动失败：{e}"
+    tail = []
+    for chunk in iter(lambda: p.stdout.readline(), ""):
+        for line in chunk.replace("\r", "\n").split("\n"):
+            line = line.strip()
+            if not line:
+                continue
+            tail.append(line)
+            tail = tail[-40:]
+            with _JOBS_LOCK:
+                if jid in _JOBS:
+                    _JOBS[jid]["log"].append(line)
+                    if len(_JOBS[jid]["log"]) > 400:
+                        del _JOBS[jid]["log"][:-400]
+        if time.time() - t0 > timeout:
+            p.kill()
+            return False, "超时"
+    rc = p.wait()
+    return rc == 0, "\n".join(tail)[-1500:]
+
+
 def _start_job(kind, slug, extra=None):
     with _JOBS_LOCK:
         _JOB_SEQ[0] += 1
@@ -749,17 +793,19 @@ def _start_job(kind, slug, extra=None):
         try:
             if kind == "render":
                 p = os.path.join(EX, f"{slug}.content.json")
+                preset = ((extra or {}).get("opts") or {}).get("preset") or "xhs"
                 args = [PY, os.path.join(TOOLS, "make.py"), "--content", p,
                         "--topic", "deck", "--out", os.path.join(OUT, slug, f"{slug}.mp4"),
                         "--jobs", "2"]
-                r = subprocess.run(args, cwd=REPO, capture_output=True, text=True, timeout=1800)
-                tail = (r.stdout or "")[-400:] + (r.stderr or "")[-400:]
-                ok = r.returncode == 0
+                if preset == "draft":
+                    args += ["--size", "720x1280", "--fps", "24",
+                             "--preset", "veryfast", "--crf", "26"]
+                ok, tail = _stream_subprocess(args, REPO, jid)
             elif kind == "new":
                 ok, tail = _create(slug, (extra or {}).get("req") or {})
             elif kind == "stage":
                 ok, tail = _run_stage(slug, (extra or {}).get("stage") or "script",
-                                      (extra or {}).get("opts") or {})
+                                      (extra or {}).get("opts") or {}, jid=jid)
                 tpl = (extra or {}).get("template")
                 if ok and tpl:
                     _apply_template(slug, tpl)
@@ -771,8 +817,12 @@ def _start_job(kind, slug, extra=None):
             else:
                 ok, tail = _rerender_covers(slug, (extra or {}).get("theme"))
             with _JOBS_LOCK:
+                # 结束时不覆盖日志：流式阶段攒下的进度行要留着，只把尾巴接上去
+                cur = _JOBS[jid].get("log") or []
+                extra_lines = [l for l in (tail or "").split("\n") if l.strip()]
                 _JOBS[jid].update(status="done" if ok else "fail",
-                                  log=[tail], elapsed=round(time.time() - _JOBS[jid]["started"], 1))
+                                  log=(cur + extra_lines)[-400:],
+                                  elapsed=round(time.time() - _JOBS[jid]["started"], 1))
         except Exception as e:  # noqa: BLE001
             with _JOBS_LOCK:
                 _JOBS[jid].update(status="fail", log=[f"{type(e).__name__}: {e}"])

@@ -390,13 +390,18 @@ def _child_encode(worker, segs, seg_path, renderer, w, h, fps, preset, crf, thre
                  "-g", str(fps * 2), "-an", path],
                 stdin=subprocess.PIPE)
             try:
-                for i in range(i0, i1):
+                for n, i in enumerate(range(i0, i1), 1):
                     proc.stdin.write(renderer.frame(idx, i).convert("RGB").tobytes())
+                    # 共享计数器（fork 前创建，lock=False 够用：只是进度显示）
+                    if n % 10 == 0 and renderer.done is not None:
+                        renderer.done.value += 10
             finally:
                 proc.stdin.close()
                 rc = proc.wait()
             if rc != 0:
                 raise RuntimeError(f"分段编码失败（段 {k}, ffmpeg 退出码 {rc}）")
+            if renderer.done is not None:      # 补上不足 10 帧的零头
+                renderer.done.value += (i1 - i0) % 10
         os._exit(0)
     except BrokenPipeError:
         os._exit(1)
@@ -421,6 +426,15 @@ def encode_by_segments(timeline, topic_ref, ctx, total, w, h, fps, jobs, cfg,
     cpu = os.cpu_count() or 1
     threads = max(1, min(8, cpu // max(1, jobs)))
 
+    # fork 前建好共享计数器：所有渲染子进程往里加帧数，父进程读它算进度与 ETA
+    try:
+        import multiprocessing as _mp
+        done_counter = _mp.Value("i", 0, lock=False)
+    except Exception:  # noqa: BLE001
+        done_counter = None
+    renderer.done = done_counter
+    total_frames_all = sum(i1 - i0 for _idx, i0, i1 in pieces)
+
     t0 = time.time()
     pids = []
     for wid, segs in enumerate(plan):
@@ -430,11 +444,20 @@ def encode_by_segments(timeline, topic_ref, ctx, total, w, h, fps, jobs, cfg,
         if pid == 0:
             _child_encode(wid, segs, seg_path, renderer, w, h, fps, preset, crf, threads)
         pids.append((wid, pid))
+    # 父进程不能死等 waitpid：那样进度条要等全部渲完才动一下。
+    # 改成轮询 + 共享计数器，天然得到"渲染 320/778 45.1fps ETA 10s"这种实时进度。
     failed = []
-    for wid, pid in pids:
-        _p, status = os.waitpid(pid, 0)
-        if status != 0:
-            failed.append((wid, status))
+    pending = dict(pids)
+    while pending:
+        time.sleep(0.3)
+        for wid, pid in list(pending.items()):
+            _p, status = os.waitpid(pid, os.WNOHANG)
+            if _p == pid:
+                pending.pop(wid)
+                if status != 0:
+                    failed.append((wid, status))
+        if pending and done_counter is not None:
+            _progress(done_counter.value, total_frames_all, t0)
     if failed:
         raise SystemExit(f"[x] 并行编码失败: {failed}")
 
