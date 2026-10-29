@@ -109,11 +109,29 @@ async function loadProject(slug) {
     $("#stage").classList.add("live");   // 只加标记，画面仍显示静帧，播放时才切视频
     $("#stage").classList.remove("live");
   }
+  clearEmpty();
   toast("已打开 " + slug);
 }
 
+/* 空态只加一层提示，不要把画布结构整个替换掉。
+   之前直接 innerHTML = ...，之后 #frame / #skel 就没了，
+   同一个页面换到另一个项目时全部报 null（实测过一次）。 */
 function showEmpty(msg) {
-  $("#stage").innerHTML = `<div class="empty">${msg}</div>`;
+  const stage = $("#stage");
+  if (!stage) return;
+  let box = stage.querySelector(".empty");
+  if (!box) {
+    box = document.createElement("div");
+    box.className = "empty";
+    stage.appendChild(box);
+  }
+  box.textContent = msg;
+  box.style.display = "block";
+}
+
+function clearEmpty() {
+  const box = $("#stage") && $("#stage").querySelector(".empty");
+  if (box) box.style.display = "none";
 }
 
 /* ------------------------------------------------------------ 时间线 */
@@ -252,12 +270,21 @@ function requestFrame(force = false) {
     // 带版本号：编辑后浏览器不能再拿旧图（服务端 LRU 与浏览器缓存各有一套）
     const url = `/api/frame?slug=${encodeURIComponent(S.slug)}&t=${t}&v=${S.frameRev || 0}`;
     const img = new Image();
+    // 骨架屏只在"真的慢"时出现：单帧 30~90ms，无脑显示会闪一下反而像卡顿。
+    clearTimeout(S.skelTimer);
+    S.skelTimer = setTimeout(() => {
+      if (seq === S.frameSeq) $("#skel").style.display = "block";
+    }, 120);
     img.onload = () => {
+      clearTimeout(S.skelTimer);
       if (seq !== S.frameSeq) return;         // 有更新的请求了，丢掉旧图
       $("#frame").src = url;
       $("#skel").style.display = "none";
     };
-    img.onerror = () => { if (seq === S.frameSeq) $("#skel").style.display = "block"; };
+    img.onerror = () => {
+      clearTimeout(S.skelTimer);
+      if (seq === S.frameSeq) $("#skel").style.display = "block";
+    };
     img.src = url;
   };
   // 拖动时限制到 ~12fps：每帧服务端要 30~90ms，打满反而卡
@@ -742,6 +769,7 @@ function bindUI() {
   bindTimeline();
   bindPanels();
   bindExport();
+  bindTour();
 }
 
 function bindTimeline() {
@@ -920,6 +948,9 @@ async function openPanel(name, btn) {
       ["Ctrl+滚轮", "缩放时间线"], ["Esc", "逐层关闭（面板/弹窗/抽屉）"],
     ].map(([k, d]) => `<div class="asset"><div style="width:44px;text-align:center;font:11px var(--mono);color:var(--ink1)">${k}</div>
       <div><div class="t">${d}</div></div></div>`).join("");
+    L.insertAdjacentHTML("beforeend", `<button class="btn" id="btnTour" style="margin:12px 10px">再看一次引导</button>`);
+    const bt = $("#btnTour");
+    if (bt) bt.onclick = () => { closePanel(); showTour(); };
   } else {
     L.innerHTML = `<div class="meta" style="padding:8px">正在读取质检结果…</div>`;
     const qa = await jget(`/api/stage-status?slug=${encodeURIComponent(S.slug)}`).catch(() => null);
@@ -1373,6 +1404,32 @@ function escClose() {
 }
 
 function stopPlayIfAny() { if (S.playing) pause(); }
+
+/* ------------------------------------------------------------ 首用引导 */
+const TOUR_KEY = "sv.tour.v1";
+
+function bindTour() {
+  const scrim = $("#tourScrim");
+  if (!scrim) return;
+  const close = () => {
+    if ($("#tourNever") && $("#tourNever").checked) localStorage.setItem(TOUR_KEY, "1");
+    scrim.classList.remove("on");
+    scrim.hidden = true;
+  };
+  $("#tourOk").onclick = close;
+  $("#tourClose").onclick = close;
+  scrim.onclick = (e) => { if (e.target === scrim) close(); };
+  if (!localStorage.getItem(TOUR_KEY)) { scrim.hidden = false; scrim.classList.add("on"); }
+}
+
+function showTour() {
+  const scrim = $("#tourScrim");
+  if (scrim) {
+    scrim.hidden = false;
+    scrim.classList.add("on");
+    localStorage.removeItem(TOUR_KEY);
+  }
+}
 
 /* ------------------------------------------------------------ 小工具 */
 function esc(s) {

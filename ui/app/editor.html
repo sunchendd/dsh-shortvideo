@@ -200,6 +200,25 @@
 </div>
 
 <!-- 交付面板：导出完成后落地的地方 -->
+<!-- 首用引导：只出现一次，之后可以在快捷键面板里再看 -->
+<div class="scrim tour" id="tourScrim" hidden>
+  <div class="modal tour-card">
+    <header><h2>这里是剪辑台</h2><button class="tbtn" id="tourClose">×</button></header>
+    <div class="body">
+      <ol class="tourlist">
+        <li><b>拖时间线</b>看任意一帧；<b>点镜头</b>就在右边改它。</li>
+        <li><b>空格</b>播放成片（有声音），<b>← →</b>逐帧。</li>
+        <li>右边改的是<b>画面上的字</b>，改完立刻重渲，退出会自动存。</li>
+        <li><b>⌘K</b> 找命令，<b>Esc</b> 逐层关闭，右下角「检查」看有没有问题。</li>
+      </ol>
+      <div class="tourfoot">
+        <label class="tournever"><input type="checkbox" id="tourNever" checked> 别再显示</label>
+        <button class="btn primary" id="tourOk">知道了</button>
+      </div>
+    </div>
+  </div>
+</div>
+
 <div class="scrim" id="deliverScrim">
   <div class="modal result">
     <header>
