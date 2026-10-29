@@ -18,8 +18,10 @@ sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 from PIL import Image, ImageDraw
 
 import art
+import cover as _cover
 from cover import (ACCENT, ACCENT2, DARK, FG, GREY, MARGIN, _fit, _highlight_block,
                    _kicker, _paste, _tags, _text_outline, highlight_box)
+
 from shortvideo import runtime as R
 from shortvideo import scenes as _scenes
 
@@ -181,7 +183,20 @@ def _draw_points(img, pts, x0, x1, y_top, y_bot, accent):
     return y, total
 
 
+def sync_theme():
+    """把 cover 侧（可能已被换肤更新的）颜色重新取一遍。
+
+    `from cover import FG, GREY…` 在 import 那刻就把值**冻住**了：`main()` 里
+    `R.set_theme()` 换到浅色主题后，一张图仍在用深色主题的白色字 —— 渲出来是白底白字。
+    """
+    global ACCENT, ACCENT2, DARK, FG, GREY
+    _cover.sync_theme()
+    ACCENT, ACCENT2 = _cover.ACCENT, _cover.ACCENT2
+    DARK, FG, GREY = _cover.ON_BLOCK, _cover.FG, _cover.GREY
+
+
 def build(raw, out_path, w=W, h=H):
+    sync_theme()
     c = _spec(raw)
     accent, accent2 = c["accent"], c["accent2"]
     img = art.make(c["style"], w, h, c["seed"], c["palette"]).convert("RGB")

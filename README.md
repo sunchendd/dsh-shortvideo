@@ -156,3 +156,29 @@ skills/shortvideo/
 | VLM 审片 | `--preview` 关键帧 + ffmpeg 自检（流/时长/电平） | 程序化画面可控性高 |
 | edge-tts 配音 | ✅ 相同（含 mood 情绪 prosody），+ 代理/CA 兼容与静音兜底 | 云端服务，无需 GPU |
 | ffmpeg 合成 | ✅ 相同（imageio-ffmpeg 内置），+ 分段并行编码 | CPU 即可 |
+
+## 片库预览台（本地 Web UI）
+
+这套工具默认是 CLI，没有界面。要看**界面**就跑这个：
+
+```bash
+/root/shortvideo-lab/.venv/bin/python ui/preview.py --port 8099
+# 打开 http://127.0.0.1:8099
+```
+
+纯标准库（无 Flask/无 npm），只监听 127.0.0.1。能做的事：
+
+| 功能 | 说明 |
+|---|---|
+| 浏览 | 32 条片子的封面 / 成片 / 一张图，卡片按主题着色 |
+| 筛选 | 按主题、长短版、关键词（标题/钩子/学科）过滤 |
+| 详情 | 播放成片、看 5 版封面、看一张图、读脚本与算式 |
+| 换主题 | 下拉选主题 → 改 `content.json` 并即时重渲封面 + 一张图（约 2 秒） |
+| 重渲成片 | 后台任务 + 进度日志（命中 TTS 缓存时几秒） |
+| 跑门禁 | 对单条跑 `verify.sh`，日志直接显示在抽屉里 |
+| 深链 | `http://127.0.0.1:8099/#19-spf-sunscreen` 直接打开某一条 |
+
+注意区分两个同名概念：
+- `ui/preview.py` —— **动态**预览台（就是这个）
+- `tools/studio.py` —— **静态**封面 A/B 台账生成器（产出 `examples/studio-index.html`，用于挑封面上传）
+

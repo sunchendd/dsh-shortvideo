@@ -1,0 +1,267 @@
+<!doctype html>
+<html lang="zh-CN">
+<meta charset="utf-8">
+<title>科普短视频 · 片库预览台</title>
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<style>
+:root{
+  --bg:#0B0F16; --panel:#111823; --panel2:#16202E; --line:#1F2B3C;
+  --text:#E8EEF9; --dim:#93A3BA; --faint:#5C6C84;
+  --brand:#3DE8FF; --state:#FF3D63; --amber:#FFC22E; --green:#36E394;
+  --r:14px;
+}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--text);
+  font:14px/1.55 -apple-system,"PingFang SC","Microsoft YaHei",system-ui,sans-serif}
+a{color:var(--brand);text-decoration:none}
+header{position:sticky;top:0;z-index:20;background:rgba(11,15,22,.92);
+  backdrop-filter:blur(12px);border-bottom:1px solid var(--line);padding:14px 22px}
+h1{font-size:17px;margin:0;font-weight:650;letter-spacing:.2px}
+h1 small{color:var(--faint);font-weight:400;font-size:12px;margin-left:10px}
+.bar{display:flex;gap:10px;align-items:center;margin-top:12px;flex-wrap:wrap}
+input[type=search]{background:var(--panel);border:1px solid var(--line);color:var(--text);
+  border-radius:10px;padding:8px 12px;min-width:230px;outline:none;font-size:13px}
+input[type=search]:focus{border-color:var(--brand)}
+.chip{background:var(--panel);border:1px solid var(--line);color:var(--dim);
+  border-radius:999px;padding:6px 13px;font-size:12.5px;cursor:pointer;user-select:none}
+.chip:hover{border-color:#2E4155;color:var(--text)}
+.chip.on{background:rgba(61,232,255,.12);border-color:var(--brand);color:var(--brand)}
+.spacer{flex:1}
+.meta{color:var(--faint);font-size:12px}
+main{padding:22px}
+.grid{display:grid;gap:16px;grid-template-columns:repeat(auto-fill,minmax(196px,1fr))}
+.card{background:var(--panel);border:1px solid var(--line);border-radius:var(--r);
+  overflow:hidden;cursor:pointer;transition:.16s;display:flex;flex-direction:column}
+.card:hover{transform:translateY(-3px);border-color:#33475F;box-shadow:0 10px 26px rgba(0,0,0,.45)}
+.thumb{position:relative;aspect-ratio:3/4;background:var(--panel2);overflow:hidden}
+.thumb img{width:100%;height:100%;object-fit:cover;display:block}
+.badge{position:absolute;top:8px;left:8px;font-size:11px;padding:3px 8px;border-radius:999px;
+  background:rgba(6,10,16,.78);border:1px solid rgba(255,255,255,.14);color:#DCE6F5}
+.badge.light{background:rgba(255,255,255,.9);color:#0B0F16;border-color:rgba(0,0,0,.1)}
+.badge.dur{left:auto;right:8px}
+.cbody{padding:10px 12px 12px}
+.ctitle{font-size:13px;font-weight:600;line-height:1.4;height:2.8em;overflow:hidden}
+.cmeta{margin-top:6px;display:flex;gap:6px;align-items:center;color:var(--faint);font-size:11.5px}
+.dot{width:9px;height:9px;border-radius:3px;flex:0 0 auto}
+/* 详情抽屉 */
+.veil{position:fixed;inset:0;background:rgba(4,7,12,.66);backdrop-filter:blur(3px);
+  opacity:0;pointer-events:none;transition:.18s;z-index:40}
+.veil.on{opacity:1;pointer-events:auto}
+.drawer{position:fixed;top:0;right:0;bottom:0;width:min(920px,94vw);background:var(--panel);
+  border-left:1px solid var(--line);transform:translateX(100%);transition:.24s cubic-bezier(.4,0,.2,1);
+  z-index:50;overflow-y:auto;padding:22px 26px 60px}
+.drawer.on{transform:none}
+.dh{display:flex;align-items:flex-start;gap:16px;margin-bottom:16px}
+.dh h2{font-size:19px;margin:0 0 6px;line-height:1.35}
+.close{margin-left:auto;background:var(--panel2);border:1px solid var(--line);color:var(--dim);
+  border-radius:9px;padding:7px 13px;cursor:pointer;font-size:13px}
+.close:hover{color:var(--text);border-color:#33475F}
+.cols{display:grid;grid-template-columns:1fr 1fr;gap:18px}
+@media(max-width:820px){.cols{grid-template-columns:1fr}}
+video,img.plain{width:100%;border-radius:12px;border:1px solid var(--line);display:block;background:#000}
+img.plain{background:var(--panel2)}
+.sec{margin-top:18px}
+.sec h3{font-size:12px;letter-spacing:.08em;text-transform:uppercase;color:var(--faint);
+  margin:0 0 9px;font-weight:600}
+.thumbs{display:grid;grid-template-columns:repeat(auto-fill,minmax(88px,1fr));gap:8px}
+.thumbs img{width:100%;border-radius:8px;border:1px solid var(--line);display:block;cursor:zoom-in}
+.shot{display:flex;gap:10px;padding:8px 0;border-bottom:1px solid var(--line);font-size:13px}
+.shot b{color:var(--brand);font-weight:600;flex:0 0 62px;font-size:12px}
+.actions{display:flex;gap:9px;flex-wrap:wrap;margin-top:14px}
+select,button{font:inherit}
+select{background:var(--panel2);border:1px solid var(--line);color:var(--text);
+  border-radius:9px;padding:8px 11px;outline:none}
+.btn{background:var(--panel2);border:1px solid var(--line);color:var(--text);border-radius:9px;
+  padding:8px 14px;cursor:pointer;font-size:13px}
+.btn:hover{border-color:#3A4F68}
+.btn.primary{background:rgba(61,232,255,.14);border-color:var(--brand);color:var(--brand)}
+.btn:disabled{opacity:.5;cursor:not-allowed}
+.log{margin-top:12px;background:#080C13;border:1px solid var(--line);border-radius:10px;
+  padding:11px 13px;font:12px/1.5 ui-monospace,Menlo,monospace;color:#9FB0C6;
+  white-space:pre-wrap;max-height:210px;overflow:auto;display:none}
+.log.on{display:block}
+.kv{display:flex;gap:8px;flex-wrap:wrap;color:var(--dim);font-size:12.5px;margin-top:4px}
+.kv span{background:var(--panel2);border:1px solid var(--line);border-radius:7px;padding:3px 9px}
+.toast{position:fixed;left:50%;bottom:26px;transform:translate(-50%,20px);opacity:0;
+  background:var(--panel2);border:1px solid var(--brand);color:var(--text);padding:10px 18px;
+  border-radius:11px;font-size:13px;transition:.2s;z-index:80;pointer-events:none}
+.toast.on{opacity:1;transform:translate(-50%,0)}
+.empty{color:var(--faint);padding:60px 0;text-align:center}
+</style>
+
+<header>
+  <h1>科普短视频 · 片库预览台 <small id="sub">加载中…</small></h1>
+  <div class="bar">
+    <input type="search" id="q" placeholder="搜索标题 / 钩子 / 学科…">
+    <span class="chip on" data-f="all">全部</span>
+    <span class="chip" data-f="short">短版</span>
+    <span class="chip" data-f="long">长版</span>
+    <span class="spacer"></span>
+    <span id="themefilter" class="bar" style="gap:6px"></span>
+  </div>
+</header>
+
+<main>
+  <div class="grid" id="grid"></div>
+  <div class="empty" id="empty" style="display:none">没有匹配的片子</div>
+</main>
+
+<div class="veil" id="veil"></div>
+<aside class="drawer" id="drawer"></aside>
+<div class="toast" id="toast"></div>
+
+<script>
+const THEME_COLOR = {
+  midnight:"#3DE8FF", jade:"#3FD6A4", aubergine:"#C08CF0", "noir-gold":"#D9B45B",
+  graphite:"#BCBCC6", porcelain:"#1D4ED8", "rice-paper":"#A6392F", arctic:"#0C6FA8"
+};
+let LIB = {items:[], themes:[]}, FILTER = {kind:"all", theme:null, q:""};
+
+const $ = s => document.querySelector(s);
+const esc = s => (s||"").replace(/[&<>"]/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
+const toast = (m) => { const t=$("#toast"); t.textContent=m; t.classList.add("on");
+  clearTimeout(t._h); t._h=setTimeout(()=>t.classList.remove("on"),2200); };
+
+async function boot(){
+  const r = await fetch("/api/library"); LIB = await r.json();
+  $("#sub").textContent = `${LIB.items.length} 条 · ${LIB.root}`;
+  const tf = $("#themefilter");
+  tf.innerHTML = "";
+  LIB.themes.forEach(t=>{
+    const el = document.createElement("span");
+    el.className = "chip"; el.textContent = t.name || t.key;
+    el.title = t.note || "";
+    el.onclick = () => {
+      FILTER.theme = (FILTER.theme === t.key) ? null : t.key;
+      [...tf.children].forEach(c=>c.classList.remove("on"));
+      if (FILTER.theme) el.classList.add("on");
+      render();
+    };
+    tf.appendChild(el);
+  });
+  render();
+}
+
+function render(){
+  const g = $("#grid"); g.innerHTML = "";
+  const q = FILTER.q.trim().toLowerCase();
+  const list = LIB.items.filter(it=>{
+    if (FILTER.kind !== "all" && it.format !== FILTER.kind) return false;
+    if (FILTER.theme && it.theme !== FILTER.theme) return false;
+    if (!q) return true;
+    return (it.title + " " + it.hooks + " " + it.subject + " " + it.slug).toLowerCase().includes(q);
+  });
+  $("#empty").style.display = list.length ? "none" : "block";
+  for (const it of list){
+    const cover = it.files["cover_short.png"] || it.files["cover_f1.png"] || "";
+    const light = (LIB.themes.find(t=>t.key===it.theme)||{}).light;
+    const c = document.createElement("div");
+    c.className = "card";
+    c.innerHTML = `
+      <div class="thumb">
+        ${cover?`<img loading="lazy" src="${cover}">`:""}
+        <span class="badge ${light?"light":""}">${esc(it.theme)}</span>
+        <span class="badge dur ${light?"light":""}">${it.seconds}s</span>
+      </div>
+      <div class="cbody">
+        <div class="ctitle">${esc(it.title)}</div>
+        <div class="cmeta">
+          <i class="dot" style="background:${THEME_COLOR[it.theme]||"#3DE8FF"}"></i>
+          ${esc(it.subject)} · ${it.voice}
+        </div>
+      </div>`;
+    c.onclick = () => open(it.slug);
+    g.appendChild(c);
+  }
+}
+
+async function open(slug){
+  const d = await (await fetch("/api/item?slug="+encodeURIComponent(slug))).json();
+  if (d.error) return toast("读不到这条");
+  const mp4 = d.files[d.slug+".mp4"];
+  const sum = d.files["summary.png"];
+  const covers = Object.entries(d.files).filter(([k])=>k.startsWith("cover_"));
+  const opts = LIB.themes.map(t=>
+    `<option value="${t.key}" ${t.key===d.theme?"selected":""}>${esc(t.name)}${t.light?" · 浅":""}</option>`).join("");
+  $("#drawer").innerHTML = `
+    <div class="dh">
+      <div>
+        <h2>${esc(d.title)}</h2>
+        <div class="kv">
+          <span>${esc(d.slug)}</span><span>${d.format==="short"?"短版":"长版"} ${d.seconds}s</span>
+          <span>${esc(d.subject)}</span><span>配音 ${esc(d.voice)}</span>
+          <span>主题 ${esc(d.theme)}</span>
+        </div>
+      </div>
+      <button class="close" onclick="closeDrawer()">关闭</button>
+    </div>
+    <div class="cols">
+      <div>
+        ${mp4?`<video controls preload="metadata" src="${mp4}"></video>`:`<div class="empty">还没渲成片</div>`}
+        <div class="actions">
+          <select id="themesel">${opts}</select>
+          <button class="btn primary" id="btnTheme">换主题并重渲封面</button>
+          <button class="btn" id="btnRender">重渲成片</button>
+          <button class="btn" id="btnVerify">跑门禁</button>
+        </div>
+        <div class="log" id="log"></div>
+      </div>
+      <div>
+        ${sum?`<div class="sec"><h3>一张图</h3><img class="plain" src="${sum}"></div>`:""}
+        <div class="sec"><h3>封面版式</h3>
+          <div class="thumbs">${covers.map(([k,v])=>
+            `<a href="${v}" target="_blank"><img src="${v}" title="${k}"></a>`).join("")}</div>
+        </div>
+      </div>
+    </div>
+    <div class="sec"><h3>脚本</h3>
+      ${(d.shots||[]).map(s=>`<div class="shot"><b>${esc(s.id)}</b><div>${esc(s.narration)}
+        ${s.note?`<div style="color:var(--faint);font-size:12px">注：${esc(s.note)}</div>`:""}</div></div>`).join("")}
+    </div>
+    ${d.kernel?`<div class="sec"><h3>算式</h3><div style="color:var(--dim)">${esc(d.kernel)}</div></div>`:""}
+  `;
+  $("#veil").classList.add("on"); $("#drawer").classList.add("on");
+  history.replaceState(null, "", "#" + encodeURIComponent(d.slug));   // 深链：可直接分享某一条
+
+  const log = $("#log");
+  const runJob = async (url, body) => {
+    log.classList.add("on"); log.textContent = "启动…";
+    const j = await (await fetch(url,{method:"POST",headers:{"Content-Type":"application/json"},
+      body:JSON.stringify(body)})).json();
+    poll(j.job, log, () => { boot().then(()=>{
+  const h = decodeURIComponent((location.hash||"").replace("#",""));
+  if (h) open(h);            // 带 #slug 打开就直接进详情
+}); });
+  };
+  $("#btnTheme").onclick = () => runJob("/api/theme", {slug: d.slug, theme: $("#themesel").value});
+  $("#btnRender").onclick = () => runJob("/api/render", {slug: d.slug});
+  $("#btnVerify").onclick = () => runJob("/api/verify", {slug: d.slug});
+}
+function closeDrawer(){
+  $("#veil").classList.remove("on"); $("#drawer").classList.remove("on");
+  history.replaceState(null, "", location.pathname);
+}
+$("#veil").onclick = closeDrawer;
+document.addEventListener("keydown", e => { if (e.key === "Escape") closeDrawer(); });
+
+async function poll(id, log, done){
+  for(;;){
+    const j = await (await fetch("/api/job?id="+id)).json();
+    log.textContent = `[${j.status}] ${j.elapsed?j.elapsed+"s":""}\n` + (j.log||[]).join("\n");
+    if (j.status === "done"){ toast("完成"); done && done(); return; }
+    if (j.status === "fail"){ toast("失败，看日志"); return; }
+    await new Promise(r => setTimeout(r, 800));
+  }
+}
+
+$("#q").oninput = e => { FILTER.q = e.target.value; render(); };
+document.querySelectorAll(".chip[data-f]").forEach(el => el.onclick = () => {
+  document.querySelectorAll(".chip[data-f]").forEach(c=>c.classList.remove("on"));
+  el.classList.add("on"); FILTER.kind = el.dataset.f; render();
+});
+boot().then(()=>{
+  const h = decodeURIComponent((location.hash||"").replace("#",""));
+  if (h) open(h);            // 带 #slug 打开就直接进详情
+});
+</script>
+</html>
