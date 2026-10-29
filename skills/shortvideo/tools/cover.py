@@ -223,6 +223,69 @@ def _variant_f1(c, w=W34, h=H34):
     return img
 
 
+def _variant_short(c, w=W34, h=H34):
+    """短版封面：字数更少、字号更大、右上角带时长徽标。
+
+    短版靠"一眼看懂"抢点击，3:4 里能放的字比长版更少，
+    所以标题最多 2 行、副标一行、其余全部让位给字号。
+    """
+    accent, accent2 = c["accent"], c["accent2"]
+    img = _canvas(w, h, accent)
+    secs = c.get("seconds")
+    _kicker(img, w / 2, MARGIN + 34, c["kicker"], accent, size=38)
+    if c["serial"]:                 # 系列序号保留：短版也要能"认出是同一个号"
+        _serial(img, w, c["serial"], accent)
+    # 时长徽标放在栏目名下方左侧：短版的卖点就是"几十秒看完"，
+    # 但不能顶掉右上角的系列序号（那是账号识别）
+    if secs:
+        d = ImageDraw.Draw(img, "RGBA")
+        f = R.font(46, bold=True)
+        label = f"{secs:g} 秒速通"
+        tw = f.getlength(label)
+        bx0, by0 = MARGIN, MARGIN + 84
+        d.rounded_rectangle([bx0, by0, bx0 + tw + 52, by0 + 76], radius=38,
+                            fill=accent + (40,), outline=accent + (190,), width=3)
+        d.text((bx0 + 26, by0 + 38), label, font=f, fill=accent + (255,), anchor="lm")
+
+    lines = c["headline"][:2]
+    max_w = w - MARGIN * 2
+    size = min(_fit(ln, max_w, hi=176, lo=SIZE_MIN)[0] for ln in lines)
+    f = R.font(size, bold=True)
+    line_h = int(size * 1.14)
+    block_h = line_h * len(lines)
+    y = int(h * 0.46 - block_h / 2)
+    for ln in lines:
+        hit = next((wd for wd in c["highlight"] if wd and ln.find(wd) >= 0), None)
+        tw = f.getlength(ln)
+        x0 = (w - tw) / 2
+        if hit:
+            k = ln.find(hit)
+            pre, hw = f.getlength(ln[:k]), f.getlength(hit)
+            _highlight_block(img, (max(MARGIN - 6, x0 + pre - 14), y + line_h * 0.12,
+                                   min(w - MARGIN + 6, x0 + pre + hw + 14),
+                                   y + line_h * 0.88), accent2)
+            d = ImageDraw.Draw(img, "RGBA")
+            before, after = ln[:k], ln[k + len(hit):]
+            if before:
+                d.text((x0, y + line_h / 2), before, font=f, fill=FG + (255,), anchor="lm")
+            d.text((x0 + pre, y + line_h / 2), hit, font=f, fill=(17, 17, 17, 255), anchor="lm")
+            if after:
+                d.text((x0 + pre + hw, y + line_h / 2), after, font=f,
+                       fill=FG + (255,), anchor="lm")
+        else:
+            _text_outline(img, (w / 2, y + line_h / 2), ln, size, FG, anchor="mm")
+        y += line_h
+
+    if c["sub"]:
+        sub_size, fsub = _fit(c["sub"], w - MARGIN * 2, hi=56, lo=38)
+        _text_outline(img, (w / 2, y + int(h * 0.045)), c["sub"], sub_size, accent,
+                      anchor="mm", stroke_w=0, font=fsub)
+    _tags(img, w / 2, h - MARGIN - 54, c["tags"], accent)
+    if c["cta"]:
+        _text_outline(img, (w / 2, h - MARGIN + 6), c["cta"], 44, FG, anchor="mm", stroke_w=0)
+    return img
+
+
 def _variant_f3(c, frame_path=None, w=W34, h=H34):
     """F3 红圈标注（截图式）：hook 镜头画面当底 + 红圈 + 标签。"""
     accent = c["accent"]
@@ -323,15 +386,28 @@ def _variant_f6(c, w=W34, h=H34):
     return img
 
 
-_BUILDERS = {"f1": lambda c, fp: _variant_f1(c),
+_BUILDERS = {"short": lambda c, fp: _variant_short(c),
+             "f1": lambda c, fp: _variant_f1(c),
              "f3": lambda c, fp: _variant_f3(c, fp),
              "f6": lambda c, fp: _variant_f6(c)}
 
 
-def build_covers(content, out_dir, frame_path=None, variants=("f1", "f3", "f6", "9x16")):
-    """生成封面合集，返回文件路径列表（3:4 三个版式 + 一张 9:16）。"""
+def build_covers(content, out_dir, frame_path=None, variants=None):
+    """生成封面合集，返回文件路径列表（3:4 三个版式 + 一张 9:16）。
+
+    短版（content 里 "format": "short"）默认出 short + f1 + 9x16：
+    短版封面字更大、带时长徽标，与长版形成两种视觉层级。
+    """
     os.makedirs(out_dir, exist_ok=True)
     c = _cfg(content)
+    if variants is None:
+        short = str((content or {}).get("format") or "").lower() in ("short", "15s", "quick")
+        variants = ("short", "f1", "9x16") if short else ("f1", "f3", "f6", "9x16")
+        if short:
+            secs = float((content or {}).get("seconds") or 0)
+            if not secs:
+                secs = round(sum(float(sh.get("min_dur") or 0) for sh in (content or {}).get("shots") or []))
+            c["seconds"] = secs
     made = []
     for v in variants:
         if v == "9x16":
