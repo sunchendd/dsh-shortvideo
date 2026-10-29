@@ -1,0 +1,99 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>shortvideo · 片库</title>
+<link rel="stylesheet" href="/app/app.css">
+<link rel="stylesheet" href="/app/library.css">
+</head>
+<body class="lib">
+<div class="libwrap">
+
+  <aside class="libnav">
+    <div class="libbrand">
+      <span class="mark">S</span>
+      <div><b>shortvideo</b><span>零 GPU 竖屏科普</span></div>
+    </div>
+    <nav>
+      <a class="on" data-filter="all">片库 <em id="cAll">—</em></a>
+      <a data-filter="video">已成片 <em id="cVideo">—</em></a>
+      <a data-filter="draft">草稿 <em id="cDraft">—</em></a>
+      <a data-filter="qa">待质检 <em id="cQA">—</em></a>
+      <a href="/batch">批量工作台 →</a>
+    </nav>
+    <div class="libfoot">
+      <div class="hint">命令：<code>sv new "标题"</code> 也能建项目</div>
+    </div>
+  </aside>
+
+  <main class="libmain">
+    <header class="libhead">
+      <div>
+        <h1>片库</h1>
+        <p id="libSub">正在读取…</p>
+      </div>
+      <div class="libtools">
+        <input id="search" placeholder="搜索标题 / slug">
+        <button class="btn primary" id="btnNew">＋ 新建项目</button>
+      </div>
+    </header>
+
+    <div class="grid" id="grid">
+      <div class="card skeleton-card"></div>
+      <div class="card skeleton-card"></div>
+      <div class="card skeleton-card"></div>
+      <div class="card skeleton-card"></div>
+    </div>
+    <div class="libempty" id="libEmpty" hidden>
+      <p>还没有项目。</p>
+      <button class="btn primary" id="btnNew2">建第一条片子</button>
+    </div>
+  </main>
+</div>
+
+<!-- 新建项目 -->
+<div class="scrim" id="newScrim">
+  <div class="modal wide">
+    <header>
+      <h2>新建项目</h2>
+      <button class="tbtn" id="newClose">×</button>
+    </header>
+    <div class="body">
+      <p class="lead">五句话讲清一件事。写完就能直接进剪辑台改画面。</p>
+      <div class="field">
+        <label>标题（也是封面主张）</label>
+        <input id="nTitle" placeholder="例：防晒倍数是个陷阱：涂量才是命门">
+      </div>
+      <div class="field">
+        <label>栏目</label>
+        <input id="nKicker" placeholder="护肤反常识" value="硬核科普">
+      </div>
+      <div class="field">
+        <label>五句话（钩子 / 规则 / 原理 / 高潮 / 实战）</label>
+        <div id="nLines" class="lines"></div>
+        <button class="tbtn" id="nAddLine">＋ 再加一句</button>
+      </div>
+      <div class="row2">
+        <div class="field"><label>视觉主题</label>
+          <select id="nTheme"></select></div>
+        <div class="field"><label>配音</label>
+          <select id="nVoice">
+            <option value="yunxi">云希 · 男声（沉稳）</option>
+            <option value="xiaoxiao">晓晓 · 女声（清晰）</option>
+            <option value="yunjian">云健 · 男声（厚）</option>
+          </select></div>
+      </div>
+      <div class="meta" id="nWarn"></div>
+    </div>
+    <footer>
+      <button class="tbtn" id="nCancel">取消</button>
+      <button class="btn primary" id="nCreate">创建并进入剪辑台</button>
+    </footer>
+  </div>
+</div>
+
+<div class="toasts" id="toasts"></div>
+<script src="/app/library.js"></script>
+</body>
+</html>

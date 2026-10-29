@@ -184,7 +184,7 @@ def _next_slug(title, want=None):
     # 中文标题没有 ASCII 可转写：原来一律退化成 "NN-draft"，33 个项目全叫 draft 分不清。
     # 用标题的短哈希做后缀，既能区分又稳定（同一标题重复建项目会撞名，正好可以被 want 覆盖）。
     if not ascii_part:
-        ascii_part = "topic-" + hashlib.sha1(str(title or "").encode("utf-8")).hexdigest()[:6]
+        ascii_part = hashlib.sha1(str(title or "").encode("utf-8")).hexdigest()[:6]
     return f"{idx:02d}-{ascii_part[:24]}"
 
 
@@ -376,6 +376,35 @@ def _qa_items(slug):
         elif cur is not None and not items[-1]["ok"]:
             items[-1]["detail"] = (items[-1]["detail"] + " " + stripped).strip()[:220]
     return {"slug": slug, "at": data.get("at"), "ok": bool(data.get("ok")), "items": items}
+
+
+
+
+def _project_meta(slug):
+    """片库卡片要的最少信息：时长、镜数、主题、音色、有没有成片。
+
+    这些都能从 content.json 直接读，不额外算 —— 片库 33 张卡片要瞬时出。
+    """
+    path = os.path.join(EX, f"{slug}.content.json")
+    meta = {"duration": 0.0, "shots": 0, "theme": "", "kind": "long", "has_video": False,
+            "publish_title": ""}
+    try:
+        cfg = json.load(open(path, encoding="utf-8"))
+        shots = cfg.get("shots") or []
+        meta.update({
+            "duration": round(sum(float(s.get("min_dur") or 0) for s in shots), 1),
+            "shots": len(shots),
+            "theme": cfg.get("theme") or "",
+            "kind": "short" if slug.startswith("short-") else "long",
+            "publish_title": cfg.get("publish_title") or "",
+        })
+    except Exception:  # noqa: BLE001
+        pass
+    mp4 = os.path.join(OUT, slug, f"{slug}.mp4")
+    meta["has_video"] = os.path.exists(mp4)
+    if meta["has_video"]:
+        meta["size_mb"] = round(os.path.getsize(mp4) / 1048576, 1)
+    return meta
 
 
 def _title_of(slug):
@@ -575,7 +604,8 @@ class Handler(BaseHTTPRequestHandler):
         q = urllib.parse.parse_qs(u.query)
         path = u.path
         if path in ("/", "/index.html"):
-            return self._file(os.path.join(os.path.dirname(os.path.abspath(__file__)), "index.html"))
+            # 首页是片库（和剪辑台同一套视觉）；批量表格页在 /batch
+            return self._file(os.path.join(os.path.dirname(os.path.abspath(__file__)), "app", "library.html"))
         if path == "/api/library":
             items = [c for c in (_card(s) for s in _slug_list()) if c]
             return self._send(200, {"items": items, "themes": _themes(),
@@ -616,9 +646,10 @@ class Handler(BaseHTTPRequestHandler):
             rows = []
             for slug in _slug_list():
                 st, detail = _stage_status(slug)
+                meta = _project_meta(slug)
                 rows.append({"slug": slug, "title": _title_of(slug), "stages": st,
-                             "detail": detail,
-                             "done": sum(1 for v in st.values() if v)})
+                             "detail": detail, "done": sum(1 for v in st.values() if v),
+                             **meta})
             # 工作台是待办清单：没走完的排前面，走完的沉底
             rows.sort(key=lambda r: (r["done"] == len(STAGES), r["done"], r["slug"]))
             return self._send(200, {"stages": [{"id": a, "name": b, "desc": c} for a, b, c in STAGES],
@@ -626,9 +657,11 @@ class Handler(BaseHTTPRequestHandler):
         if path == "/api/job":
             j = _job(q.get("id", [""])[0])
             return self._send(200, j or {"status": "unknown"})
+        if path == "/batch":
+            path = "/batch.html"
         if path in ("/app", "/app/"):
-            path = "/app/index.html"
-        if path.startswith("/app/"):
+            path = "/app/editor.html"
+        if path.startswith("/app/") or path == "/batch.html":
             fp = os.path.join(os.path.dirname(os.path.abspath(__file__)), path.lstrip("/"))
             if os.path.isfile(fp):
                 ext = os.path.splitext(fp)[1]
@@ -675,11 +708,15 @@ class Handler(BaseHTTPRequestHandler):
                 return self._send(400, {"error": "slug required"})
             return self._send(200, {"job": _start_job("theme", slug, {"theme": theme})})
         if u.path == "/api/project":
+            # 同一个路径两种语义：带 slug 且项目存在 = 保存改动，否则 = 新建项目。
+            # （之前是两个 if 并列，保存那段永远先命中，新建直接 400 slug required。）
             slug = str(body.get("slug") or "").strip()
-            if not slug:
-                return self._send(400, {"error": "slug required"})
-            ok, msg = _save_project(slug, body)
-            return self._send(200 if ok else 400, {"ok": ok, "message": msg})
+            exists = bool(slug) and os.path.exists(os.path.join(EX, f"{slug}.content.json"))
+            if slug and exists:
+                ok, msg = _save_project(slug, body)
+                return self._send(200 if ok else 400, {"ok": ok, "message": msg})
+            if slug and not exists and not body.get("lines"):
+                return self._send(404, {"error": f"没有这个项目：{slug}"})
         if u.path == "/api/brief":
             slug = str(body.get("slug") or "").strip()
             if not slug:
@@ -698,7 +735,7 @@ class Handler(BaseHTTPRequestHandler):
                       ensure_ascii=False, indent=2)
             job = _start_job("stage", slug, {"stage": "script"}) if body.get("rerun", True) else None
             return self._send(200, {"ok": True, "job": job, "slug": slug})
-        if u.path == "/api/project":
+        if u.path in ("/api/project/new",):
             title = str(body.get("title") or "").strip()
             lines = [str(x).strip() for x in (body.get("lines") or []) if str(x).strip()]
             if not title or len(lines) < 3:
@@ -715,6 +752,8 @@ class Handler(BaseHTTPRequestHandler):
                       ensure_ascii=False, indent=2)
             return self._send(200, {"job": _start_job("stage", slug, {"stage": "script"}),
                                     "slug": slug})
+        if u.path == "/api/project" and not slug:
+            return self._send(400, {"error": "slug required"})
         if u.path == "/api/stage":
             slug, stage = body.get("slug"), body.get("stage")
             if not slug or stage not in [k for k, _, _ in STAGES]:

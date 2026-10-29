@@ -113,7 +113,27 @@ async function main() {
       : r.result.description || JSON.stringify(r.result));
     if (r.exceptionDetails) out = { error: r.exceptionDetails.text, detail: r.exceptionDetails.exception && r.exceptionDetails.exception.description };
   } catch (e) {
-    out = { error: String(e) };
+    // 页面在 evaluate 期间跳转（比如新建项目后跳进剪辑台）会让连接断掉，
+    // 这不是失败，是预期行为：重新连上新页面，把落点 URL 读回来。
+    out = { navigated: true, error: String(e).slice(0, 120) };
+    await sleep(1500);
+    try {
+      const list = JSON.parse(await get("/json/list"));
+      const page = list.find((t) => t.type === "page" && t.url.includes(args.url.split("/")[2]));
+      if (page) {
+        out.url = page.url;
+        const ws2 = new WebSocket(page.webSocketDebuggerUrl);
+        const res = await new Promise((resolve) => {
+          ws2.addEventListener("open", () => ws2.send(JSON.stringify({
+            id: 1, method: "Runtime.evaluate",
+            params: { expression: "JSON.stringify({href: location.href, title: document.title, clips: document.querySelectorAll('.clip').length, errs: window.__errs || []})", returnByValue: true },
+          })));
+          ws2.addEventListener("message", (ev) => resolve(JSON.parse(ev.data)));
+        });
+        out.landed = JSON.parse(res.result.value);
+        ws2.close();
+      }
+    } catch (e2) { out.landError = String(e2).slice(0, 120); }
   }
   if (args.shot) {
     const png = await send("Page.captureScreenshot", { format: "png" });
