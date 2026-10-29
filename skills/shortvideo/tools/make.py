@@ -933,6 +933,17 @@ def main():
         _preflight_topics()
 
     cfg = json.load(open(args.content, encoding="utf-8"))
+    # 主题先行：底图、封面、文字层级都从 token 取，晚一步就会渲出"半新半旧"的颜色。
+    # 浅色主题的视频会回退到同名深色主题（deck 的 ghost/glow 是按深底调的），
+    # 封面与一张图仍用浅色——视频流统一，封面负责在信息流里亮眼。
+    from shortvideo.themes import theme_for_video
+    theme = cfg.get("theme")
+    R.set_theme(theme_for_video(theme) if theme else None)
+    try:
+        import art as _art
+        _art.refresh_theme()
+    except Exception:  # noqa: BLE001
+        pass
     fps = args.fps or cfg.get("fps", 30)
     w, h = cfg.get("size", [R.W, R.H])
     R.W, R.H, R.FPS = w, h, fps

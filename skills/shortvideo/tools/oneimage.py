@@ -238,8 +238,13 @@ def main():
     ap.add_argument("--accent", default=None, help="强调色，如 FF2D55")
     ap.add_argument("--variants", type=int, default=0,
                     help="出 N 版（不同底图风格+强调色），便于做图文封面 A/B")
+    ap.add_argument("--theme", default=None,
+                    help="配色主题（默认读 spec 的 theme 字段，再退回 midnight）")
     args = ap.parse_args()
     raw = json.load(open(args.spec, encoding="utf-8"))
+    # 先定主题再画：底图配色、强调色、文字层级都由 token 推导
+    R.set_theme(args.theme or raw.get("theme"))
+    art.refresh_theme()
     if args.style:
         raw["style"] = args.style
     if args.accent:

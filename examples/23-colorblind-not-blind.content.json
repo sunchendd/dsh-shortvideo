@@ -203,5 +203,6 @@
   "transition": {
     "type": "fade",
     "dur": 0.24
-  }
+  },
+  "theme": "porcelain"
 }

@@ -120,5 +120,6 @@
     "type": "fade",
     "dur": 0.2
   },
-  "disclosure": "AI 语音合成配音；画面为程序化渲染"
+  "disclosure": "AI 语音合成配音；画面为程序化渲染",
+  "theme": "graphite"
 }

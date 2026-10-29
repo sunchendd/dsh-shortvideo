@@ -40,10 +40,46 @@ DENSITY_BAND = (0.06, 0.42)   # 标题带：画布高度的 6%~42%
 DENSITY_MIN, DENSITY_MAX = 0.012, 0.18
 
 
-def _ink_mask(img, thresh=140):
-    """亮字掩码：luminance > thresh 视为墨迹（本套封面都是深底亮字）。"""
+def _bg_luma(img):
+    """估底亮度：取四条边带的中位亮度（文字很少贴边，边带基本是底）。"""
     g = img.convert("L")
-    return g.point(lambda v: 255 if v > thresh else 0, mode="1")
+    w, h = g.size
+    px = g.load()
+    vals = []
+    for x in range(0, w, 4):
+        vals += [px[x, 2], px[x, h - 3]]
+    for y in range(0, h, 4):
+        vals += [px[2, y], px[w - 3, y]]
+    vals.sort()
+    return vals[len(vals) // 2]
+
+
+def _ink_mask(img, thresh=26):
+    """墨迹掩码：**局部背景差分**，与底色明暗无关。
+
+    踩过两次坑：
+    1. 写死 `luma > 140`（假设深底亮字）→ 浅色主题整张图都成了"墨迹"（边距 0px、密度 57%）
+    2. 改成"比底亮/比底暗"的全局阈值 → 浅底的**底图光晕与点阵**比底暗 60 以上，仍被算墨迹
+    现在用高斯模糊估局部底，只看高频差异：文字的笔画是高频，渐变/光晕/点阵是低频或弱幅，
+    这样深底浅字、浅底深字、带光晕的浅底都能用同一套判定。
+    """
+    from PIL import ImageChops, ImageFilter
+    g = img.convert("L")
+    bg = g.filter(ImageFilter.GaussianBlur(10))
+    diff = ImageChops.difference(g, bg)
+    # 阈值按**分位数**定，不用绝对值：封面底层有一层颗粒噪点，全图都是高频，
+    # 绝对阈值不是把噪点算成墨迹（整张图），就是把细笔画漏掉。
+    # 取差异最强的前 6% 像素当墨迹——文字只占画面一小块，噪点幅度小，两者天然分开。
+    hist = diff.histogram()
+    total = sum(hist)
+    want, acc, cut = total * 0.06, 0, 255
+    for v in range(255, 0, -1):
+        acc += hist[v]
+        if acc >= want:
+            cut = v
+            break
+    cut = max(thresh, cut)
+    return diff.point(lambda v: 255 if v >= cut else 0, mode="1")
 
 
 def _rms(img):

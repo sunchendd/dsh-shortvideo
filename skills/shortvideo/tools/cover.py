@@ -36,16 +36,29 @@ SIZE_MAX, SIZE_MIN = TS["h1"], TS["h3"]    # 主标题 144 → 100（缩略图 3
 SUB_SIZE = TS["lead"]                      # 副标 68（240px 缩略图 ≈ 15px）
 # 副标色：中性浅灰（≈INK.250）。青色留给"结构"语义（栏目/时长/标签），
 # 不压主标题——青的亮度 0.659 是标题白 0.886 的 0.74 倍，台阶太浅会抢层级。
-SUB_INK = (206, 216, 232)
 LINE_SPACING = LEAD["title"]               # 1.14
-BG = R.INK["950"]          # 与视频底同一条中性阶的底端
-FG = R.INK["0"]            # 主标题
-ACCENT = R.BRAND["500"]    # 品牌青：栏目名/副标/序号环（不再是红）
-ACCENT2 = R.AMBER_SCALE["500"]   # 高亮块：每张封面唯一一处暖色
-GREY = R.INK["300"]        # 标签/次级文字（7.9:1）
-STATE = R.STATE["500"]     # 状态玫：序号徽标、F3 标注圈
-DARK = R.INK["950"]        # 亮底上的深字
 _PROBE = ImageDraw.Draw(Image.new("RGB", (1, 1)))
+
+
+def sync_theme():
+    """把 runtime 当前主题的 token 吸进来。
+
+    这些曾经是 import 期常量，换肤就换不动（值被冻在模块上）。
+    现在由 `runtime.set_theme()` 之后调用一次即可。
+    """
+    global BG, FG, ACCENT, ACCENT2, GREY, STATE, DARK, SUB_INK, ON_BLOCK
+    BG = R.INK["950"]              # 底：深色主题=近黑，浅色主题=近白
+    FG = R.INK["0"]                # 主标题：深色主题=白，浅色主题=近黑
+    ACCENT = R.BRAND["500"]        # 结构：栏目名/时长胶囊/序号环/标签
+    ACCENT2 = R.AMBER_SCALE["500"]  # 高亮块：每张封面唯一一处强调色
+    GREY = R.INK["300"]            # 标签/次级文字
+    STATE = R.STATE["500"]         # 状态：序号徽标、F3 标注圈
+    DARK = R.INK["950"]            # 亮底上的"反色字"
+    ON_BLOCK = getattr(R, "ON_BLOCK", INK_950 if False else R.INK["950"])  # 压在高亮块上的字
+    SUB_INK = getattr(R, "SUB_INK", (206, 216, 232))
+
+
+sync_theme()
 
 
 def _paste(img, layer, ox, oy):
@@ -79,6 +92,18 @@ def _fit(text, max_w, hi=120, lo=SIZE_MIN, bold=True):
     return lo, R.font(lo, bold=bold)
 
 
+def _apply_theme(content):
+    """封面用**它自己**的主题（浅色主题照用，不跟着视频回退），渲染前同步 token。"""
+    th = content.get("theme") if isinstance(content, dict) else None
+    R.set_theme(th if isinstance(th, str) else None)
+    try:
+        import art as _art
+        _art.refresh_theme()
+    except Exception:  # noqa: BLE001
+        pass
+    sync_theme()
+
+
 def _cfg(content):
     c = dict(content.get("cover") or {})
     san = lambda x: R.sanitize(str(x), bold=True)  # noqa: E731
@@ -91,7 +116,10 @@ def _cfg(content):
     highlight = c.get("highlight") or []
     if isinstance(highlight, str):
         highlight = [highlight]
-    theme = content.get("theme") or {}
+    # 注意：`theme` 现在通常是**主题名字符串**（如 "porcelain"），旧代码里它是个
+    # 可以带 accent/accent2 覆盖的 dict。两种都接住，别让字符串走进 .get()。
+    theme = content.get("theme")
+    theme = theme if isinstance(theme, dict) else {}
     accent = c.get("accent") or theme.get("accent") or ACCENT
     accent2 = c.get("accent2") or theme.get("accent2") or ACCENT2
     return {
@@ -130,7 +158,14 @@ def _canvas(w, h, accent):
     # 光斑压到品牌色的 62% 亮度：两件事同时成立——
     # ① 与视频底"深底 + 局部辉光"同一套做法；② 辉光不越过年检的"亮墨"阈值(L>140)，
     #    否则它会被算成标题墨迹，把安全边距从 72 判成 27（青色辉光 L≈183 就踩过这个坑）。
-    sprite = Image.new("RGBA", glow.size, tuple(int(v * 0.62) for v in accent) + (255,))
+    # 光斑配色按**极性**分：深底是"把品牌色压暗"（62% 亮度），浅底必须反过来
+    # "把品牌色往底里推"——否则浅色封面右上角会出现一块深蓝（钴蓝 × 0.62 = 深海军蓝）。
+    if R.LIGHT:
+        k = 0.82
+        glow_rgb = tuple(int(a + (b - a) * k) for a, b in zip(accent, BG))
+    else:
+        glow_rgb = tuple(int(v * 0.62) for v in accent)
+    sprite = Image.new("RGBA", glow.size, glow_rgb + (255,))
     layer = Image.new("RGBA", (w, h), (0, 0, 0, 0))
     layer.paste(sprite, (int(w * 0.78 - glow.size[0] / 2), int(h * 0.06 - glow.size[1] / 2)), glow)
     layer = layer.filter(ImageFilter.GaussianBlur(int(min(w, h) * 0.02)))
@@ -190,7 +225,7 @@ def _serial(img, w, n, accent, r=None):
     box = r * 2 * 0.68                       # 留足内边距（字形比 advance 宽一点）
     while size > 9 and R.font(size, bold=True).getlength(txt) > box:
         size -= 2
-    d.text((cx, cy), txt, font=R.font(size, bold=True), fill=DARK + (255,), anchor="mm")
+    d.text((cx, cy), txt, font=R.font(size, bold=True), fill=ON_BLOCK + (255,), anchor="mm")
 
 
 def _text_outline(img, xy, s, size, fill, stroke=None, anchor="mm", stroke_w=None, font=None):
@@ -284,7 +319,7 @@ def _variant_f1(c, w=W34, h=H34):
             before, after = ln[:k], ln[k + len(hit):]
             if before:
                 d.text((x0, y + line_h / 2), before, font=f, fill=FG + (255,), anchor="lm")
-            d.text((x0 + pre, y + line_h / 2), hit, font=f, fill=DARK + (255,), anchor="lm")
+            d.text((x0 + pre, y + line_h / 2), hit, font=f, fill=ON_BLOCK + (255,), anchor="lm")
             if after:
                 d.text((x0 + pre + hw, y + line_h / 2), after, font=f,
                        fill=FG + (255,), anchor="lm")
@@ -359,7 +394,7 @@ def _variant_short(c, w=W34, h=H34):
             before, after = ln[:k], ln[k + len(hit):]
             if before:
                 d.text((x0, y + line_h / 2), before, font=f, fill=FG + (255,), anchor="lm")
-            d.text((x0 + pre, y + line_h / 2), hit, font=f, fill=DARK + (255,), anchor="lm")
+            d.text((x0 + pre, y + line_h / 2), hit, font=f, fill=ON_BLOCK + (255,), anchor="lm")
             if after:
                 d.text((x0 + pre + hw, y + line_h / 2), after, font=f,
                        fill=FG + (255,), anchor="lm")
@@ -425,7 +460,7 @@ def _variant_f3(c, frame_path=None, w=W34, h=H34):
         bh = int(TS["lead"] * 1.5)
         bx, by = cx + r * 0.5, cy + r * 0.15
         d.rounded_rectangle((bx, by, bx + tw + 44, by + bh), radius=16, fill=STATE + (255,))
-        d.text((bx + 22, by + bh // 2), lab, font=f2, fill=DARK + (255,), anchor="lm")
+        d.text((bx + 22, by + bh // 2), lab, font=f2, fill=ON_BLOCK + (255,), anchor="lm")
 
     if c["sub"]:
         _text_outline(img, (w / 2, h - MARGIN - 104), c["sub"], TS["body"], FG,
@@ -496,16 +531,19 @@ def build_covers(content, out_dir, frame_path=None, variants=None):
     短版封面字更大、带时长徽标，与长版形成两种视觉层级。
     """
     os.makedirs(out_dir, exist_ok=True)
+    _apply_theme(content)          # 封面用自己的主题（浅色主题照用，不跟着视频回退）
     c = _cfg(content)
     if variants is None:
         short = str((content or {}).get("format") or "").lower() in ("short", "15s", "quick")
         variants = ("short", "f1", "9x16") if short else ("short", "f1", "f3", "f6", "9x16")
-        # 长版也出一张 short 版式（大字 + 时长徽标）：实测同一片子
-        # short 版式综合分 103.5 vs f1 的 80.8——信息流是 240px 缩略图，字大就是硬道理。
-        secs = float((content or {}).get("seconds") or 0)
-        if not secs:
-            secs = round(sum(float(sh.get("min_dur") or 0) for sh in (content or {}).get("shots") or []))
-        c["seconds"] = secs
+    # 长版也出一张 short 版式（大字 + 时长徽标）：实测同一片子
+    # short 版式综合分 103.5 vs f1 的 80.8——信息流是 240px 缩略图，字大就是硬道理。
+    # seconds 必须**无条件**算好：以前它在 `variants is None` 分支里，
+    # 调用方一旦显式传 variants（比如只重渲 short 版式），时长徽标就静默消失。
+    secs = float((content or {}).get("seconds") or 0)
+    if not secs:
+        secs = round(sum(float(sh.get("min_dur") or 0) for sh in (content or {}).get("shots") or []))
+    c["seconds"] = secs
     made = []
     for v in variants:
         if v == "9x16":

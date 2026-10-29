@@ -34,20 +34,31 @@ STYLES = ("aurora", "mesh", "rays", "grid", "paper")
 # 底图一旦发光到黄/红，封面/一张图上的高亮词块就没有"唯一一处暖色"的特权了，
 # 这是旧 PALETTES 里 warm/default 都掺琥珀造成的"什么都想亮"。
 # 四套名字保留（content.json / oneimage spec 里在用），只换成同族的深浅变体。
-PALETTES = {
-    # 均衡：与视频底同一族（青 主 + 靛 辅）
-    "default": (R.INK["900"], R.INK["950"],
-                (R.BRAND["500"], R.BRAND["600"], R.GLOW["indigo"])),
-    # 冷调：整体往靛/深蓝压，适合"精密/数据"题材
-    "cool": ((7, 10, 24), R.INK["950"],
-             (R.GLOW["indigo"], R.BRAND["600"], R.BRAND["500"])),
-    # 暖调：只用"余烬"级的玫与暗琥珀当环境光，明度压到不抢高亮块
-    "warm": ((26, 12, 18), (8, 4, 8),
-             (R.GLOW["ember"], R.AMBER_SCALE["600"], R.BRAND["600"])),
-    # 纸张：浅底图文笔记（文字靠 INK.900 压上去）
-    "paper": ((246, 244, 238), (230, 228, 220),
-              (R.INK["900"], R.BRAND["600"], R.GLOW["ember"])),
-}
+def _build_palettes():
+    """底图配色由当前主题 token 推导（换肤后必须重建，否则底图不跟着变）。"""
+    return {
+        # 均衡：与视频底同一族
+        "default": (R.INK["900"], R.INK["950"],
+                    (R.BRAND["500"], R.BRAND["600"], R.GLOW["indigo"])),
+        # 冷调：整体往深压，适合"精密/数据"题材
+        "cool": (R.INK["900"], R.INK["950"],
+                 (R.GLOW["indigo"], R.BRAND["600"], R.BRAND["500"])),
+        # 暖调：只用"余烬"级环境光，明度压到不抢高亮块
+        "warm": (R.INK["900"], R.INK["950"],
+                 (R.GLOW["ember"], R.AMBER_SCALE["600"], R.BRAND["600"])),
+        # 纸张：浅底图文笔记（文字靠 INK.900 压上去）
+        "paper": (R.INK["950"], R.INK["900"],
+                  (R.BRAND["500"], R.BRAND["600"], R.GLOW["ember"])),
+    }
+
+
+PALETTES = _build_palettes()
+
+
+def refresh_theme():
+    global PALETTES
+    PALETTES = _build_palettes()
+
 
 
 def _radial(w, h, cx, cy, r, color, strength=1.0):

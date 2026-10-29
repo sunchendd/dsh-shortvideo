@@ -91,6 +91,57 @@ TEXT = INK["50"]
 DIM = INK["300"]
 FAINT = INK["550"]
 
+# ---------------------------------------------------------------- 主题切换
+# 语义 token 的具名变体见 shortvideo/themes.py（8 套：5 深 3 浅）。
+# 为什么用"重绑模块全局"而不是传参：全库 100+ 处都是 `R.ACCENT` 这种活引用，
+# 重绑一次就整体换肤；只有 lightsout/sorting 写过 `from runtime import ACCENT`（已改）。
+from .themes import THEMES, theme_for_video  # noqa: E402
+
+_CURRENT_THEME = "midnight"
+LIGHT = False
+
+
+def theme_names():
+    return list(THEMES)
+
+
+def current_theme():
+    return _CURRENT_THEME
+
+
+def set_theme(name):
+    """切换配色主题。name 为空/未知 → 回到 midnight（不报错，渲染不该因配色挂掉）。"""
+    global _CURRENT_THEME, LIGHT
+    global INK, BRAND, STATE, AMBER_SCALE, GREEN_SCALE, GLOW
+    global BG_TOP, BG_BOT, TILE_OFF, TILE_OFF_EDGE, TILE_ON, TILE_ON_EDGE
+    global ACCENT, AMBER, GREEN, TEXT, DIM, FAINT, SUB_INK, ON_BLOCK
+    key = name if name in THEMES else "midnight"
+    t = THEMES[key]
+    _CURRENT_THEME = key
+    LIGHT = bool(t["light"])
+    INK = dict(t["ink"])
+    BRAND = dict(t["brand"])
+    STATE = dict(t["state"])
+    AMBER_SCALE = dict(t["amber"])
+    GREEN_SCALE = dict(t["green"])
+    GLOW = dict(t["glow"])
+    BG_TOP, BG_BOT = INK["850"], INK["950"]
+    TILE_OFF, TILE_OFF_EDGE = INK["800"], INK["600"]
+    TILE_ON, TILE_ON_EDGE = STATE["500"], STATE["400"]
+    ACCENT = BRAND["500"]
+    AMBER = AMBER_SCALE["500"]
+    GREEN = GREEN_SCALE["500"]
+    TEXT = INK["50"]
+    DIM = INK["300"]
+    FAINT = INK["550"]
+    # 副标：深底用浅灰，浅底用中深灰（浅色主题不能再用 #CED8E8，那样是白底白字）
+    SUB_INK = INK["200"] if LIGHT else (206, 216, 232)
+    # 压在高亮块/强调色块上的字：深色主题的块是亮的 → 压深字；浅色主题的块是深的 → 压白字。
+    # 写死一种必然在某一半主题上不可读（浅色主题的靛蓝块压近黑字只有 1.6:1）。
+    ON_BLOCK = (255, 255, 255) if LIGHT else INK["950"]
+    return key
+
+
 # Linux 下按优先级探测 CJK 字体
 _FONT_CANDIDATES = [
     "/usr/share/fonts/opentype/noto/NotoSansCJK-Regular.ttc",
