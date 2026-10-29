@@ -27,6 +27,8 @@ import time
 import traceback
 from collections import deque
 
+from PIL import Image, ImageDraw
+
 
 # ---------------------------------------------------------------- 运行环境自愈
 # 依赖装在 skill 目录自带的 .venv 里；如果当前解释器缺依赖（比如直接 `python3 make.py`），
@@ -109,14 +111,119 @@ def sub_at(subs, t):
 
 # ---------------------------------------------------------------- 渲染核心（主进程/子进程共用）
 
-def render_frame(scene_fn, item, lt, ctx, total, with_caption=True):
-    """渲染一帧：背景 -> 题材绘制 -> 字幕 -> 进度条。"""
-    bg = getattr(R, "background_rgba", None)
-    img = bg() if bg is not None else R.background().convert("RGBA")
+TRANS_TYPES = ("fade", "slide", "slide_up", "wipe")
+
+
+def _bg():
+    fn = getattr(R, "background_rgba", None)
+    return fn() if fn is not None else R.background().convert("RGBA")
+
+
+def _blend_transition(prev, cur, p, mode, w, h):
+    """prev/cur 都是 RGBA 帧；p=0 全 prev，p=1 全 cur。
+
+    位移类转场用 ease_in_out（起步慢、中段快、收尾慢），ease_out 会让前两帧就"跳完"。
+    """
+    p = R.clamp(p)
+    p = R.ease_out(p) if mode == "fade" else R.ease_in_out(p)
+    if mode == "fade":
+        return Image.blend(prev, cur, p)
+    out = prev.copy()
+    if mode == "slide":
+        dx = int(round(w * (1 - p)))
+        out.paste(cur, (dx, 0))
+        if dx > 0:
+            d = ImageDraw.Draw(out, "RGBA")
+            d.rectangle((dx - 3, 0, dx, h), fill=R.ACCENT + (200,))
+        return out
+    if mode == "slide_up":
+        dy = int(round(h * (1 - p)))
+        out.paste(cur, (0, dy))
+        if dy > 0:
+            ImageDraw.Draw(out, "RGBA").rectangle((0, dy - 3, w, dy), fill=R.ACCENT + (200,))
+        return out
+    # wipe：从左向右揭开
+    cut = max(1, int(round(w * p)))
+    out.paste(cur.crop((0, 0, cut, h)), (0, 0))
+    ImageDraw.Draw(out, "RGBA").rectangle((cut - 4, 0, cut, h), fill=R.ACCENT + (220,))
+    return out
+
+
+class FrameRenderer:
+    """按 (镜头下标, 镜头内帧号) 出帧；负责背景、题材、转场、字幕、进度条。
+
+    转场只做"镜头之间"，第一条镜头没有入场转场。上一镜的末帧按需渲染并缓存
+    （每个进程一份），所以分段并行渲染时跨段边界也能正确出转场帧。
+    """
+
+    def __init__(self, scene_fns, ctx, total, fps, cfg, timeline):
+        self.scene_fns = scene_fns
+        self.ctx = ctx
+        self.total = total
+        self.fps = fps
+        self.timeline = timeline
+        self.w, self.h = cfg.get("size", [R.W, R.H])
+        trans = cfg.get("transition") or {}
+        self.ttype = str(trans.get("type") or "").lower()
+        self.tdur = float(trans.get("dur", 0.24) or 0)
+        self._prev = {}
+
+    def _trans_for(self, idx):
+        """该镜头的入场转场 (类型, 帧数)；支持每镜头 transition_in 覆盖全局。"""
+        item = self.timeline[idx]
+        if idx == 0:
+            return "", 0
+        t = item.get("transition_in") or (None if self.ttype in ("", "none") else
+                                          {"type": self.ttype, "dur": self.tdur})
+        if not t:
+            return "", 0
+        mode = str(t.get("type", self.ttype)).lower()
+        if mode not in TRANS_TYPES:
+            return "", 0
+        dur = float(t.get("dur", self.tdur) or 0)
+        return mode, max(1, int(round(dur * self.fps)))
+
+    def _prev_scene(self, idx):
+        """上一镜的最后一帧（不带字幕/进度条），用于转场。"""
+        hit = self._prev.get(idx)
+        if hit is not None:
+            return hit
+        item = self.timeline[idx]
+        img = _bg()
+        self.scene_fns[item["id"]](img, max(0.0, item["dur"] - 1.0 / self.fps),
+                                   item["dur"], self.ctx, S)
+        self._prev[idx] = img
+        return img
+
+    def scene_frame(self, idx, i):
+        item = self.timeline[idx]
+        img = _bg()
+        self.scene_fns[item["id"]](img, i / self.fps, item["dur"], self.ctx, S)
+        mode, nframes = self._trans_for(idx)
+        if mode and i < nframes:
+            img = _blend_transition(self._prev_scene(idx - 1), img,
+                                    (i + 1) / nframes, mode, self.w, self.h)
+        return img
+
+    def frame(self, idx, i):
+        item = self.timeline[idx]
+        img = self.scene_frame(idx, i)
+        lt = i / self.fps
+        subs = item.get("subs") or []
+        if subs:
+            text, a = sub_at(subs, item["start"] + lt)
+            S.caption(img, text, a, emphasis=item.get("emphasis"))
+        S.progress_bar(img, (item["start"] + lt) / self.total)
+        return img
+
+
+def render_frame(scene_fn, item, lt, ctx, total, with_caption=True, emphasis=None):
+    """单帧渲染（预览/封面用；不支持转场）。"""
+    img = _bg()
     scene_fn(img, lt, item["dur"], ctx, S)
     if with_caption:
         s, a = sub_at(item["subs"], item["start"] + lt)
-        S.caption(img, s, a)
+        S.caption(img, s, a, emphasis=emphasis)
     S.progress_bar(img, (item["start"] + lt) / total)
     return img
 
@@ -192,16 +299,17 @@ def _assign(pieces, cost_of, jobs):
     return plan
 
 
-def _child_encode(worker, segs, seg_path, timeline, topic_ref, ctx, total,
-                  w, h, fps, preset, crf, threads):
-    """子进程：渲染自己负责的每一段并直接编码成 mp4，最后退出。"""
+def _child_encode(worker, segs, seg_path, renderer, w, h, fps, preset, crf, threads):
+    """子进程：渲染自己负责的每一段并直接编码成 mp4，最后退出。
+
+    renderer 是父进程建好的 FrameRenderer，fork 后子进程直接用（转场帧按需自渲染）。
+    """
     try:
         R.W, R.H, R.FPS = w, h, fps
         ff = tts.ffmpeg_exe()
-        scene_fns = load_topic(topic_ref).build(ctx)
+        pieces = renderer.pieces
         for k in segs:
-            idx, i0, i1 = timeline["_pieces"][k]
-            item = timeline["_items"][idx]
+            idx, i0, i1 = pieces[k]
             path = seg_path(k)
             proc = subprocess.Popen(
                 [ff, "-y", "-loglevel", "error",
@@ -212,10 +320,8 @@ def _child_encode(worker, segs, seg_path, timeline, topic_ref, ctx, total,
                  "-g", str(fps * 2), "-an", path],
                 stdin=subprocess.PIPE)
             try:
-                fn = scene_fns[item["id"]]
                 for i in range(i0, i1):
-                    img = render_frame(fn, item, i / fps, ctx, total)
-                    proc.stdin.write(img.convert("RGB").tobytes())
+                    proc.stdin.write(renderer.frame(idx, i).convert("RGB").tobytes())
             finally:
                 proc.stdin.close()
                 rc = proc.wait()
@@ -229,10 +335,11 @@ def _child_encode(worker, segs, seg_path, timeline, topic_ref, ctx, total,
         os._exit(1)
 
 
-def encode_by_segments(timeline, topic_ref, ctx, total, w, h, fps, jobs,
+def encode_by_segments(timeline, topic_ref, ctx, total, w, h, fps, jobs, cfg,
                        build, preset, crf, audio, out_path, keep_segments=False):
     """分段并行渲染+编码，再无损拼接并混音。返回耗时秒数。"""
     scene_fns = _scenes_for(topic_ref, ctx)
+    renderer = FrameRenderer(scene_fns, ctx, total, fps, cfg, timeline)
     cost = _sample_cost(timeline, scene_fns, ctx, total, fps)
     pieces = _chunks(timeline, fps, max(jobs * 2, jobs))
     cost_of = lambda k: (pieces[k][2] - pieces[k][1]) * cost[timeline[pieces[k][0]]["id"]]  # noqa: E731
@@ -240,7 +347,7 @@ def encode_by_segments(timeline, topic_ref, ctx, total, w, h, fps, jobs,
     seg_path = lambda k: os.path.join(build, f"seg_{k:03d}.mp4")  # noqa: E731
 
     # 子进程需要用到的共同状态（fork 后共享）
-    shared = {"_pieces": pieces, "_items": timeline}
+    renderer.pieces = pieces
     cpu = os.cpu_count() or 1
     threads = max(1, min(8, cpu // max(1, jobs)))
 
@@ -251,8 +358,7 @@ def encode_by_segments(timeline, topic_ref, ctx, total, w, h, fps, jobs,
             continue
         pid = os.fork()
         if pid == 0:
-            _child_encode(wid, segs, seg_path, shared, topic_ref, ctx, total,
-                          w, h, fps, preset, crf, threads)
+            _child_encode(wid, segs, seg_path, renderer, w, h, fps, preset, crf, threads)
         pids.append((wid, pid))
     failed = []
     for wid, pid in pids:
@@ -337,6 +443,7 @@ def main():
     ap.add_argument("--build-dir", default=None)
     ap.add_argument("--clean", action="store_true", help="先清空 build 目录（含 TTS 缓存）")
     ap.add_argument("--no-check", action="store_true", help="跳过成片自检")
+    ap.add_argument("--no-cover", action="store_true", help="不生成爆款封面图")
     args = ap.parse_args()
 
     cfg = json.load(open(args.content, encoding="utf-8"))
@@ -430,10 +537,9 @@ def main():
         proc = subprocess.Popen(cmd, stdin=subprocess.PIPE, stderr=subprocess.PIPE)
         written = 0
         try:
+            stream_renderer = FrameRenderer(scene_fns, ctx, total, fps, cfg, timeline)
             for idx, i, _fps in _jobs_for(timeline, fps):
-                item = timeline[idx]
-                img = render_frame(scene_fns[item["id"]], item, i / _fps, ctx, total)
-                proc.stdin.write(img.convert("RGB").tobytes())
+                proc.stdin.write(stream_renderer.frame(idx, i).convert("RGB").tobytes())
                 written += 1
                 if written % 20 == 0 or written == total_frames:
                     _progress(written, total_frames, t0)
@@ -449,20 +555,24 @@ def main():
         if rc != 0:
             raise SystemExit(f"[x] ffmpeg 退出码 {rc}\n{err[-800:]}")
     else:
-        encode_by_segments(timeline, args.topic, ctx, total, w, h, fps, jobs,
+        encode_by_segments(timeline, args.topic, ctx, total, w, h, fps, jobs, cfg,
                            build, args.preset, args.crf, audio, out_path,
                            keep_segments=args.keep_segments)
         print(f"\r  渲染 {total_frames}/{total_frames}  {total_frames / (time.time() - t0):5.1f}fps")
 
     elapsed = time.time() - t0
-    cover = os.path.join(out_dir, "cover.png")
+    frame_cover = os.path.join(out_dir, "cover_frame.png")
     render_frame(scene_fns[timeline[0]["id"]], timeline[0],
                  min(timeline[0]["dur"] * 0.75, timeline[0]["dur"] - 0.1), ctx, total
-                 ).convert("RGB").save(cover)
+                 ).convert("RGB").save(frame_cover)
     size_mb = os.path.getsize(out_path) / 1048576
     print(f"[ok] {out_path}  {size_mb:.1f}MB  {total:.1f}s  "
           f"渲染 {total_frames / elapsed:.1f}fps（{elapsed:.1f}s）")
-    print(f"[ok] 封面 {cover}")
+    if not args.no_cover:
+        from cover import build_covers
+        for path in build_covers(cfg, out_dir):
+            print(f"[ok] 封面 {path}")
+    print(f"[ok] 帧截图 {frame_cover}")
 
     if not args.no_check:
         ok, lines = probe(out_path, expect_dur=total)

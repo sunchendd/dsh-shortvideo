@@ -10,7 +10,7 @@
 """
 import math
 
-from PIL import Image, ImageDraw
+from PIL import Image, ImageChops, ImageDraw
 
 from . import runtime as R
 
@@ -111,6 +111,7 @@ def _text(img, xy, s, size, fill, bold=False, math_=False, anchor="mm", alpha=1.
     画布 alpha 通道，RGB 仍然被覆盖率混合——也就是说 alpha=0 的文字在转 RGB 时依然
     可见（formula() 正依赖这一行为）。要不要跳过由调用方自己判断。
     """
+    s = R.sanitize(s, bold=bold)
     if not s:
         return
     fill = tuple(fill)
@@ -176,31 +177,129 @@ class SceneAPI:
             x += w
 
     @staticmethod
-    def caption(img, s, alpha=1.0, y=1645):
+    def _emphasis_runs(text, words):
+        """把字幕切成 [(片段, 是否高亮)]；words 为空或没命中时返回单段（走原路径）。"""
+        if not words:
+            return [(text, False)]
+        hits = []
+        for w in words:
+            if not w:
+                continue
+            start = 0
+            while True:
+                k = text.find(w, start)
+                if k < 0:
+                    break
+                hits.append((k, k + len(w)))
+                start = k + len(w)
+        if not hits:
+            return [(text, False)]
+        hits.sort()
+        merged, cur = [], hits[0]
+        for a, b in hits[1:]:
+            if a <= cur[1]:
+                cur = (cur[0], max(cur[1], b))
+            else:
+                merged.append(cur)
+                cur = (a, b)
+        merged.append(cur)
+        runs, pos = [], 0
+        for a, b in merged:
+            if a > pos:
+                runs.append((text[pos:a], False))
+            runs.append((text[a:b], True))
+            pos = b
+        if pos < len(text):
+            runs.append((text[pos:], False))
+        return runs
+
+    @staticmethod
+    def caption(img, s, alpha=1.0, y=1645, size=50, emphasis=None,
+                hi_color=None, hi_scale=1.0):
+        """底部字幕卡。emphasis=[词...] 时这些词用强调色（可加粗放大）绘制。"""
         if not s or alpha <= 0.01:
             return
-        size = 50
-        a = R.clamp(alpha)
-        # 字幕条的内容只取决于 (文本, alpha, y, 画布宽)：逐帧渲染时同一句字幕会持续
-        # 若干帧，把整条图层缓存起来，命中时只剩一次小区域合成。
-        key = (s, a, y, R.W)
+        s = R.sanitize(s, bold=True)
+        emphasis = [R.sanitize(w, bold=True) for w in emphasis] if emphasis else emphasis
+        a = round(R.clamp(alpha), 2)
+        runs = SceneAPI._emphasis_runs(s, emphasis)
+        hi = tuple(hi_color or R.AMBER)
+        # 无高亮：沿用原来的整条图层缓存（逐像素与旧版一致）
+        if len(runs) == 1 and not runs[0][1]:
+            key = (s, a, y, R.W, size, None)
+            hit = _caption_cache.get(key)
+            if hit is None:
+                lines = SceneAPI.wrap(s, size, 880, bold=True)
+                line_h = int(size * 1.42)
+                h = line_h * len(lines) + 44
+                layer, ox, oy = _layer(((R.W - 940) / 2, y - 22, (R.W + 940) / 2, y - 22 + h))
+                d = ImageDraw.Draw(layer)
+                d.rounded_rectangle(((R.W - 940) / 2 - ox, y - 22 - oy,
+                                     (R.W + 940) / 2 - ox, y - 22 + h - oy),
+                                    radius=28, fill=(8, 12, 24, int(190 * a)),
+                                    outline=R.ACCENT + (int(60 * a),), width=2)
+                for i, ln in enumerate(lines):
+                    d.text((R.W / 2 - ox, y + 10 + line_h * i + line_h / 2 - oy), ln,
+                           font=R.font(size, bold=True), fill=R.TEXT + (int(255 * a),), anchor="mm")
+                hit = (layer, ox, oy)
+                if len(_caption_cache) > 24:
+                    _caption_cache.clear()
+                _caption_cache[key] = hit
+            _blend(img, hit[0], hit[1], hit[2])
+            return
+
+        # 含高亮：按字符偏移映射到折行后的每一行，逐段绘制（高亮段可用不同字号/颜色）
+        plain = "".join(seg for seg, _hi in runs)
+        key = (plain, tuple(emphasis or ()), a, y, R.W, size, hi_scale)
         hit = _caption_cache.get(key)
         if hit is None:
-            lines = SceneAPI.wrap(s, size, 880, bold=True)
+            lines = SceneAPI.wrap(plain, size, 880, bold=True)
             line_h = int(size * 1.42)
             h = line_h * len(lines) + 44
-            # 只开字幕条大小的图层（944 宽），不再整帧新建 + 整帧合成
             layer, ox, oy = _layer(((R.W - 940) / 2, y - 22, (R.W + 940) / 2, y - 22 + h))
             d = ImageDraw.Draw(layer)
             d.rounded_rectangle(((R.W - 940) / 2 - ox, y - 22 - oy,
                                  (R.W + 940) / 2 - ox, y - 22 + h - oy),
                                 radius=28, fill=(8, 12, 24, int(190 * a)),
                                 outline=R.ACCENT + (int(60 * a),), width=2)
+            flags = [hi for _seg, hi in runs]
+            starts, pos = [], 0
+            for seg, _hi in runs:
+                starts.append(pos)
+                pos += len(seg)
+            off = 0
             for i, ln in enumerate(lines):
-                d.text((R.W / 2 - ox, y + 10 + line_h * i + line_h / 2 - oy), ln,
-                       font=R.font(size, bold=True), fill=R.TEXT + (int(255 * a),), anchor="mm")
+                cy = y + 10 + line_h * i + line_h / 2 - oy
+                # 该行在 plain 中的字符区间 [off, off+len(ln))
+                x = R.W / 2 - R.font(size, bold=True).getlength(ln) / 2 - ox
+                k = 0
+                while k < len(ln):
+                    idx = off + k
+                    hi_here = False
+                    for (a0, (seg, is_hi)), st in zip(enumerate(runs), starts):
+                        if st <= idx < st + len(seg):
+                            hi_here = is_hi
+                            break
+                    j = k + 1
+                    while j < len(ln):
+                        idx2 = off + j
+                        same = False
+                        for (seg, is_hi), st in zip(runs, starts):
+                            if st <= idx2 < st + len(seg):
+                                same = (is_hi == hi_here)
+                                break
+                        if not same:
+                            break
+                        j += 1
+                    piece = ln[k:j]
+                    fnt = R.font(int(size * (hi_scale if hi_here else 1.0)), bold=True)
+                    d.text((x, cy), piece, font=fnt, anchor="lm",
+                           fill=(hi if hi_here else R.TEXT) + (int(255 * a),))
+                    x += fnt.getlength(piece)
+                    k = j
+                off += len(ln)
             hit = (layer, ox, oy)
-            if len(_caption_cache) > 24:  # 每条约 1MB，别涨太多
+            if len(_caption_cache) > 24:
                 _caption_cache.clear()
             _caption_cache[key] = hit
         _blend(img, hit[0], hit[1], hit[2])
@@ -380,3 +479,117 @@ class SceneAPI:
         d.rounded_rectangle((90, y, R.W - 90, y + 8), radius=4, fill=(255, 255, 255, 28))
         d.rounded_rectangle((90, y, 90 + (R.W - 180) * R.clamp(ratio), y + 8),
                             radius=4, fill=R.ACCENT)
+
+    # ------------------------------------------------------------ 爆款包装（大字动效）
+
+    @staticmethod
+    def _fade(layer, a):
+        """把 RGBA 小图层的整体不透明度乘 a（C 级运算，不用逐像素 Python 回调）。"""
+        a = R.clamp(a)
+        if a >= 0.999:
+            return layer
+        if a <= 0.001:
+            return None
+        alpha = ImageChops.multiply(layer.getchannel("A"),
+                                    Image.new("L", layer.size, int(255 * a)))
+        out = layer.copy()
+        out.putalpha(alpha)
+        return out
+
+    @staticmethod
+    def kinetic_text(img, xy, s, size, fill=R.TEXT, t=0.0, dur=0.55, style="pop",
+                     bold=True, anchor="mm", alpha=1.0, stroke=None, stroke_w=None,
+                     shadow=0.0):
+        """大字入场动效（封面/钩子镜头用）。t 为镜头内秒数。
+
+        style: pop=回弹放大 / slam=砸下 / rise=上浮淡入 / wipe=从左揭幕
+        stroke + stroke_w: 描边色与宽度（描边是"网红大字"的关键，浅底必配深描边）
+        shadow: 0~1，向下投影强度
+        """
+        if not s or alpha <= 0.01:
+            return
+        s = R.sanitize(s, bold=bold)
+        p = R.clamp(t / dur) if dur > 0 else 1.0
+        scale, dy, a = 1.0, 0.0, R.clamp(alpha)
+        if style == "pop":
+            scale = 0.55 + 0.45 * R.ease_back(p, 2.2)
+            a *= R.clamp(p * 2.2)
+        elif style == "slam":
+            scale = 1.75 - 0.75 * R.ease_out(p)
+            dy = -60 * (1 - R.ease_out(p))
+            a *= R.clamp(p * 3.0)
+        elif style == "rise":
+            dy = 46 * (1 - R.ease_out(p))
+            a *= R.clamp(p * 1.6)
+        elif style == "wipe":
+            a *= R.clamp(p * 1.4)
+
+        fsize = max(8, int(round(size * scale)))
+        f = R.font(fsize, bold=bold)
+        probe = ImageDraw.Draw(Image.new("RGBA", (1, 1)))
+        bx = probe.textbbox((0, 0), s, font=f, anchor=anchor,
+                            stroke_width=stroke_w or 0)
+        pad = (stroke_w or 0) + 4
+        layer, ox, oy = _layer((xy[0] + bx[0], xy[1] + bx[1] + dy,
+                                xy[0] + bx[2], xy[1] + bx[3] + dy), pad=pad)
+        d = ImageDraw.Draw(layer)
+        lx, ly = xy[0] - ox, xy[1] + dy - oy
+        if shadow > 0:
+            d.text((lx, ly + max(2, fsize // 22)), s, font=f, anchor=anchor,
+                   fill=(0, 0, 0, int(150 * shadow)),
+                   stroke_width=(stroke_w or 0) + 2, stroke_fill=(0, 0, 0, int(120 * shadow)))
+        d.text((lx, ly), s, font=f, anchor=anchor, fill=tuple(fill) + (255,),
+               stroke_width=stroke_w or 0,
+               stroke_fill=(tuple(stroke) + (255,)) if stroke else None)
+        if style == "wipe":  # 从左向右揭开：裁掉右侧未揭开的部分
+            keep = int(layer.size[0] * R.ease_out(p))
+            if keep < layer.size[0]:
+                layer = layer.crop((0, 0, max(1, keep), layer.size[1]))
+        layer = SceneAPI._fade(layer, a)
+        if layer is not None:
+            _blend(img, layer, ox, oy)
+
+    @staticmethod
+    def highlight_bar(img, x0, x1, y, h, p=1.0, color=None, radius=None, alpha=0.85):
+        """关键词底纹色块（自左向右扫过），用来压住一行字的重点词。"""
+        p = R.clamp(p)
+        if p <= 0.01 or x1 <= x0:
+            return
+        color = tuple(color or R.AMBER)
+        w = (x1 - x0) * R.ease_out(p)
+        layer, ox, oy = _layer((x0, y, x0 + w, y + h), pad=1)
+        d = ImageDraw.Draw(layer)
+        d.rounded_rectangle((x0 - ox, y - oy, x0 + w - ox, y + h - oy),
+                            radius=int(radius if radius is not None else h / 2),
+                            fill=color + (int(255 * R.clamp(alpha)),))
+        _blend(img, layer, ox, oy)
+
+    @staticmethod
+    def number_badge(img, cx, cy, n, r=46, color=None, num_color=(12, 16, 28),
+                     alpha=1.0, font_ratio=0.62):
+        """圆形序号贴纸（① ② ③ 的图形版，比文字序号更醒目）。"""
+        if alpha <= 0.01:
+            return
+        color = tuple(color or R.ACCENT)
+        layer, ox, oy = _layer((cx - r, cy - r, cx + r, cy + r), pad=2)
+        d = ImageDraw.Draw(layer)
+        d.ellipse((cx - r - ox, cy - r - oy, cx + r - ox, cy + r - oy),
+                  fill=color + (int(255 * R.clamp(alpha)),))
+        d.text((cx - ox, cy - oy), str(n), font=R.font(int(r * 2 * font_ratio), bold=True),
+               fill=tuple(num_color) + (int(255 * R.clamp(alpha)),), anchor="mm")
+        _blend(img, layer, ox, oy)
+
+    @staticmethod
+    def panel(img, box, fill=(10, 14, 26), alpha=0.72, radius=32, outline=None,
+              outline_w=2, pad=2):
+        """圆角半透明面板（放结论/公式/对比，把信息"框"起来）。"""
+        if alpha <= 0.01:
+            return
+        x0, y0, x1, y1 = box
+        layer, ox, oy = _layer(box, pad=pad)
+        d = ImageDraw.Draw(layer)
+        d.rounded_rectangle((x0 - ox, y0 - oy, x1 - ox, y1 - oy), radius=radius,
+                            fill=tuple(fill) + (int(255 * R.clamp(alpha)),),
+                            outline=(tuple(outline) + (int(200 * R.clamp(alpha)),))
+                            if outline else None, width=outline_w)
+        _blend(img, layer, ox, oy)

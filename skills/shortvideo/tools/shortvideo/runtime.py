@@ -182,3 +182,63 @@ def glow(img, cx, cy, r, color, strength=1.0):
     lut = _strength_lut(min(1.0, strength))
     mask = _glow_mask(r).point(lut)
     img.paste(_solid_rgba(color, r * 2), (int(cx - r), int(cy - r)), mask)
+
+# ---------------------------------------------------------------- 文本清洗（缺字兜底）
+
+# wqy-zenhei 没有这些字形，会渲染成"豆腐块"；统一换成等价可显示字符
+_FALLBACK = {
+    "\u2212": "-",      # MINUS SIGN
+    "\u2012": "-", "\u2013": "-", "\u2014": "--", "\u2011": "-",
+    "\u2216": "\\", "\u00a0": " ",
+    "\ufe0f": "", "\ufe0e": "", "\u200b": "", "\u200d": "",
+    "\u26a0": "注意", "\u2705": "✓", "\u274c": "✗", "\u2714": "✓", "\u2716": "✗",
+    "\u2b50": "★", "\u2728": "", "\u2764": "", "\ud83d": "",
+}
+_TOFU_CACHE = {}
+# 两个"一定不存在"的字符，用来判定某个字形是不是 notdef 方块
+_TOFU_REFS = ("\ue000", "\u4db6")
+
+
+def _is_tofu(ch, bold=False):
+    key = (ch, bold)
+    hit = _TOFU_CACHE.get(key)
+    if hit is None:
+        try:
+            f = font(48, bold)
+            sig = bytes(f.getmask(ch))
+            hit = any(sig == bytes(font(48, bold).getmask(ref)) for ref in _TOFU_REFS)
+        except Exception:  # noqa: BLE001
+            hit = False
+        _TOFU_CACHE[key] = hit
+    return hit
+
+
+def sanitize(s, bold=False):
+    """把字体缺字/emoji 换成可显示字符，避免画面出现豆腐块。
+
+    只做"显示用"清洗：旁白原文（送 TTS）不动，避免影响发音。
+    """
+    if not s:
+        return s
+    out = []
+    dirty = False
+    for ch in s:
+        rep = _FALLBACK.get(ch)
+        if rep is None and (ch in ("\n", "\t") or 0x20 <= ord(ch) < 0x7f):
+            out.append(ch)
+            continue
+        if rep is not None:
+            out.append(rep)
+            dirty = True
+            continue
+        o = ord(ch)
+        if 0x1F000 <= o <= 0x1FAFF or 0x2600 <= o <= 0x27BF or o in (0x2B00, 0x2B50):
+            # emoji / 杂项符号：字体基本没有，直接去掉
+            dirty = True
+            continue
+        if _is_tofu(ch, bold):
+            out.append("?")
+            dirty = True
+            continue
+        out.append(ch)
+    return "".join(out) if dirty else s

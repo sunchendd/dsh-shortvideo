@@ -14,6 +14,9 @@
   MOODS, ffmpeg_exe(), EdgeVoice(name, rate, pitch, retries).synth(text, path, mood),
   SilentVoice, build_voice(cfg), concat(segments, total, out_path)
 新增：
+  VOICE_PRESETS / VOICE_MOODS（3 个人格音色 + 每音色 5 情绪韵律）
+  build_moods(preset, tuning), resolve_preset(cfg), preset_name(key), list_presets(),
+  normalize_prosody(field, value)
   synth_all(voice, items, jobs=None) -> [duration...]
   patch_edge_ssl(), resolve_proxy(value), synth_all
 """
@@ -22,6 +25,7 @@ import asyncio
 import hashlib
 import inspect
 import json
+import math
 import os
 import random
 import ssl
@@ -42,6 +46,18 @@ TRIM_PAD = 0.06
 # 并发合成默认并发度（edge-tts 单个 WSS 连接较短，4 路足够且稳）
 DEFAULT_JOBS = 3
 
+# 响度对齐：同一音色对不同句子会给出 ±2~4dB 的天然差异（实测 yunxi 的 explain
+# 比同音色其它句子轻 4.4dB），五段连播就会出现“忽大忽小”的电平跳变。
+# 这里按“语音段 RMS”把每条对到统一目标，再把 mood 的 volume 相对增益加回去，
+# 于是：跨镜头电平一致，情绪强弱仍保留。
+NORMALIZE_TARGET_DBFS = -20.0   # 语音段 RMS 目标电平（门限 RMS，剔除停顿）
+NORMALIZE_GAIN_LIMIT_DB = 12.0  # 单条最大增益修正（防止把底噪/静音段抬起来）
+NORMALIZE_PEAK_CEILING_DBFS = -0.5  # 峰值保护，留 0.5dB 余量
+
+# 五段式情绪（hook 钩子 / rule 规则 / explain 原理 / reveal 揭晓 / win 收尾）
+MOOD_KEYS = ("hook", "rule", "explain", "reveal", "win")
+
+# 通用默认韵律表：保持原样，供没有绑定 preset 的旧音色（只给 name 的配置）继续使用。
 MOODS = {
     "hook":    dict(rate="+12%", pitch="+3Hz", volume="+0%"),
     "rule":    dict(rate="+2%",  pitch="+0Hz", volume="+0%"),
@@ -49,6 +65,190 @@ MOODS = {
     "reveal":  dict(rate="+6%",  pitch="+2Hz", volume="+6%"),
     "win":     dict(rate="+10%", pitch="+2Hz", volume="+8%"),
 }
+
+# ------------------------------------------------------------------ 音色注册表
+#
+# 只要 3 个音色，但每个音色的情绪人格必须不一样：
+#   xiaoxiao 亮、快、笑点高 —— 科普讲解万能主力
+#   yunxi    轻快带调侃，语速弹性最大 —— 反常识/冷知识
+#   yunjian  低、慢、厚 —— 悬念与重磅结论（低音色不能配 +12% 语速，会飘）
+#
+# base 是这个音色的“人格基准韵律”（content.json 里显式写了 rate/pitch/volume 时以配置为准）。
+# 选型依据见 tools/voice_lab.py 的实测指标（F0 中位数 / 字速 / 响度）。
+VOICE_PRESETS = {
+    "xiaoxiao": dict(
+        name="zh-CN-XiaoxiaoNeural",
+        label="活泼亲切女主",
+        persona="明亮亲和、带笑意，句尾自然上扬，节奏轻快不聒噪",
+        best_for=("科普讲解主推", "生活向·好奇心题材", "泛人群/女性受众"),
+        base=dict(rate="+0%", pitch="+0Hz", volume="+0%"),
+    ),
+    "yunxi": dict(
+        name="zh-CN-YunxiNeural",
+        label="阳光邻家男声",
+        persona="邻家感、带点俏皮调侃，语速弹性大，反问句最抓耳",
+        best_for=("反常识题材", "轻科普/冷知识", "年轻受众"),
+        base=dict(rate="+2%", pitch="+0Hz", volume="+0%"),
+    ),
+    "yunjian": dict(
+        name="zh-CN-YunjianNeural",
+        label="浑厚沉稳男声",
+        persona="低沉厚重、语速克制，留白多，压得住悬念和重磅结论",
+        best_for=("悬念/揭秘", "重磅结论", "硬核原理解析"),
+        base=dict(rate="-3%", pitch="-2Hz", volume="+0%"),
+    ),
+}
+
+DEFAULT_PRESET = "xiaoxiao"
+
+# 每个音色的 5 种情绪韵律（叠加在 MOODS 之上的覆盖表）。
+# 设计口径（实测依据见 tools/voice_lab.py 的“控制变量诊断”，同一句文本 × 5 情绪）：
+#   - rate：hook 比 explain 快 10~20%（实测时长差 -11%~-16%，可测）
+#   - pitch：按音色音区换算，explain 最低、hook/win 最高，跨度约 1~1.5 个半音
+#     （265Hz 女声用 16Hz，165Hz 男声用 14Hz，130Hz 浑厚男声用 10Hz；
+#      太小（±2Hz）在实测里会被句子语调盖掉，等于没做情绪）
+#   - volume：±8% 幅度约 0.6dB —— 配合 loudness 对齐后仍保留这 0.6dB 的强弱意图
+# 低音色不靠“加速”制造紧张：yunjian 的 reveal 是“更低 + 更响”，不是更快。
+VOICE_MOODS = {
+    "xiaoxiao": {
+        "hook":    dict(rate="+14%", pitch="+5Hz",  volume="+2%"),
+        "rule":    dict(rate="+4%",  pitch="+1Hz",  volume="+0%"),
+        "explain": dict(rate="-3%",  pitch="-8Hz",  volume="+0%"),
+        "reveal":  dict(rate="+3%",  pitch="+4Hz",  volume="+6%"),
+        "win":     dict(rate="+12%", pitch="+8Hz",  volume="+8%"),
+    },
+    "yunxi": {
+        "hook":    dict(rate="+16%", pitch="+4Hz",  volume="+3%"),
+        "rule":    dict(rate="+7%",  pitch="+0Hz",  volume="+0%"),
+        "explain": dict(rate="-1%",  pitch="-7Hz",  volume="+0%"),
+        "reveal":  dict(rate="+5%",  pitch="+3Hz",  volume="+5%"),
+        "win":     dict(rate="+13%", pitch="+7Hz",  volume="+7%"),
+    },
+    "yunjian": {
+        "hook":    dict(rate="+4%",  pitch="-2Hz",  volume="+4%"),
+        "rule":    dict(rate="-2%",  pitch="-3Hz",  volume="+0%"),
+        "explain": dict(rate="-8%",  pitch="-6Hz",  volume="+0%"),
+        "reveal":  dict(rate="-4%",  pitch="-9Hz",  volume="+8%"),
+        "win":     dict(rate="+2%",  pitch="+1Hz",  volume="+6%"),
+    },
+}
+
+# edge-tts / Azure 的合法区间：rate、volume 百分比，pitch 赫兹；超出会被服务端拒绝。
+_PROSODY_LIMITS = {
+    "rate": ("%", -50.0, 100.0),
+    "pitch": ("Hz", -50.0, 50.0),
+    "volume": ("%", -50.0, 50.0),
+}
+
+
+def normalize_prosody(field, value, fallback=None):
+    """把 content.json 里的 rate/pitch/volume 归一化成 edge-tts 认的字符串。
+
+    接受 "+12%"、"12"、12、"-3Hz"、"+2hz" 等写法；非法/超限时钳到区间内，
+    实在解析不了就回退 fallback（默认 +0% / +0Hz），绝不抛异常。
+    """
+    unit, lo, hi = _PROSODY_LIMITS[field]
+    default = fallback if fallback is not None else ("+0Hz" if unit == "Hz" else "+0%")
+    if value is None or isinstance(value, bool):
+        return default
+    if isinstance(value, (int, float)):
+        num = float(value)
+    elif isinstance(value, str):
+        s = value.strip().replace(" ", "")
+        if not s:
+            return default
+        low = s.lower()
+        for suffix in ("percent", "%"):
+            if low.endswith(suffix):
+                s = s[: -len(suffix)]
+                break
+        else:
+            if low.endswith("hz"):
+                s = s[:-2]
+        try:
+            num = float(s)
+        except ValueError:
+            _warn_once(f"prosody-{field}-{value}",
+                       f"[voice] {field}={value!r} 无法解析，已用默认 {default}")
+            return default
+    else:
+        return default
+    if num != num or num in (float("inf"), float("-inf")):
+        return default
+    if not (lo <= num <= hi):
+        _warn_once(f"prosody-clamp-{field}-{num}",
+                   f"[voice] {field}={num:g} 超出 edge-tts 区间 [{lo:g}, {hi:g}]，已钳位")
+        num = max(lo, min(hi, num))
+    if unit == "Hz":
+        return f"{int(round(num)):+d}Hz"
+    return f"{round(num, 1):+g}%"
+
+
+def build_moods(preset=None, tuning=None):
+    """合成某个音色的完整 5 情绪韵律表：MOODS -> VOICE_MOODS[preset] -> mood_tuning。
+
+    preset 为 None/未知时就是 MOODS 的副本（旧配置的行为完全不变）。
+    """
+    table = {k: dict(v) for k, v in MOODS.items()}
+    over = VOICE_MOODS.get((preset or "").strip().lower())
+    if over:
+        for mood, pros in over.items():
+            table.setdefault(mood, {}).update(dict(pros))
+    for mood, pros in dict(tuning or {}).items():
+        if not isinstance(pros, dict) or mood not in table:
+            _warn_once(f"tuning-{mood}",
+                       f"[voice] mood_tuning 里的 '{mood}' 不可用，已忽略"
+                       f"（可选：{', '.join(MOOD_KEYS)}）")
+            continue
+        for field in ("rate", "pitch", "volume"):
+            if field in pros:
+                table[mood][field] = normalize_prosody(field, pros[field],
+                                                       table[mood].get(field))
+    for pros in table.values():
+        for field in ("rate", "pitch", "volume"):
+            pros[field] = normalize_prosody(field, pros.get(field))
+    return table
+
+
+def resolve_preset(cfg):
+    """配置（或 preset 键 / 音色名）-> 注册表 key。
+
+    优先级：preset（或 voice_preset）> name 同名映射 > DEFAULT_PRESET。
+    传字符串且不是已知 preset/音色名时返回 None（便于探测）；传配置字典时总有兜底值。
+    """
+    if isinstance(cfg, str):
+        key = cfg.strip().lower()
+        if key in VOICE_PRESETS:
+            return key
+        for k, meta in VOICE_PRESETS.items():
+            if meta["name"].lower() == key:
+                return k
+        return None
+    cfg = dict(cfg or {})
+    name = cfg.get("name")
+    raw = cfg.get("preset", cfg.get("voice_preset"))
+    if raw is not None and str(raw).strip():
+        key = resolve_preset(str(raw))
+        if key:
+            return key
+        _warn_once(f"preset-{raw}",
+                   f"[voice] 未知 preset {raw!r}，已退回默认音色"
+                   f"（可选：{', '.join(VOICE_PRESETS)}）")
+        return resolve_preset(str(name)) if name else DEFAULT_PRESET
+    if name:
+        return resolve_preset(str(name))  # 只写 name 的老配置也能吃到对应情绪表
+    return DEFAULT_PRESET
+
+
+def preset_name(key):
+    """preset key -> edge-tts 音色名（未知 key 返回 None）。"""
+    meta = VOICE_PRESETS.get(str(key or "").strip().lower())
+    return meta["name"] if meta else None
+
+
+def list_presets():
+    """[(key, label, name, best_for), ...]，供 CLI/文档/菜单使用。"""
+    return [(k, m["label"], m["name"], m["best_for"]) for k, m in VOICE_PRESETS.items()]
 
 # 系统 CA bundle 常见位置（Debian/Ubuntu、RHEL、Alpine、pip 自带）
 _SYSTEM_CA_CANDIDATES = (
@@ -338,6 +538,102 @@ def _silence(path, seconds):
     return seconds
 
 
+# ------------------------------------------------------------ 响度（dBFS + 对齐）
+
+def speech_levels(arr, frame_s=0.02, gate_db=-20.0):
+    """返回 (语音段 RMS dBFS, 峰值 dBFS)。
+
+    “语音段 RMS”只看响过最高帧 gate_db 的 20ms 帧——整体 RMS 会被句子里的停顿
+    拖低，用它对齐会把“停顿多”误判成“轻声”。
+    """
+    n = len(arr)
+    if not n:
+        return float("-inf"), float("-inf")
+    peak = max(max(arr), -min(arr)) / 32768.0
+    peak_db = 20.0 * math.log10(peak) if peak > 0 else float("-inf")
+    np = _numpy()
+    if np is not None:
+        a = np.frombuffer(array.array("h", arr).tobytes(), dtype="<i2").astype("float64")
+        frame = max(1, int(SAMPLE_RATE * frame_s))
+        m = len(a) // frame
+        if m <= 0:
+            return float("-inf"), peak_db
+        energy = (a[:m * frame].reshape(m, frame) ** 2).mean(axis=1)
+        keep = energy[energy >= energy.max() * (10.0 ** (gate_db / 10.0))]
+        if keep.size == 0 or keep.mean() <= 0:
+            return float("-inf"), peak_db
+        return 10.0 * math.log10(keep.mean() / (32768.0 ** 2)), peak_db
+    frame = max(1, int(SAMPLE_RATE * frame_s))
+    energies = []
+    for st in range(0, n - frame + 1, frame):
+        s = 0
+        for v in arr[st:st + frame]:
+            s += v * v
+        energies.append(s / float(frame))
+    if not energies:
+        return float("-inf"), peak_db
+    top = max(energies)
+    if top <= 0:
+        return float("-inf"), peak_db
+    keep = [e for e in energies if e >= top * (10.0 ** (gate_db / 10.0))]
+    gated = sum(keep) / len(keep) / (32768.0 ** 2)
+    if gated <= 0:
+        return float("-inf"), peak_db
+    return 10.0 * math.log10(gated), peak_db
+
+
+def _scale_wav(path, arr, factor):
+    """原地整体乘以增益系数（int16 截断保护后写回）。"""
+    _write_wav(path, _scale_samples(arr, factor))
+    return path
+
+
+def _scale_samples(arr, factor):
+    np = _numpy()
+    if np is not None:
+        a = np.frombuffer(array.array("h", arr).tobytes(), dtype="<i2").astype("float64")
+        out = np.clip(a * factor, -32768, 32767).astype("<i2")
+        return array.array("h", out.tobytes())
+    return array.array("h", (max(-32768, min(32767, int(round(v * factor)))) for v in arr))
+
+
+def volume_relative_db(volume):
+    """"+8%" -> 0.67（dB）：mood 的音量参数换算成相对增益。"""
+    try:
+        pct = float(str(volume or "+0%").replace("%", "").replace("+", ""))
+    except (TypeError, ValueError):
+        return 0.0
+    factor = 1.0 + pct / 100.0
+    if factor <= 0:
+        return 0.0
+    return 20.0 * math.log10(factor)
+
+
+def parse_normalize(value):
+    """content.json 的 normalize 键 -> 目标 dBFS 或 None（关闭）。
+
+    true/auto/"on" -> 默认目标；数字或 "-18dB" -> 指定目标；false/off/"none" -> 关闭。
+    """
+    if value is None:
+        return NORMALIZE_TARGET_DBFS
+    if isinstance(value, bool):
+        return NORMALIZE_TARGET_DBFS if value else None
+    if isinstance(value, (int, float)):
+        target = float(value)
+    else:
+        s = str(value).strip().lower()
+        if s in ("", "0", "false", "off", "no", "none", "disabled"):
+            return None
+        if s in ("1", "true", "on", "yes", "auto", "db", "dbfs"):
+            return NORMALIZE_TARGET_DBFS
+        s = s.replace("dbfs", "").replace("db", "").replace("+", "")
+        try:
+            target = float(s)
+        except ValueError:
+            return NORMALIZE_TARGET_DBFS
+    return max(-30.0, min(-10.0, target))
+
+
 def estimate_duration(text):
     """无音频时的时长估算（沿用 6.2 字/秒，下限 2s）。"""
     return max(2.0, len(text or "") / CHARS_PER_SEC)
@@ -419,8 +715,16 @@ def _run_coro(coro):
 class SilentVoice:
     """纯静音音色：没有网络也能出片（字幕正常）。"""
 
+    label = "静音占位"
+    persona = "无配音（字幕正常）"
+    preset = None
+    best_for = ()
+
     def __init__(self):
         self.name = "silent"
+
+    def mood_prosody(self, mood=None):
+        return dict(rate="+0%", pitch="+0Hz", volume="+0%")
 
     def synth(self, text, path, mood=None):
         _ensure_dir(path)
@@ -432,15 +736,25 @@ class SilentVoice:
 
 
 class EdgeVoice:
-    """edge-tts 神经音色：mood 情绪预设 + 重试 + 静音兜底 + 可选 wav 缓存。"""
+    """edge-tts 神经音色：mood 情绪预设 + 重试 + 静音兜底 + 可选 wav 缓存。
+
+    preset 绑定音色人格（见 VOICE_PRESETS）；每个 preset 有自己的 5 情绪韵律表
+    （VOICE_MOODS），再被 cfg["mood_tuning"] 覆盖。self.moods 就是这张“棋盘”，
+    synth() 时按 mood 查表。
+    """
 
     def __init__(self, voice="zh-CN-XiaoxiaoNeural", rate="+0%", pitch="+0Hz", retries=4,
                  volume="+0%", proxy="auto", cache=True, cache_dir=None, jobs=None,
-                 retry_delay=0.8, retry_passes=2, verbose=True):
+                 retry_delay=0.8, retry_passes=2, verbose=True, preset=None,
+                 moods=None, mood_tuning=None, normalize=None):
         import edge_tts  # 没装则抛 ImportError，由 build_voice 降级
         self._edge = edge_tts
         self.voice, self.rate, self.pitch = voice, rate, pitch
         self.volume = volume
+        self.preset = (preset or "").strip().lower() or None
+        self.mood_tuning = dict(mood_tuning or {})
+        self.moods = moods if moods is not None else build_moods(self.preset, self.mood_tuning)
+        self.normalize_target = parse_normalize(normalize)
         self.retries = max(1, int(retries or 1))
         self.retry_delay = max(0.0, float(retry_delay))
         self.retry_passes = max(1, int(retry_passes or 1))
@@ -454,13 +768,43 @@ class EdgeVoice:
         self.name = f"edge:{voice}"
         patch_edge_ssl(verbose=self.verbose)
 
+    # ---------- 人格 / 韵律 ----------
+    @property
+    def meta(self):
+        return VOICE_PRESETS.get(self.preset or "", {}) or {}
+
+    @property
+    def label(self):
+        """中文人格名（静音兜底时是“静音占位”）；文档/日志用。"""
+        return self.meta.get("label") or self.voice
+
+    @property
+    def persona(self):
+        return self.meta.get("persona", "")
+
+    @property
+    def best_for(self):
+        return tuple(self.meta.get("best_for") or ())
+
+    def mood_prosody(self, mood=None):
+        """mood -> 实际发给 edge-tts 的 rate/pitch/volume。
+
+        未登记/未指定的 mood 回退到音色基础韵律（与旧行为一致）。
+        """
+        pros = self.moods.get(mood or "") if mood else None
+        if not pros:
+            return dict(rate=self.rate, pitch=self.pitch, volume=self.volume)
+        return dict(rate=pros.get("rate", self.rate),
+                    pitch=pros.get("pitch", self.pitch),
+                    volume=pros.get("volume", self.volume))
+
     # ---------- 缓存 ----------
     def _cache_paths(self, path, key):
         d = self.cache_dir or os.path.join(os.path.dirname(os.path.abspath(path)), "tts_cache")
         return os.path.join(d, key + ".wav"), os.path.join(d, key + ".json")
 
     def _cache_key(self, text, mood):
-        pros = MOODS.get(mood, {})
+        pros = self.mood_prosody(mood)
         sig = "|".join((
             text or "",
             self.voice,
@@ -468,6 +812,8 @@ class EdgeVoice:
             str(pros.get("pitch", self.pitch)),
             str(pros.get("volume", self.volume)),
             str(mood or ""),
+            str(self.preset or ""),
+            "" if self.normalize_target is None else f"norm{self.normalize_target:g}",
         ))
         return hashlib.sha1(sig.encode("utf-8")).hexdigest()
 
@@ -502,7 +848,7 @@ class EdgeVoice:
 
     # ---------- 网络 ----------
     async def _fetch(self, text, path, mood):
-        pros = MOODS.get(mood, {})
+        pros = self.mood_prosody(mood)
         mp3 = path + ".mp3"
         kwargs = dict(
             rate=pros.get("rate", self.rate),
@@ -539,6 +885,32 @@ class EdgeVoice:
             check=True,
         )
 
+    def _normalize_loudness(self, path, mood):
+        """把这一条对到统一语音电平，再把 mood 的 volume 相对增益加回去。
+
+        edge-tts 对不同句子给的电平天生差 2~4dB（实测），五段连播会听到电平跳变；
+        对齐后跨镜头一致，而 reveal/win 的“更响一点”仍然保留。
+        """
+        if self.normalize_target is None:
+            return None
+        try:
+            arr = _read_wav(path)
+            speech_db, peak_db = speech_levels(arr)
+            if speech_db == float("-inf"):
+                return None
+            rel_db = volume_relative_db(self.mood_prosody(mood).get("volume"))
+            gain = self.normalize_target - speech_db + rel_db
+            gain = max(-NORMALIZE_GAIN_LIMIT_DB, min(NORMALIZE_GAIN_LIMIT_DB, gain))
+            if peak_db != float("-inf"):
+                gain = min(gain, NORMALIZE_PEAK_CEILING_DBFS - peak_db)
+            if abs(gain) < 0.05:
+                return 0.0
+            _scale_wav(path, arr, 10.0 ** (gain / 20.0))
+            return round(gain, 2)
+        except Exception as e:  # noqa: BLE001  对齐失败不影响成片
+            _warn_once("norm-fail", f"[voice] 响度对齐失败（{type(e).__name__}: {e}），保留原始电平")
+            return None
+
     async def _attempt(self, text, path, mood):
         """尝试合成一条（内部重试 + 退避），失败时抛异常，不做静音兜底。"""
         key = self._cache_key(text, mood)
@@ -553,6 +925,7 @@ class EdgeVoice:
             try:
                 await self._fetch(text, path, mood)
                 dur = await asyncio.to_thread(_trim, path)
+                await asyncio.to_thread(self._normalize_loudness, path, mood)
                 self._cache_store(path, dur, wav_c, meta_c)
                 return dur
             except Exception as e:  # noqa: BLE001
@@ -630,7 +1003,15 @@ def build_voice(cfg):
 
     可配置键（全部可选）：
       engine: "edge" | "silent"/"none"
-      name / rate / pitch / volume: 音色与基础韵律
+      preset: 音色人格 key（xiaoxiao / yunxi / yunjian），见 VOICE_PRESETS。
+              content.json 写 {"preset": "yunxi"} 即可，name 会自动补上；
+              只写 name 的老配置依旧可用（同名音色会自动套用它的情绪表）。
+      name / rate / pitch / volume: 音色与基础韵律（rate 等显式值覆盖 preset 的 base）
+      mood_tuning: {mood: {rate/pitch/volume}}，按镜头微调单个情绪，例如
+              {"preset": "yunjian", "mood_tuning": {"reveal": {"volume": "+10%"}}}
+      normalize: 响度对齐（默认 true）。true = 对齐到 -20dBFS 语音电平；
+              数字或 "-18dB" = 自定义目标；false/off = 关闭（保留 edge-tts 原始电平）。
+              对齐后仍保留每个 mood 的 volume 强弱，跨镜头电平不再跳变。
       retries: 每条重试次数（默认 4）      retry_delay: 退避基数秒（默认 0.8，指数退避+抖动）
       retry_passes: synth_all 整批补轮次数（默认 2）
       proxy: "auto"(默认, 读 https_proxy) | "" | "http://host:port"
@@ -652,12 +1033,18 @@ def build_voice(cfg):
             cache = True
         else:  # 当作目录
             cache, cache_dir = True, cache_dir or cache
+    preset = resolve_preset(cfg)
+    base = (VOICE_PRESETS.get(preset or "", {}) or {}).get("base") or {}
+    mood_tuning = cfg.get("mood_tuning") or cfg.get("moods") or {}
+    if not isinstance(mood_tuning, dict):
+        _warn_once("tuning-type", "[voice] mood_tuning 必须是 {mood: {...}} 字典，已忽略")
+        mood_tuning = {}
     try:
         return EdgeVoice(
-            cfg.get("name", "zh-CN-XiaoxiaoNeural"),
-            rate=cfg.get("rate", "+0%"),
-            pitch=cfg.get("pitch", "+0Hz"),
-            volume=cfg.get("volume", "+0%"),
+            cfg.get("name") or preset_name(preset) or "zh-CN-XiaoxiaoNeural",
+            rate=normalize_prosody("rate", cfg.get("rate"), base.get("rate", "+0%")),
+            pitch=normalize_prosody("pitch", cfg.get("pitch"), base.get("pitch", "+0Hz")),
+            volume=normalize_prosody("volume", cfg.get("volume"), base.get("volume", "+0%")),
             retries=cfg.get("retries", 4),
             retry_delay=cfg.get("retry_delay", 0.8),
             retry_passes=cfg.get("retry_passes", 2),
@@ -666,6 +1053,10 @@ def build_voice(cfg):
             cache_dir=cache_dir,
             jobs=cfg.get("jobs") or cfg.get("parallel"),
             verbose=cfg.get("verbose", True),
+            preset=preset,
+            moods=build_moods(preset, mood_tuning),
+            mood_tuning=mood_tuning,
+            normalize=cfg.get("normalize", cfg.get("loudness")),
         )
     except Exception as e:  # noqa: BLE001  edge-tts 没装 / 参数不合法
         print(f"[voice] edge 不可用（{e}），降级静音（字幕仍正常）", flush=True)
