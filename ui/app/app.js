@@ -93,6 +93,7 @@ async function loadProject(slug) {
     .map(([k, n]) => `<option value="${k}" ${k === S.proj.theme ? "selected" : ""}>${n}</option>`)
     .join("");
   $("#fVoice").value = S.proj.voice || "yunxi";
+  renderTransition();
   $("#tcTotal").textContent = fmtTC(S.proj.total);
   $("#fProjMeta").textContent =
     `${S.proj.shots.length} 镜 · ${S.proj.total.toFixed(1)}s · ${S.proj.size[0]}×${S.proj.size[1]} · ${S.proj.fps}fps`;
@@ -564,6 +565,7 @@ function splitSentences(s) {
 function snapshot() {
   return {
     title: S.proj.title, theme: S.proj.theme, voice: S.proj.voice,
+    transition: S.proj.transition || { type: "", dur: 0.24 },
     shots: S.proj.shots.map((s) => ({
       id: s.id, narration: s.narration, duration: s.duration, kind: s.kind, deck: s.deck,
     })),
@@ -655,6 +657,7 @@ async function doSave() {
   try {
     const r = await jpost("/api/project", {
       slug: S.slug, title: snap.title, theme: snap.theme, voice: snap.voice,
+      transition: snap.transition,
       shots: snap.shots,
       // order 必须真的发出去：服务端靠它重排/增删镜头。
       // （第一次只加进了 snapshot()，那是撤销用的本地快照，服务端根本没收到。）
@@ -769,6 +772,19 @@ function bindUI() {
     commit(() => { S.proj.theme = e.target.value; });
     requestFrame(true);
   };
+  $("#fTrans").onchange = (e) => {
+    const type = e.target.value;
+    const dur = parseFloat($("#fTransDur").value) || 0.24;
+    commit(() => { S.proj.transition = { type, dur }; });
+    $("#fTransDur").disabled = !type;
+    toast(type ? "转场已设置（导出时生效）" : "已关闭转场");
+  };
+  $("#fTransDur").onchange = (e) => {
+    const dur = clamp(parseFloat(e.target.value) || 0.24, 0.05, 1);
+    e.target.value = dur.toFixed(2);
+    commit(() => { S.proj.transition = { type: (S.proj.transition || {}).type || "", dur }; });
+  };
+
   $("#fVoice").onchange = (e) => commit(() => { S.proj.voice = e.target.value; });
 
   // 缩放
@@ -1414,6 +1430,16 @@ function escClose() {
 }
 
 function stopPlayIfAny() { if (S.playing) pause(); }
+
+/** 转场控件：项目级设置，渲染在「项目」区。 */
+function renderTransition() {
+  const tr = S.proj.transition || { type: "", dur: 0.24 };
+  const sel = $("#fTrans"), dur = $("#fTransDur");
+  if (!sel || !dur) return;
+  sel.value = tr.type || "";
+  dur.value = (tr.dur || 0.24).toFixed(2);
+  dur.disabled = !tr.type;
+}
 
 /* ------------------------------------------------------------ 首用引导 */
 const TOUR_KEY = "sv.tour.v1";

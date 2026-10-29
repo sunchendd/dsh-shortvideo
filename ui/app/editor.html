@@ -142,6 +142,20 @@
           <option value="yunjian">云健 · 男声（厚）</option>
         </select>
       </div>
+      <div class="row2">
+        <div class="field">
+          <label>镜头转场</label>
+          <select id="fTrans">
+            <option value="">不用</option>
+            <option value="fade">淡入淡出</option>
+            <option value="slide">横向滑动</option>
+            <option value="slide_up">向上滑动</option>
+            <option value="wipe">擦除</option>
+          </select>
+        </div>
+        <div class="field"><label>转场时长</label><input id="fTransDur" type="number" min="0.05" max="1" step="0.02"></div>
+      </div>
+      <div class="meta" style="margin:-4px 0 10px">预览是单帧，转场只在导出的成片里看得到</div>
       <div class="meta" id="fProjMeta"></div>
     </section>
 

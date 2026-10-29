@@ -329,6 +329,9 @@ def _project_json(slug):
         "size": cfg.get("size") or [1080, 1920],
         "total": round(cursor, 2),
         "shots": shots,
+        # 转场是项目级设置，编辑器必须读到原值：否则打开项目再随便改点别的，
+        # 保存时就用默认值把它冲掉了（"顺带丢配置"这类最难发现）。
+        "transition": cfg.get("transition") or {"type": "", "dur": 0.24},
         "kicker": (cfg.get("cover") or {}).get("kicker") or "",
         "raw_shot_count": len(cfg.get("shots") or []),
     }
@@ -358,6 +361,14 @@ def _save_project(slug, body):
         cfg["theme"] = str(body["theme"])
     if "voice" in body and body["voice"]:
         cfg.setdefault("voice", {})["preset"] = str(body["voice"])
+    if isinstance(body.get("transition"), dict):
+        tr = body["transition"]
+        typ = str(tr.get("type") or "").strip()
+        try:
+            dur = max(0.05, min(1.0, float(tr.get("dur") or 0.24)))
+        except (TypeError, ValueError):
+            dur = 0.24
+        cfg["transition"] = {"type": typ, "dur": dur} if typ else {"type": "", "dur": dur}
     deck = cfg.setdefault("deck", {})
     shots = cfg.get("shots") or []
     by_id = {s["id"]: s for s in shots}
