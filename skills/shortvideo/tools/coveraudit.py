@@ -1,115 +1,159 @@
-"""封面一致性体检：把一批片子的一版封面拼成一张"账号视觉体检表"，顺带检查字段齐不齐。
+#!/usr/bin/env python3
+"""封面体检：按"信息流缩略图"的尺寸量封面，不靠肉眼。
 
-为什么需要：单条封面好看不等于"像同一个账号"。观众刷到第 3 条才认得出你，
-靠的是固定的栏目位置、同一套强调色、同样的标题行数——这些只能横向对比才看得出来。
+为什么按缩略图量：小红书信息流里封面只有约 240px 宽，很多"看起来很满"的封面
+一到流里就糊成一团。所以这里先把它缩到 240 宽再量。
+
+四项指标（全部可复算）：
+  1. 缩略图对比度 —— 240px 宽灰度图的 RMS 对比度，<18 基本糊
+  2. 标题有效字号 —— 标题带内文字墨迹的行高（px，换算到原图 1080 宽），<90 偏小
+  3. 安全边距 —— 墨迹离画布边缘的最小距离，<40 会被平台 UI 裁掉
+  4. 信息密度 —— 标题带墨迹占比，>18% 太挤、<2% 太空
 
 用法：
-  python coveraudit.py --dir examples [--variant f1] [--out covers.png] [--cols 3]
+  coveraudit.py --dir examples/out --glob 'cover_*.png'
+  coveraudit.py --file examples/out/19-spf-sunscreen/cover_short.png
+  coveraudit.py --dir examples/out --json
 """
+from __future__ import annotations
+
 import argparse
 import glob
 import json
 import os
+import statistics
 import sys
 
-from PIL import Image, ImageDraw
+from PIL import Image
 
-sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
-from shortvideo import runtime as R  # noqa: E402
-
-NEED = [("kicker", "栏目名"), ("headline", "主标题"), ("highlight", "高亮词"),
-        ("sub", "副标题"), ("tags", "话题标签"), ("cta", "行动号召")]
-
-
-def load(dirpath):
-    items = []
-    for f in sorted(glob.glob(os.path.join(dirpath, "*.content.json"))):
-        try:
-            cfg = json.load(open(f, encoding="utf-8"))
-        except (json.JSONDecodeError, OSError):
-            continue
-        slug = os.path.basename(f).replace(".content.json", "")
-        cov = cfg.get("cover") or {}
-        items.append({"slug": slug, "cover": cov,
-                      "img": os.path.join(dirpath, "out", slug, "cover_f1.png")})
-    return items
+THUMB_W = 240
+# —— 阈值靠实测校准，不是拍脑袋 ——
+# 25 张发布封面的实测分布（2026-10）：
+#   墨迹行高 86~148px（中位 90）；换算字号 = 墨迹 / 0.78（CJK 字形墨迹约占 em 框 78%）
+#   ⇒ 实际字号 110~190px；缩略图 RMS 33~56；边距 45~47；标题带密度 1.6%~11.2%
+# 第一版阈值（墨迹 90px）把 8 张 112px 字号的封面判成"字小"——**量错了单位**。
+INK_TO_FONT = 0.78
+MIN_FONT_PX = 96        # 字号下限（信息流里再小就吃力）
+MIN_RMS = 26.0          # 缩略图对比度下限
+MIN_MARGIN = 36         # 安全边距
+DENSITY_BAND = (0.06, 0.42)   # 标题带：画布高度的 6%~42%
+DENSITY_MIN, DENSITY_MAX = 0.012, 0.18
 
 
-def audit(items):
-    """字段齐不齐 + 视觉参数收不收敛。"""
-    problems, rows = [], []
-    line_counts, tag_counts, kicks = [], [], []
-    for it in items:
-        cov = it["cover"]
-        missing = [label for key, label in NEED if not cov.get(key)]
-        if missing:
-            problems.append(f"{it['slug']}：封面缺 {', '.join(missing)}")
-        head = cov.get("headline") or []
-        line_counts.append(len(head))
-        tag_counts.append(len(cov.get("tags") or []))
-        kicks.append(str(cov.get("kicker") or ""))
-        if not it.get("img") or not os.path.exists(it["img"]):
-            problems.append(f"{it['slug']}：没有 cover_f1.png（还没出片？）")
-        rows.append((it["slug"], str(cov.get("kicker") or "-"), len(head),
-                     len(cov.get("tags") or []), str(cov.get("cta") or "-")))
-    if line_counts and max(line_counts) - min(line_counts) > 1:
-        problems.append(f"主标题行数不统一：{sorted(set(line_counts))}（同一栏目建议固定 2~3 行）")
-    if kicks and len(set(k for k in kicks if k)) < len(kicks):
-        dup = [k for k in set(kicks) if kicks.count(k) > 1 and k]
-        if dup:
-            problems.append(f"栏目名重复：{dup}（同栏目是好习惯，但确认是有意的）")
-    return rows, problems
+def _ink_mask(img, thresh=140):
+    """亮字掩码：luminance > thresh 视为墨迹（本套封面都是深底亮字）。"""
+    g = img.convert("L")
+    return g.point(lambda v: 255 if v > thresh else 0, mode="1")
 
 
-def sheet(items, out_path, variant="f1", cols=3, cell_w=360):
-    imgs = [(it["slug"], Image.open(it["img"]).convert("RGB"))
-            for it in items if os.path.exists(it.get("img") or "") and variant in it["img"]]
-    if not imgs:
-        return None
-    cell_h = int(cell_w * 1440 / 1080)
-    rows = (len(imgs) + cols - 1) // cols
-    pad = 14
-    W = cols * cell_w + (cols + 1) * pad
-    H = rows * (cell_h + 34) + (rows + 1) * pad
-    canvas = Image.new("RGB", (W, H), (10, 13, 20))
-    d = ImageDraw.Draw(canvas)
-    f = R.font(20, bold=True)
-    for i, (slug, im) in enumerate(imgs):
-        r, c = divmod(i, cols)
-        x = pad + c * (cell_w + pad)
-        y = pad + r * (cell_h + 34 + pad)
-        canvas.paste(im.resize((cell_w, cell_h), Image.LANCZOS), (x, y))
-        d.text((x + 4, y + cell_h + 6), slug, font=f, fill=(170, 185, 210))
-    canvas.save(out_path)
-    return out_path
+def _rms(img):
+    g = list(img.convert("L").get_flattened_data())
+    mean = sum(g) / len(g)
+    return (sum((v - mean) ** 2 for v in g) / len(g)) ** 0.5
+
+
+def _row_heights(mask):
+    """按行统计墨迹像素数，连续有墨迹的行段就是一行字，返回各行高度。"""
+    w, h = mask.size
+    px = mask.load()
+    counts = []
+    for y in range(h):
+        n = 0
+        for x in range(0, w, 2):
+            if px[x, y]:
+                n += 1
+        counts.append(n)
+    runs, start = [], None
+    for y, n in enumerate(counts):
+        if n > w * 0.01 and start is None:
+            start = y
+        elif n <= w * 0.01 and start is not None:
+            if y - start > 8:
+                runs.append((start, y - start))
+            start = None
+    if start is not None:
+        runs.append((start, h - start))
+    return runs
+
+
+def audit(path):
+    img = Image.open(path).convert("RGB")
+    W, H = img.size
+
+    # 1) 缩略图对比度
+    thumb = img.resize((THUMB_W, int(H * THUMB_W / W)), Image.LANCZOS)
+    rms = _rms(thumb)
+
+    # 2)+4) 标题带字号与密度
+    band = img.crop((0, int(H * DENSITY_BAND[0]), W, int(H * DENSITY_BAND[1])))
+    mask = _ink_mask(band)
+    ink = sum(mask.point(lambda v: 1 if v else 0).get_flattened_data())
+    density = ink / (band.size[0] * band.size[1])
+    runs = _row_heights(mask)
+    ink_px = max((r[1] for r in runs), default=0)
+    title_px = int(round(ink_px / INK_TO_FONT))   # 换算成字号口径
+
+    # 3) 安全边距
+    full = _ink_mask(img)
+    bbox = full.getbbox()
+    margin = min(bbox[0], bbox[1], W - bbox[2], H - bbox[3]) if bbox else 0
+
+    flags = []
+    if rms < MIN_RMS:
+        flags.append(f"缩略图对比度低({rms:.0f}<{MIN_RMS:.0f})")
+    if title_px < MIN_FONT_PX:
+        flags.append(f"标题字号小({title_px}px<{MIN_FONT_PX})")
+    if margin < MIN_MARGIN:
+        flags.append(f"贴边({margin}px<{MIN_MARGIN})")
+    if density > DENSITY_MAX:
+        flags.append(f"标题带太挤({density*100:.0f}%)")
+    elif density < DENSITY_MIN:
+        flags.append(f"标题带太空({density*100:.1f}%)")
+
+    return {"file": path, "size": f"{W}x{H}", "rms": round(rms, 1),
+            "title_px": title_px, "margin": margin,
+            "density": round(density * 100, 1), "flags": flags}
 
 
 def main():
-    ap = argparse.ArgumentParser(description="封面一致性体检（拼图 + 字段检查）")
-    ap.add_argument("--dir", default="examples")
-    ap.add_argument("--variant", default="f1")
-    ap.add_argument("--out", default=None)
-    ap.add_argument("--cols", type=int, default=3)
+    ap = argparse.ArgumentParser(description="封面体检（按缩略图尺寸量）")
+    ap.add_argument("--dir")
+    ap.add_argument("--file")
+    ap.add_argument("--glob", default="cover_short.png")
+    ap.add_argument("--json", action="store_true")
     args = ap.parse_args()
-    items = load(args.dir)
-    if not items:
-        print(f"[coveraudit] {args.dir} 下没有 *.content.json")
-        return
-    rows, problems = audit(items)
-    print(f"\n■ 封面一致性体检（{len(items)} 条）\n")
-    print(f"  {'条目':<24}{'栏目':<14}{'标题行':>6}{'标签':>6}  行动号召")
-    for slug, kick, lines, tags, cta in rows:
-        print(f"  {slug:<24}{kick:<14}{lines:>6}{tags:>6}  {cta}")
-    print()
-    if problems:
-        for p in problems:
-            print(f"  ! {p}")
-    else:
-        print("  ✅ 字段齐全、标题行数与栏目名都收敛")
-    out = args.out or os.path.join(args.dir, f"covers-{args.variant}.png")
-    path = sheet(items, out, args.variant, args.cols)
-    print(f"\n  拼图：{path or '（没有可用封面图）'}\n")
+
+    files = []
+    if args.file:
+        files = [args.file]
+    elif args.dir:
+        files = sorted(glob.glob(os.path.join(args.dir, "**", args.glob), recursive=True))
+    if not files:
+        print("[coveraudit] 没找到封面")
+        return 1
+
+    rows = [audit(f) for f in files]
+    if args.json:
+        print(json.dumps(rows, ensure_ascii=False, indent=2))
+        return 0
+
+    print(f"■ 封面体检（{len(rows)} 张，按 240px 缩略图量）")
+    print(f"  {'封面':<44}{'对比':>6}{'字号':>6}{'边距':>6}{'密度':>7}  判定")
+    bad = 0
+    for r in rows:
+        name = "/".join(r["file"].split("/")[-2:])
+        ok = not r["flags"]
+        bad += 0 if ok else 1
+        print(f"  {name[:43]:<44}{r['rms']:>6.1f}{r['title_px']:>6}{r['margin']:>6}"
+              f"{r['density']:>6.1f}%  {'✅' if ok else '⚠️ ' + '；'.join(r['flags'])}")
+    if rows:
+        print("\n  中位：对比 %.1f / 字高 %.0fpx / 密度 %.1f%%" % (
+            statistics.median(r["rms"] for r in rows),
+            statistics.median(r["title_px"] for r in rows),
+            statistics.median(r["density"] for r in rows)))
+    print(f"  {len(rows) - bad}/{len(rows)} 张通过")
+    return 1 if bad else 0
 
 
 if __name__ == "__main__":
-    main()
+    sys.exit(main())

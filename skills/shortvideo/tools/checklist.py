@@ -116,6 +116,32 @@ def add_graphic_gate(rows, content_paths):
             row["gates"]["图文"] = "ok"
 
 
+def add_cover_gate(rows, out_dir):
+    """封面体检：按 240px 信息流缩略图量对比度/字号/边距/密度（阈值靠实测校准）。"""
+    try:
+        sys.path.insert(0, HERE)
+        import coveraudit
+    except Exception:  # noqa: BLE001
+        return
+    for row in rows:
+        d = os.path.join(out_dir, row["slug"])
+        path = next((os.path.join(d, n) for n in ("cover_short.png", "cover_f1.png")
+                     if os.path.exists(os.path.join(d, n))), None)
+        if not path:
+            row["gates"]["封面"] = "—"
+            continue
+        try:
+            rep = coveraudit.audit(path)
+        except Exception:  # noqa: BLE001
+            row["gates"]["封面"] = "—"
+            continue
+        if rep["flags"]:
+            row["gates"]["封面"] = "warn"
+            row["problems"].append("封面：" + "；".join(rep["flags"]))
+        else:
+            row["gates"]["封面"] = "ok"
+
+
 def add_asset_gate(rows, out_dir):
     """发布齐套：视频 + 封面 + 一张图 + 发布标题，四件缺一不可。
 
@@ -231,6 +257,7 @@ def main():
     add_voice_gate(rows, paths, args.strict)
     add_asset_gate(rows, out_dir)
     add_graphic_gate(rows, paths)
+    add_cover_gate(rows, out_dir)
 
     if args.json:
         payload = {"total": len(rows), "go": sum(1 for r in rows if r["ok"]),
@@ -245,13 +272,13 @@ def main():
         return 0 if payload["go"] == payload["total"] else 1
 
     print(f"\n■ 发布前总检（{len(rows)} 条{'，严格模式' if args.strict else ''}）\n")
-    print(f"  {'条目':<26}{'清单':>7}{'体检':>7}{'画面':>7}{'节奏':>7}{'响度':>7}   结论")
+    print(f"  {'条目':<24}{'清单':>7}{'体检':>7}{'画面':>7}{'节奏':>7}{'响度':>7}{'封面':>6}   结论")
     for r in rows:
         g = r["gates"]
         verdict = "✅ GO" if r["ok"] else "⛔ NO-GO"
-        print(f"  {r['slug']:<26}{g.get('清单', '—'):>7}{str(g.get('体检', '—')):>7}"
+        print(f"  {r['slug']:<24}{str(g.get('清单', '—')):>7}{str(g.get('体检', '—')):>7}"
               f"{str(g.get('画面', '—')):>7}{str(g.get('节奏', '—')):>7}"
-              f"{str(g.get('响度', '—')):>7}   {verdict}")
+              f"{str(g.get('响度', '—')):>7}{str(g.get('封面', '—')):>6}   {verdict}")
         for p in r["problems"]:
             print(f"      - {p}")
 

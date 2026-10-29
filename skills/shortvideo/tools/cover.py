@@ -184,6 +184,18 @@ def _highlight_block(img, box, color):
 
 # ---------------------------------------------------------------- 三个版式
 
+def _split_point(text):
+    """找一个适合断行的位置：优先标点后，其次中点附近。返回切分下标或 0。"""
+    cands = [i + 1 for i, ch in enumerate(text)
+             if ch in "，、：；。 " and 0 < i + 1 < len(text)]
+    if not cands:
+        mid = len(text) // 2
+        if len(text) < 6:
+            return 0
+        return mid
+    return min(cands, key=lambda i: abs(i - len(text) / 2))
+
+
 def _variant_f1(c, w=W34, h=H34):
     """F1 数字反差大字报：主标题 1~3 行居中，副标一行强调色。"""
     accent, accent2 = c["accent"], c["accent2"]
@@ -196,6 +208,18 @@ def _variant_f1(c, w=W34, h=H34):
     max_w = w - MARGIN * 2
     hi = 120 if len(lines) <= 1 else (112 if len(lines) == 2 else 100)
     size = min(_fit(ln, max_w, hi=hi, lo=SIZE_MIN)[0] for ln in lines)
+    # 拆行优先于缩字：字被行长撑小时（实测 8 张封面掉到 86~88px，
+    # 缩略图上明显偏小），把最长的一行拆成两行重新取字号，能大就大。
+    if size < 100 and len(lines) < 4:
+        worst = max(lines, key=lambda ln: R.font(size, bold=True).getlength(ln))
+        pivot = _split_point(worst)
+        if pivot:
+            i = lines.index(worst)
+            trial = lines[:i] + [worst[:pivot], worst[pivot:]] + lines[i + 1:]
+            t_hi = 112 if len(trial) == 2 else 100
+            t_size = min(_fit(ln, max_w, hi=t_hi, lo=SIZE_MIN)[0] for ln in trial)
+            if t_size > size + 4:
+                lines, size = trial, t_size
     f = R.font(size, bold=True)
     line_h = int(size * LINE_SPACING)
     block_h = line_h * len(lines)
