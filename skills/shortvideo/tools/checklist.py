@@ -96,6 +96,7 @@ def main():
     ap.add_argument("--dir", default="examples")
     ap.add_argument("--only", default=None, help="逗号分隔的序号前缀，如 13,14")
     ap.add_argument("--strict", action="store_true", help="警告也算 NO-GO")
+    ap.add_argument("--json", action="store_true", help="机器可读输出（便于接 CI）")
     ap.add_argument("--publish-order", action="store_true",
                     help="额外输出建议投放顺序（按节奏风险从低到高）")
     args = ap.parse_args()
@@ -110,6 +111,18 @@ def main():
 
     out_dir = os.path.join(args.dir, "out")
     rows = [check_one(p, out_dir, args.strict) for p in paths]
+
+    if args.json:
+        payload = {"total": len(rows), "go": sum(1 for r in rows if r["ok"]),
+                   "rows": rows}
+        if args.publish_order:
+            payload["order"] = [r["slug"] for r in
+                                sorted([r for r in rows if r["ok"]],
+                                       key=lambda r: (r["gates"].get("节奏")
+                                                      if isinstance(r["gates"].get("节奏"), (int, float))
+                                                      else 99))]
+        print(json.dumps(payload, ensure_ascii=False, indent=2))
+        return 0 if payload["go"] == payload["total"] else 1
 
     print(f"\n■ 发布前总检（{len(rows)} 条{'，严格模式' if args.strict else ''}）\n")
     print(f"  {'条目':<26}{'清单':>7}{'体检':>7}{'画面':>7}{'节奏':>7}   结论")

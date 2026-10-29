@@ -401,6 +401,12 @@ def _stat(img, t, dur, spec):
     size = 200
     while size > 60 and R.font(size, bold=True).getlength(text + unit) > R.W - 160:
         size -= 6
+    # 数完之后不能"死"在那儿：最后 45% 的时间里极缓慢放大 2.5%，
+    # 观众察觉不到"在动"，但画面不会像一张截图（实测能明显降低"是否卡了"的错觉）
+    hold = R.clamp((p - 0.55) / 0.45)
+    if spec.get("breathe", True):
+        # 线性而不是 ease_out：ease_out 在 hold 前段就基本到顶，后段等于没动
+        size = int(size * (1.0 + 0.04 * hold))
     S.kinetic_text(img, (R.W / 2, int(R.H * 0.38)), text, size, fill=tuple(spec.get("color") or R.ACCENT),
                    t=t - 0.05, dur=0.45, style="slam", stroke=R.BG_BOT,
                    stroke_w=max(4, size // 24), shadow=0.9, alpha=a)

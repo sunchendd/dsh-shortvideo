@@ -303,6 +303,24 @@ $PY $TOOLS/score.py --content content.json --video out/x.mp4
 - `ghost`：给 still 很薄的镜头垫一个 0.42W 的背景水印字（`ghostfill.py` 可批量补，
   只复用旁白里字面存在的数字）
 
+## 改稿的正确顺序（踩过坑）
+
+改完 narration 之后**不能直接跑 tighten**——它读的是 `<build>/NN_shot.wav` 的实际时长，
+而 wav 要等重新配音才更新。顺序错了会得到"调整 0 个镜头"的假结果：
+
+```bash
+# 1) 改 content.json 里的 narration
+# 2) 先渲一遍，让配音重新生成（这一步才会写出新 wav）
+$PY $TOOLS/make.py --content examples/01-x.content.json --topic deck --out examples/out/01-x/01-x.mp4
+# 3) 再按新时长收紧
+$PY $TOOLS/tighten.py --dir examples
+# 4) 最后再渲一遍（min_dur 变了要重出片）
+$PY $TOOLS/make.py --content examples/01-x.content.json --topic deck --out examples/out/01-x/01-x.mp4
+```
+
+> 注意：TTS 有缓存（按 text+voice 哈希），没改文案的镜头不会重新合成，
+> 所以第 2 步通常只花几秒。
+
 ## 节奏：`tighten.py` + `viz.py`
 
 镜头时长别手工写死。`min_dur` 越往后面越长（钩子 6.4s、收尾 9.0s）是最常见的节奏病，
@@ -368,6 +386,18 @@ $PY $TOOLS/studio.py --dir examples --ab-record "slug=01-monty-hall-vnum,cover=f
 ```
 
 钩子风格建议至少覆盖三类：**数字冲击**、**提问式**、**代价恐惧**（三种都能进池子，但人群不同）。
+
+## 发布前总检：`checklist.py`
+
+```bash
+$PY $TOOLS/checklist.py --dir examples                  # 全部条目 go / no-go
+$PY $TOOLS/checklist.py --dir examples --publish-order   # 附投放顺序（风险低的先发）
+$PY $TOOLS/checklist.py --dir examples --strict          # 警告也算 NO-GO
+$PY $TOOLS/checklist.py --dir examples --json            # 机器可读，接 CI
+```
+
+四道门禁：清单完成度（score）→ 脚本体检（lint）→ 画面体检（qa）→ 节奏风险（pace）。
+任一 error 级问题即 NO-GO，退出码非 0，可直接串进 CI 或 pre-commit。
 
 ## 批量干活：`studio.py`
 
