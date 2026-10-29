@@ -1,0 +1,143 @@
+{
+  "title": "眼里的洞",
+  "subtitle": "视网膜盲点，和大脑的实时补图",
+  "voice": {
+    "preset": "yunjian"
+  },
+  "fps": 30,
+  "size": [
+    1080,
+    1920
+  ],
+  "lead_in": 0.15,
+  "tail": 0.55,
+  "cover": {
+    "kicker": "视觉反常识",
+    "serial": "05",
+    "headline": [
+      "眼前有个洞",
+      "你从没见过"
+    ],
+    "highlight": [
+      "洞"
+    ],
+    "sub": "视网膜那块没有感光细胞，大脑补上了",
+    "tags": [
+      "#科普",
+      "#视觉",
+      "#大脑",
+      "#冷知识"
+    ],
+    "cta": "堵住一只眼试试"
+  },
+  "shots": [
+    {
+      "id": "hook",
+      "mood": "hook",
+      "min_dur": 5.4,
+      "narration": "5 厘米的洞，就在你眼前。你居然从没看见。",
+      "emphasis": [
+        "5 厘米"
+      ]
+    },
+    {
+      "id": "rule",
+      "mood": "rule",
+      "min_dur": 8.4,
+      "narration": "视网膜要留个出口，让 100 万根神经纤维穿出去。那儿没有感光细胞。",
+      "emphasis": [
+        "感光细胞"
+      ]
+    },
+    {
+      "id": "insight",
+      "mood": "explain",
+      "min_dur": 7.8,
+      "narration": "视盘约 5 度宽，手臂伸直时就是 5 厘米。它离中心只有 15 度。",
+      "emphasis": [
+        "15 度"
+      ]
+    },
+    {
+      "id": "reveal",
+      "mood": "reveal",
+      "min_dur": 7.2,
+      "narration": "1.26 亿个感光细胞，只接出 100 万根线。大脑在猜，不在拍。",
+      "emphasis": [
+        "100 万根线"
+      ]
+    },
+    {
+      "id": "solve",
+      "mood": "win",
+      "min_dur": 8.2,
+      "narration": "拿张纸点两个点，闭一只眼盯住左边。右边那个会消失，评论区说结果。",
+      "emphasis": [
+        "会消失"
+      ]
+    }
+  ],
+  "deck": {
+    "hook": {
+      "kind": "big",
+      "lines": [
+        "5 厘米",
+        "的洞"
+      ],
+      "sub": "就在你眼前 —— 你从没看见",
+      "style": "pop"
+    },
+    "rule": {
+      "kind": "steps",
+      "items": [
+        {
+          "t": "视网膜要留一个出口"
+        },
+        {
+          "t": "100 万根神经纤维穿出去"
+        },
+        {
+          "t": "出口那块，没有感光细胞"
+        }
+      ]
+    },
+    "insight": {
+      "kind": "formula",
+      "parts": [
+        "5 度",
+        "≈",
+        "一臂 57 cm",
+        "处的 5 cm"
+      ],
+      "note": "视角不变：看手机时那个洞只剩 2 厘米多"
+    },
+    "reveal": {
+      "kind": "compare",
+      "left": {
+        "label": "视网膜采样",
+        "value": "1.26 亿",
+        "note": "感光细胞"
+      },
+      "right": {
+        "label": "视神经带宽",
+        "value": "100 万",
+        "note": "根神经纤维"
+      },
+      "note": "压缩 126 倍，缺的那部分靠大脑补"
+    },
+    "solve": {
+      "kind": "list",
+      "items": [
+        "纸上点两个点，隔开 10 厘米",
+        "闭上一只眼，盯住左边那个",
+        "右边那个会凭空消失"
+      ],
+      "note": "消失的位置，就是你的盲点"
+    }
+  },
+  "transition": {
+    "type": "fade",
+    "dur": 0.24
+  },
+  "publish_title": "眼前有个洞，直径 5 厘米，你从没看见过"
+}

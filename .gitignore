@@ -12,3 +12,8 @@ __pycache__/
 hook_90.png
 reveal_45.png
 solve_90.png
+
+# 台账/封面页是生成物，按需重建（studio.py）
+studio-report.md
+studio-report.json
+studio-index.html

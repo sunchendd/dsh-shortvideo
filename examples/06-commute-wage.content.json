@@ -1,0 +1,146 @@
+{
+  "title": "通勤在扣钱",
+  "subtitle": "把通勤算进工时，时薪掉两成",
+  "voice": {
+    "preset": "xiaoxiao"
+  },
+  "fps": 30,
+  "size": [
+    1080,
+    1920
+  ],
+  "lead_in": 0.15,
+  "tail": 0.55,
+  "cover": {
+    "kicker": "算笔账",
+    "serial": "06",
+    "headline": [
+      "时薪其实",
+      "只有 36"
+    ],
+    "highlight": [
+      "36"
+    ],
+    "sub": "通勤两小时，等于每天白干两小时",
+    "tags": [
+      "#科普",
+      "#通勤",
+      "#打工人",
+      "#算一笔账"
+    ],
+    "cta": "算算你的时薪"
+  },
+  "shots": [
+    {
+      "id": "hook",
+      "mood": "hook",
+      "min_dur": 4.8,
+      "narration": "月薪8000。时薪其实只有36块。",
+      "emphasis": [
+        "36块"
+      ]
+    },
+    {
+      "id": "rule",
+      "mood": "rule",
+      "min_dur": 6.8,
+      "narration": "一个月22个工作日，每天8小时，时薪是45块4。",
+      "emphasis": [
+        "45块4"
+      ]
+    },
+    {
+      "id": "insight",
+      "mood": "explain",
+      "min_dur": 8.4,
+      "narration": "但通勤2小时也算你的时间。8000除以220，时薪掉到36块4。",
+      "emphasis": [
+        "220"
+      ]
+    },
+    {
+      "id": "reveal",
+      "mood": "reveal",
+      "min_dur": 7.0,
+      "narration": "通勤一个月44小时，等于白上5天半。这5天半，一分钱不算。",
+      "emphasis": [
+        "5天半"
+      ]
+    },
+    {
+      "id": "solve",
+      "mood": "win",
+      "min_dur": 7.2,
+      "narration": "记住：算时薪要把通勤加进去。你的数字多少，评论区报个数。",
+      "emphasis": [
+        "评论区"
+      ]
+    }
+  ],
+  "deck": {
+    "hook": {
+      "kind": "big",
+      "lines": [
+        "月薪8000",
+        "时薪45"
+      ],
+      "sub": "这两个数，差的是通勤那一段",
+      "style": "slam"
+    },
+    "rule": {
+      "kind": "formula",
+      "parts": [
+        "8000",
+        "÷",
+        "(22 × 8)",
+        "=",
+        "45.4 元/时"
+      ],
+      "note": "月薪 ÷ 工作日 ÷ 每天打卡工时"
+    },
+    "insight": {
+      "kind": "bars",
+      "items": [
+        {
+          "label": "只算打卡 8 小时",
+          "v": 45.4,
+          "value": "45.4"
+        },
+        {
+          "label": "加上通勤 10 小时",
+          "v": 36.4,
+          "value": "36.4"
+        }
+      ],
+      "note": "分母从 176 小时变成 220 小时"
+    },
+    "reveal": {
+      "kind": "compare",
+      "left": {
+        "label": "名义时薪",
+        "value": "45.4",
+        "note": "只算打卡 8 小时"
+      },
+      "right": {
+        "label": "有效时薪",
+        "value": "36.4",
+        "note": "加上通勤 2 小时"
+      },
+      "note": "少了 20%，等于每月白上 5 天半"
+    },
+    "solve": {
+      "kind": "list",
+      "items": [
+        "月薪 ÷（22 × 8）＝名义时薪",
+        "月薪 ÷（22 × 10）＝有效时薪",
+        "差出来的那一截，就是通勤"
+      ],
+      "note": "建议收藏，跳槽谈薪前算一遍"
+    }
+  },
+  "transition": {
+    "type": "fade",
+    "dur": 0.24
+  },
+  "publish_title": "月薪8000，通勤2小时，时薪只有36块"
+}

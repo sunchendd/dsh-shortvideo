@@ -152,6 +152,10 @@ def _bars(img, t, dur, spec):
         col = R.ACCENT if i == peak else R.TILE_ON
         S.text(img, (x0, cy - row_h * 0.24), str(it.get("label", "")), 40,
                fill=R.DIM, bold=True, anchor="lm", alpha=a)
+        if it.get("value"):
+            # 数值右对齐在同一行的右端：两根条的数值成列，不跟着条长跑
+            S.text(img, (x1, cy - row_h * 0.24), str(it["value"]), 44,
+                   fill=col, bold=True, anchor="rm", alpha=a)
         bh = int(row_h * 0.28)
         S.panel(img, (x0, cy + 8, x1, cy + 8 + bh), fill=(255, 255, 255), alpha=0.06 * a,
                 radius=bh // 2)
@@ -159,10 +163,7 @@ def _bars(img, t, dur, spec):
         if fill_w > 2:
             S.panel(img, (x0 + 2, cy + 10, x0 + 2 + fill_w, cy + 6 + bh),
                     fill=col, alpha=0.95 * a, radius=bh // 2)
-        label = it.get("value")
-        if label:
-            S.text(img, (x0 + 2 + fill_w + 18, cy + 8 + bh / 2), str(label), 40,
-                   fill=col, bold=True, anchor="lm", alpha=a)
+
     if spec.get("note"):
         _note(img, spec["note"], y=int(R.H * 0.70), alpha=_appear(p, 0.5))
 

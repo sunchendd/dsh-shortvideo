@@ -150,6 +150,8 @@ def main():
     ap.add_argument("--jobs", type=int, default=3, help="每条片子并行分段数")
     ap.add_argument("--only", default="", help="只跑这些（逗号分隔的 slug 片段）")
     ap.add_argument("--from-score", type=float, default=0, help="低于该分数不出片")
+    ap.add_argument("--skip-existing", action="store_true",
+                    help="成片已存在就跳过渲染（只更新台账/封面页）")
     args = ap.parse_args()
 
     d = os.path.abspath(args.dir)
@@ -168,8 +170,20 @@ def main():
         sc = score_one(f)
         row = {"slug": slug, "score": sc.get("score"), "grade": sc.get("grade", "?"),
                "extra": sc.get("extra") or [], "mp4": "", "summary": "", "video": {}}
-        if args.render and (sc.get("score") or 0) >= args.from_score:
-            out_dir = os.path.join(d, "out", slug)
+        out_dir = os.path.join(d, "out", slug)
+        existing = os.path.join(out_dir, slug + ".mp4")
+        if args.render and args.skip_existing and os.path.exists(existing):
+            v = {}
+            try:
+                v = json.loads(_run([PY, os.path.join(HERE, "score.py"), "--content", f,
+                                     "--video", existing, "--json"]).stdout).get("video") or {}
+            except json.JSONDecodeError:
+                pass
+            summ = os.path.join(out_dir, slug + "-summary.png")
+            row.update({"mp4": existing, "video": v,
+                        "summary": summ if os.path.exists(summ) else "", "secs": 0})
+            print(f"  {slug:<20} {row['score']:>5} {row['grade'][0]}  → 已存在，跳过渲染")
+        elif args.render and (sc.get("score") or 0) >= args.from_score:
             got = render_one(f, out_dir, args.jobs)
             row.update(got)
             print(f"  {slug:<20} {row['score']:>5} {row['grade'][0]}  → {got['mp4'] or '失败'} "
