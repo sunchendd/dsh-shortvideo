@@ -1,36 +1,41 @@
 # 投放排期
 
-共 27 条，每周 3 条，9 周发完（2026-10-29 起）
+共 32 条，每周 3 条，11 周发完（2026-10-29 起）
 
 | 周 | 日期 | 类型 | 学科 | 时长 | 标题 | 封面 |
 |---|---|---|---|---|---|---|
-| W1 | 2026-10-29 | 短版 | 物理/光学 | 17.8s | 你视野里有个洞，大脑一直帮你填 | `out/short-03-blindspot-18s/cover_short.png` |
-| W1 | 2026-10-31 | 长版 | 物理/光学 | 38.3s | 眼前有个洞，直径 5 厘米，你从没看见过 | `out/05-blind-spot/cover_f1.png` |
-| W2 | 2026-11-05 | 短版 | 编码/信息 | 16s | 二维码烂掉三成，照样能扫 | `out/short-01-qr-18s/cover_short.png` |
-| W2 | 2026-11-07 | 长版 | 编码/信息 | 33.7s | 二维码烂掉三成照样能扫，靠的是纠错码 | `out/10-qr-error-correction/cover_f1.png` |
-| W2 | 2026-11-09 | 长版 | 数学/概率 | 36.5s | 三扇门只开一扇空门，概率为什么不是各一半 | `out/01-monty-hall/cover_f1.png` |
-| W3 | 2026-11-12 | 短版 | 化学/生物 | 20.6s | 咖啡不提神，它只是把困意堵在门口 | `out/short-02-caffeine-18s/cover_short.png` |
-| W3 | 2026-11-14 | 长版 | 化学/生物 | 34.9s | 下午那杯咖啡，到睡前还剩三分之一在血里 | `out/04-caffeine-adenosine/cover_f1.png` |
-| W3 | 2026-11-16 | 长版 | 生活经济 | 35s | 月薪8000，通勤2小时，时薪只有36块 | `out/06-commute-wage/cover_f1.png` |
-| W4 | 2026-11-19 | 长版 | 声学/听觉 | 36.2s | 同样音量低音少34分贝，不是耳机坏了 | `out/17-equal-loudness-bass/cover_f1.png` |
-| W4 | 2026-11-21 | 短版 | 微波/电磁 | 16.3s | 微波炉热不匀，是6厘米波长的锅 | `out/short-04-microwave-hotspot/cover_short.png` |
-| W4 | 2026-11-23 | 长版 | 航空/结构 | 35.9s | 舷窗为什么不能是方的？尖角应力高21倍 | `out/18-plane-window/cover_f1.png` |
-| W5 | 2026-11-26 | 长版 | 皮肤科学 | 36.8s | SPF50只比30多挡1.3%，关键在涂量 | `out/19-spf-sunscreen/cover_f1.png` |
-| W5 | 2026-11-28 | 短版 | 视光学 | 16.7s | 近视300度，最远只能看清33厘米 | `out/short-05-myopia-33cm/cover_short.png` |
-| W5 | 2026-11-30 | 长版 | 物理/光学 | 34.8s | 冰刀压下去冰点只降0.1度，那靠什么滑 | `out/08-ice-slippery/cover_f1.png` |
-| W6 | 2026-12-03 | 长版 | 数学/概率 | 37.2s | 零点一加零点二，为什么算出来不等于零点三 | `out/03-float-point/cover_f1.png` |
-| W6 | 2026-12-05 | 长版 | 生活经济 | 38.8s | 月亮每年溜走3.8厘米，问题出在潮汐 | `out/07-moon-recession/cover_f1.png` |
-| W6 | 2026-12-07 | 长版 | 声学/听觉 | 36.3s | 两音只差四赫兹，为什么听见一下下的抖 | `out/21-beat-frequency/cover_f1.png` |
-| W7 | 2026-12-10 | 长版 | 微波/电磁 | 35.8s | 手机进电梯就掉线，根本不是墙太厚 | `out/22-faraday-cage/cover_f1.png` |
-| W7 | 2026-12-12 | 长版 | 物理/光学 | 36.7s | 天空本来一片漆黑，蓝是空气撞出来的 | `out/02-rayleigh-blue/cover_f1.png` |
-| W7 | 2026-12-14 | 长版 | 编码/信息 | 34.6s | 身份证最后一位不是随便编的，它是算出来的 | `out/12-id-checksum/cover_f1.png` |
-| W8 | 2026-12-17 | 长版 | 数学/概率 | 37.9s | 钢琴每个五度都短2音分，这是故意的 | `out/14-equal-temperament/cover_f1.png` |
-| W8 | 2026-12-19 | 长版 | 化学/生物 | 39.6s | 小苏打和碱面差两千倍，蒸馒头别放错 | `out/20-baking-soda-vs-soda-ash/cover_f1.png` |
-| W8 | 2026-12-21 | 长版 | 物理/光学 | 37.9s | 换一个动词，三成人记住了不存在的碎玻璃 | `out/09-memory-rewrite/cover_f1.png` |
-| W9 | 2026-12-24 | 长版 | 编码/信息 | 37.5s | 灰色128不是一半亮，它只发出两成的光 | `out/16-hex-gray-not-half/cover_f1.png` |
-| W9 | 2026-12-26 | 长版 | 编码/信息 | 40.1s | 一行中文占的空间，为什么是英文的3倍 | `out/15-utf8-chinese-bytes/cover_f1.png` |
-| W9 | 2026-12-28 | 长版 | 物理/光学 | 38.5s | 非洲面积是格陵兰的14倍，地图看不出来 | `out/13-mercator-greenland/cover_f1.png` |
-| W9 | 2026-12-30 | 长版 | 物理/光学 | 39.6s | 卫星上的钟每天快38微秒，不修导航就偏 | `out/11-gps-relativity/cover_f1.png` |
+| W1 | 2026-10-29 | 短版 | 物理/光学 | 14.6s | 你视野里有个洞，大脑一直帮你填 | `out/short-03-blindspot-18s/cover_short.png` |
+| W1 | 2026-10-31 | 长版 | 视光学 | 38.4s | 红绿色盲不是看不见，男比女多十几倍 | `out/23-colorblind-not-blind/cover_short.png` |
+| W2 | 2026-11-05 | 短版 | 编码/信息 | 13.5s | 二维码烂掉三成，照样能扫 | `out/short-01-qr-18s/cover_short.png` |
+| W2 | 2026-11-07 | 长版 | 编码/信息 | 33.7s | 二维码烂掉三成照样能扫，靠的是纠错码 | `out/10-qr-error-correction/cover_short.png` |
+| W2 | 2026-11-09 | 长版 | 数学/概率 | 36.5s | 三扇门只开一扇空门，概率为什么不是各一半 | `out/01-monty-hall/cover_short.png` |
+| W3 | 2026-11-12 | 短版 | 化学/生物 | 17.8s | 咖啡不提神，它只是把困意堵在门口 | `out/short-02-caffeine-18s/cover_short.png` |
+| W3 | 2026-11-14 | 长版 | 化学/生物 | 34.9s | 下午那杯咖啡，到睡前还剩三分之一在血里 | `out/04-caffeine-adenosine/cover_short.png` |
+| W3 | 2026-11-16 | 短版 | 声学/听觉 | 16.4s | 两个音只差四赫兹，你却听见每秒抖四下 | `out/short-08-beat-frequency/cover_short.png` |
+| W4 | 2026-11-19 | 长版 | 生活经济 | 35s | 月薪8000，通勤2小时，时薪只有36块 | `out/06-commute-wage/cover_short.png` |
+| W4 | 2026-11-21 | 短版 | 微波/电磁 | 13.1s | 微波炉热不匀，是6厘米波长的锅 | `out/short-04-microwave-hotspot/cover_short.png` |
+| W4 | 2026-11-23 | 短版 | 航空/结构 | 15.1s | 舷窗为什么没有方角？应力高十倍 | `out/short-06-plane-window/cover_short.png` |
+| W5 | 2026-11-26 | 长版 | 物理/光学 | 34.8s | 冰刀压下去冰点只降0.1度，那靠什么滑 | `out/08-ice-slippery/cover_short.png` |
+| W5 | 2026-11-28 | 短版 | 视光学 | 13.8s | 近视300度，最远只能看清33厘米 | `out/short-05-myopia-33cm/cover_short.png` |
+| W5 | 2026-11-30 | 短版 | 皮肤科学 | 15.3s | 50倍防晒只比30多挡1.3% | `out/short-07-spf-13pct/cover_short.png` |
+| W6 | 2026-12-03 | 长版 | 数学/概率 | 37.2s | 零点一加零点二，为什么算出来不等于零点三 | `out/03-float-point/cover_short.png` |
+| W6 | 2026-12-05 | 短版 | 微波/电磁 | 17.1s | 手机进电梯掉线，根本不是墙太厚 | `out/short-09-faraday-cage/cover_short.png` |
+| W6 | 2026-12-07 | 长版 | 声学/听觉 | 36.2s | 同样音量低音少34分贝，不是耳机坏了 | `out/17-equal-loudness-bass/cover_short.png` |
+| W7 | 2026-12-10 | 长版 | 生活经济 | 38.8s | 月亮每年溜走3.8厘米，问题出在潮汐 | `out/07-moon-recession/cover_short.png` |
+| W7 | 2026-12-12 | 长版 | 航空/结构 | 35.9s | 舷窗为什么不能是方的？尖角应力高21倍 | `out/18-plane-window/cover_short.png` |
+| W7 | 2026-12-14 | 长版 | 皮肤科学 | 36.8s | 50倍防晒只比30多挡1.3% | `out/19-spf-sunscreen/cover_short.png` |
+| W8 | 2026-12-17 | 长版 | 物理/光学 | 36.7s | 天空本来一片漆黑，蓝是空气撞出来的 | `out/02-rayleigh-blue/cover_short.png` |
+| W8 | 2026-12-19 | 长版 | 编码/信息 | 34.6s | 身份证最后一位不是随便编的，它是算出来的 | `out/12-id-checksum/cover_short.png` |
+| W8 | 2026-12-21 | 长版 | 数学/概率 | 37.9s | 钢琴每个五度都短2音分，这是故意的 | `out/14-equal-temperament/cover_short.png` |
+| W9 | 2026-12-24 | 长版 | 化学/生物 | 39.6s | 小苏打和碱面差两千倍，蒸馒头别放错 | `out/20-baking-soda-vs-soda-ash/cover_short.png` |
+| W9 | 2026-12-26 | 长版 | 声学/听觉 | 36.3s | 两音只差四赫兹，为什么听见一下下的抖 | `out/21-beat-frequency/cover_short.png` |
+| W9 | 2026-12-28 | 长版 | 微波/电磁 | 35.8s | 手机进电梯就掉线，根本不是墙太厚 | `out/22-faraday-cage/cover_short.png` |
+| W10 | 2026-12-31 | 长版 | 物理/光学 | 37.9s | 换一个动词，三成人记住了不存在的碎玻璃 | `out/09-memory-rewrite/cover_short.png` |
+| W10 | 2027-01-02 | 长版 | 编码/信息 | 37.5s | 灰色128不是一半亮，它只发出两成的光 | `out/16-hex-gray-not-half/cover_short.png` |
+| W10 | 2027-01-04 | 长版 | 物理/光学 | 38.3s | 眼前有个洞，直径 5 厘米，你从没看见过 | `out/05-blind-spot/cover_short.png` |
+| W11 | 2027-01-07 | 长版 | 编码/信息 | 40.1s | 一行中文占的空间，为什么是英文的3倍 | `out/15-utf8-chinese-bytes/cover_short.png` |
+| W11 | 2027-01-09 | 长版 | 物理/光学 | 38.5s | 非洲面积是格陵兰的14倍，地图看不出来 | `out/13-mercator-greenland/cover_short.png` |
+| W11 | 2027-01-11 | 长版 | 物理/光学 | 39.6s | 卫星上的钟每天快38微秒，不修导航就偏 | `out/11-gps-relativity/cover_short.png` |
 
 ## 排期规则
 

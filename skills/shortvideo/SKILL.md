@@ -637,8 +637,11 @@ $PY $TOOLS/tighten.py --dir examples --dry-run   # 先看要改哪些
 
 ```bash
 # lofi（默认）：pad 铺底 + 稀疏琶音 + 1/3 拍底鼓，适合叙事/生活类
-# [!] 同等 gain 下 lofi 比全库 BGM 中位低约 2.6dB，loudaudit 会报"需调整"；
-#     用 lofi 时 gain 给 -25（不是 -28）。短版尤其容易踩。
+# [!] 别为"迁就某条片子"去改 bgm.gain。loudaudit 判的是**相对全库中位**的偏差，
+#     你把一条从 -28 调到 -25，中位会跟着漂，下一条又要再调——追自己尾巴。
+#     实测同一条片子 -28 被报"低 2.6dB"、-25 又被报"高 2.6dB"，两端都是中位。
+#     正确做法：先用项目默认 -27（lofi）/ -26（pulse），跑 loudaudit 看偏差，
+#     只在 |Δ| > 1.2dB 时微调 1~2dB，且一次只动一条，动完重跑。
 # pulse      ：四拍底鼓 + 八分贝斯 + 十六分踩镲，适合机制/实验/科技类
 $PY $TOOLS/bgm.py --dur 40 --styles lofi,pulse --out /tmp/bed.wav
 $PY $TOOLS/viz.py --bgm /tmp/bed.lofi.wav /tmp/bed.pulse.wav --out /tmp/cmp.png

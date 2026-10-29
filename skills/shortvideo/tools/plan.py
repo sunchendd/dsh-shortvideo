@@ -26,13 +26,16 @@ import sys
 
 SUBJECT_KEYWORDS = [
     ("数学/概率", ("monty", "float", "temperament", "probability", "prime")),
-    ("物理/光学", ("rayleigh", "blind", "memory", "gps", "mercator", "icе", "ice")),
+    # "blind" 会子串命中 "colorblind"，把 23 号色盲片吃成物理/光学——用更长的词
+    ("视光学", ("myopia", "eye", "colorblind", "色盲", "色觉", "视锥", "石原")),
+    ("物理/光学", ("rayleigh", "blindspot", "blind-spot", "盲点", "memory", "gps",
+                   "mercator", "ice")),
     ("化学/生物", ("caffeine", "adenosine", "enzyme", "baking", "soda", "小苏打", "碱面", "化学")),
     ("声学/听觉", ("loudness", "bass", "acoustic", "sound", "beat", "拍频", "音")),
     ("航空/结构", ("plane", "window", "stress")),
     ("皮肤科学", ("spf", "sunscreen", "skin")),
     ("微波/电磁", ("microwave", "wave", "faraday", "cage", "法拉第", "电磁", "信号")),
-    ("视光学", ("myopia", "eye")),
+
     ("编码/信息", ("qr", "utf8", "hex", "checksum", "id-", "code")),
     ("生活经济", ("commute", "wage", "moon", "recession")),
 ]

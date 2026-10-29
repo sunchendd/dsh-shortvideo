@@ -516,6 +516,52 @@ _MOOD_BY_ID = {"hook": "hook", "rule": "rule", "insight": "explain", "explain": 
                "reveal": "reveal", "solve": "win", "win": "win", "flat": "flat"}
 
 
+def _deck_edge_warnings(cfg, fps=30):
+    """**量像素**判断 deck 文案有没有被裁：把每镜渲一帧，看亮像素有没有贴到左右边缘。
+
+    为什么不用"按布局常量估宽度"：不同 kind 的排版各不一样（flow 的说明文字是
+    居中在卡片框里、cards 的是左对齐、compare 是半屏），按常量估必然误报——
+    实测按常量估「22 号 flow 第三项超宽 960>910」，渲出来一看文字完整在框内。
+    量像素没有常量可估错。
+    """
+    try:
+        from shortvideo import runtime as R
+        from topics import deck as D
+    except Exception:  # noqa: BLE001
+        return []
+    deck = cfg.get("deck") or {}
+    if not deck:
+        return []
+    try:
+        fns = D.build({"deck": deck})
+    except Exception:  # noqa: BLE001
+        return []
+    durs = {str(sh.get("id") or i): float(sh.get("min_dur") or 4.0)
+            for i, sh in enumerate(cfg.get("shots") or [])}
+    out = []
+    band = 20
+    for sid, fn in fns.items():
+        dur = durs.get(sid, 4.0)
+        img = R.background_rgba()
+        try:
+            fn(img, dur * 0.92, dur, deck.get(sid) or {}, None)   # 末段：内容全出齐
+        except Exception:  # noqa: BLE001
+            continue
+        g = img.convert("L")
+        px = g.load()
+        # 按"行"判而不是按"面积占比"：注脚只有 40px 高（占 2%），
+        # 面积占比永远过不了阈值；而文字被裁时一定表现为"某几行在边缘列有连续亮像素"。
+        hit_rows = 0
+        for y in range(0, R.H, 2):
+            left = sum(1 for x in range(band) if px[x, y] > 60)
+            right = sum(1 for x in range(R.W - band, R.W) if px[x, y] > 60)
+            if max(left, right) >= 5:
+                hit_rows += 1
+        if hit_rows >= 6:
+            out.append(f"{sid} 有 {hit_rows} 行内容贴到左右边缘，文案可能被裁：检查 deck 文案长度")
+    return out
+
+
 def _deck_text_warnings(cfg):
     """deck 文案超宽检查：note/sub/label 是单行居中绘制，**超宽就会被左右切掉**。
 
@@ -603,6 +649,8 @@ def lint_script(cfg, timeline, degraded=()):
     for msg in _glyph_warnings(cfg):
         out.append(("warn", msg))
     for msg in _deck_text_warnings(cfg):
+        out.append(("warn", msg))
+    for msg in _deck_edge_warnings(cfg):
         out.append(("warn", msg))
 
     # 1) 钩子：前 3 秒必须交代完钩子，4.2 字/秒 × 3s ≈ 12.6 字

@@ -53,6 +53,7 @@ def tighten(path, pad=1.5, floor=4.5, cap=8.0, dry_run=False):
     changed = []
     deck = cfg.get("deck") or {}
     is_short = str(cfg.get("format") or "").lower() in ("short", "15s", "quick")
+    prev_at_cap = False
     for i, shot in enumerate(cfg.get("shots") or []):
         sid = shot.get("id") or str(i)
         adur = wav_dur(os.path.join(build, f"{i:02d}_{sid}.wav"))
@@ -71,6 +72,11 @@ def tighten(path, pad=1.5, floor=4.5, cap=8.0, dry_run=False):
         old = float(shot.get("min_dur") or 0)
         # 阈值要对小数位取整再比：8.6-8.3 在浮点里是 0.2999999999999998，
         # 会被判成"变化太小"而跳过，于是留白一直不达标却没有任何提示
+        # 相邻两镜都顶到 cap（8.6）会稳定触发 pace 的「连排长镜头」风险，
+        # 因为 pace 的 PAIR_LONG 阈值也是 8.6。这里给后一镜留 0.2s 余地。
+        if prev_at_cap and abs(new - cap) < 1e-9 and i > 0:
+            new = round(cap - 0.2, 1)
+        prev_at_cap = abs(new - cap) < 1e-9
         if round(abs(new - old), 2) >= 0.3:
             shot["min_dur"] = new
             changed.append((sid, old, new))
