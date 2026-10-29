@@ -189,21 +189,24 @@ def _compare(img, t, dur, spec):
     a1 = _appear(p, 0.02)
     a2 = _appear(p, 0.14)
     cy = int(R.H * 0.46)
-    bw, bh = int(R.W * 0.38), int(R.H * 0.30)
+    bw, bh = int(R.W * 0.40), int(R.H * 0.40)
     for side, box, a, col in (
-            (left, (int(R.W * 0.06), cy - bh // 2), a1, R.TILE_ON),
-            (right, (int(R.W * 0.56), cy - bh // 2), a2, R.ACCENT)):
+            (left, (int(R.W * 0.05), cy - bh // 2), a1, R.TILE_ON),
+            (right, (int(R.W * 0.55), cy - bh // 2), a2, R.ACCENT)):
         x0, y0 = box
         S.panel(img, (x0, y0, x0 + bw, y0 + bh), fill=(10, 14, 26), alpha=0.55 * a,
                 radius=28, outline=col)
         S.text(img, (x0 + bw / 2, y0 + bh * 0.26), str(side.get("label", "")), 40,
                fill=R.DIM, bold=True, anchor="mm", alpha=a)
-        S.text(img, (x0 + bw / 2, y0 + bh * 0.58), str(side.get("value", "")), 96,
+        S.text(img, (x0 + bw / 2, y0 + bh * 0.58), str(side.get("value", "")), 118,
                fill=col, bold=True, anchor="mm", alpha=a)
         if side.get("note"):
             S.text(img, (x0 + bw / 2, y0 + bh * 0.85), str(side["note"]), 36,
                    fill=R.TEXT, bold=False, anchor="mm", alpha=a)
-    S.kinetic_text(img, (R.W / 2, cy), "VS", 64, fill=R.TEXT, t=t - 0.35, dur=0.4,
+    # 中间分隔线：两栏之间加一条竖线，视觉上把 0.26H~0.66H 撑起来
+    S.panel(img, (int(R.W / 2) - 2, cy - bh // 2 + 10, int(R.W / 2) + 2, cy + bh // 2 - 10),
+            fill=(255, 255, 255), alpha=0.12 * min(a1, a2), radius=2)
+    S.kinetic_text(img, (R.W / 2, cy), "VS", 70, fill=R.TEXT, t=t - 0.35, dur=0.4,
                    style="pop", stroke=R.BG_BOT, stroke_w=4, shadow=0.9)
     if spec.get("note"):
         _note(img, spec["note"], alpha=_appear(p, 0.6))
@@ -410,12 +413,19 @@ def _stat(img, t, dur, spec):
 
 
 def _timeline(img, t, dur, spec):
-    """横向时间轴：节点依次点亮，当前节点放大并高亮（过程/历史/因果链）。"""
+    """时间轴：≤4 个节点走竖版（铺满竖屏），≥5 个节点走横版。
+
+    竖屏 9:16 里横排时间轴只能占中间一条横带，上下全空——这正是 pace.py 报的
+    "画面墨量偏薄"。节点少的时候改竖排，纵向从 0.26H 铺到 0.74H。
+    """
     items = spec.get("items") or []
     if not items:
         return
     p = t / dur if dur else 1
     n = len(items)
+    layout = str(spec.get("layout") or "")
+    if layout == "v" or (layout != "h" and n <= 4):
+        return _timeline_v(img, t, dur, spec)
     y = int(R.H * 0.44)
     x0, x1 = 140, R.W - 140
     step = (x1 - x0) / max(1, n - 1) if n > 1 else 0
@@ -441,6 +451,42 @@ def _timeline(img, t, dur, spec):
         _note(img, spec["note"], alpha=_appear(p, 0.6))
 
 
+def _timeline_v(img, t, dur, spec):
+    """竖版时间轴：左侧竖轨 + 节点，右侧标题与说明。"""
+    items = spec.get("items") or []
+    n = len(items)
+    p = t / dur if dur else 1
+    x = 168
+    top, bottom = int(R.H * 0.255), int(R.H * 0.745)
+    step = (bottom - top) / max(1, n - 1) if n > 1 else 0
+    cur = min(n - 1, int(R.clamp(p * 1.08) * n))
+    # 竖轨
+    S.panel(img, (x - 4, top - 24, x + 4, bottom + 24), fill=(255, 255, 255),
+            alpha=0.09, radius=4)
+    grown_to = top + step * (cur + R.clamp((p * 1.08 * n) - cur)) if n > 1 else top
+    S.panel(img, (x - 4, top - 24, x + 4, max(top - 24, grown_to)), fill=R.ACCENT,
+            alpha=0.85, radius=4)
+    for i, it in enumerate(items):
+        cy = top + step * i
+        done = i <= cur
+        r = 34 if i == cur else 24
+        col = R.ACCENT if i == cur else (R.TILE_ON if done else R.FAINT)
+        a = _appear(p, _seq_at(i, n, p), _fade_frac(dur))
+        S.panel(img, (x - r, cy - r, x + r, cy + r), fill=col,
+                alpha=1.0 if done else 0.45, radius=r)
+        S.text(img, (x, cy), str(it.get("k", it.get("at", i + 1))), 34,
+               fill=R.BG_BOT if done else R.DIM, bold=True, anchor="mm")
+        tx, ty = x + 92, cy
+        S.text(img, (tx, ty - (26 if it.get("d") else 0)), str(it.get("t", "")), 48,
+               fill=R.TEXT if done else R.DIM, bold=(i == cur), anchor="lm",
+               alpha=max(a, 0.3))
+        if it.get("d"):
+            S.text(img, (tx, ty + 30), str(it["d"]), 30, fill=R.DIM, bold=False,
+                   anchor="lm", alpha=max(a, 0.25))
+    if spec.get("note"):
+        _note(img, spec["note"], y=int(R.H * 0.80), alpha=_appear(p, 0.6))
+
+
 def _flow(img, t, dur, spec):
     """竖向因果链：A → B → C，逐级点亮（讲机制/推理用）。"""
     items = spec.get("items") or []
@@ -448,9 +494,9 @@ def _flow(img, t, dur, spec):
         return
     p = t / dur if dur else 1
     n = len(items)
-    row_h = min(230, int(R.H * 0.56 / max(1, n)))
-    top = int(R.H * 0.40 - row_h * n / 2)
-    bw = R.W - 300
+    row_h = min(300, int(R.H * 0.62 / max(1, n)))
+    top = int(R.H * 0.42 - row_h * n / 2)
+    bw = R.W - 260
     for i, it in enumerate(items):
         a = _appear(p, _seq_at(i, n, p), _fade_frac(dur))
         if a <= 0:
@@ -458,20 +504,20 @@ def _flow(img, t, dur, spec):
         y = top + row_h * i
         box_h = row_h * 0.78
         col = R.ACCENT if i == n - 1 else R.TILE_ON
-        S.panel(img, (150, y, 150 + bw, y + box_h), fill=(10, 14, 26), alpha=0.62 * a,
-                radius=22, outline=col)
+        S.panel(img, (130, y, 130 + bw, y + box_h), fill=(10, 14, 26), alpha=0.62 * a,
+                radius=26, outline=col)
         if it.get("d"):
-            S.text(img, (150 + bw / 2, y + box_h * 0.34), str(it.get("t", "")), 42,
+            S.text(img, (130 + bw / 2, y + box_h * 0.33), str(it.get("t", "")), 46,
                    fill=R.TEXT, bold=True, anchor="mm", alpha=a)
-            S.text(img, (150 + bw / 2, y + box_h * 0.72), str(it["d"]), 28,
+            S.text(img, (130 + bw / 2, y + box_h * 0.70), str(it["d"]), 30,
                    fill=R.DIM, bold=False, anchor="mm", alpha=a)
         else:
-            S.text(img, (150 + bw / 2, y + box_h / 2), str(it.get("t", "")), 44,
+            S.text(img, (130 + bw / 2, y + box_h / 2), str(it.get("t", "")), 48,
                    fill=R.TEXT, bold=True, anchor="mm", alpha=a)
         if i < n - 1:
             ay = y + box_h
-            S.arrow(img, (150 + bw / 2, ay + 6), (150 + bw / 2, ay + row_h * 0.20),
-                    color=col, width=4, head=14, alpha=a)
+            S.arrow(img, (130 + bw / 2, ay + 8), (130 + bw / 2, ay + row_h * 0.22),
+                    color=col, width=5, head=16, alpha=a)
     if spec.get("note"):
         _note(img, spec["note"], alpha=_appear(p, 0.7))
 

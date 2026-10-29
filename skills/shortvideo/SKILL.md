@@ -273,9 +273,22 @@ $PY $TOOLS/score.py --content content.json --video out/x.mp4
 它把本文件与 `docs/xhs-playbook.md` 的清单变成数字，改一版看一次分数即可知道有没有变好。
 **注意口径**：满分只代表"完全符合 playbook 清单"，不等于必爆——真实分发还看选题时机与账号权重。
 
+### 竖屏构图：别让内容缩成一条横带
+
+9:16 的坑是"横排内容只占中间一条带"，上下各空出 1/4 画面（`pace.py` 会报"画面墨量偏薄"）。
+现有对策：
+
+- `timeline`：**≤4 个节点自动走竖版**（左侧竖轨 0.26H→0.74H），≥5 个节点才横排；
+  想强制某一种写 `"layout": "v"` / `"layout": "h"`
+- `flow`：盒子高度上限 300px、宽度 0.84W，3 个节点能铺满 0.30H→0.76H
+- `compare`：两栏高度 0.40H、数值 118px，中间加竖分隔线
+- `ghost`：给 still 很薄的镜头垫一个 0.42W 的背景水印字（`ghostfill.py` 可批量补，
+  只复用旁白里字面存在的数字）
+
 ## 成片画面体检：`qa.py`
 
 ```bash
+$PY $TOOLS/pace.py --dir examples --order # 完播友好度 + 建议发布顺序
 $PY $TOOLS/qa.py --video out/x.mp4        # 单条
 $PY $TOOLS/qa.py --dir examples           # 批量扫 out/*/*.mp4
 ```

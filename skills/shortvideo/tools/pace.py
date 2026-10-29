@@ -136,6 +136,7 @@ def main():
     ap.add_argument("--dir", default="examples")
     ap.add_argument("--top", type=int, default=10, help="只列出最危险的 N 个镜头")
     ap.add_argument("--json", action="store_true")
+    ap.add_argument("--order", action="store_true", help="给出建议发布顺序（A 级先发）")
     args = ap.parse_args()
 
     allrows = []
@@ -172,6 +173,17 @@ def main():
                   f"[{r['kind']}] {'；'.join(r['why'])}")
     else:
         print("\n  ✅ 没有触发任何风险项")
+
+    if args.order:
+        # 新账号先发 A 级：完播率高的片子更容易把账号推进下一个流量池，
+        # 账号权重起来后再发 B 级，避免开局就被判定"完播差"
+        ranked = sorted(by_video.items(), key=lambda kv: sum(r["risk"] for r in kv[1]))
+        n_a = sum(1 for _, rs in ranked if sum(r["risk"] for r in rs) <= 2)
+        print(f"\n  建议发布顺序（风险低的先发，先把账号权重做起来；其中 {n_a} 条 A 级适合开局）：")
+        for i, (slug, rs) in enumerate(ranked, 1):
+            risk = sum(r["risk"] for r in rs)
+            tag = "A 稳" if risk <= 2 else ("B 可" if risk <= 5 else "C 险")
+            print(f"    {i:>2}. {slug:<26} 风险 {risk}  {tag}")
     print()
 
 
