@@ -51,6 +51,7 @@ fi
 run "图形事实链"    $PY $TOOLS/graphicaudit.py --dir $DIR
 run "文档完整度"    $PY $TOOLS/brief.py --dir $DIR
 run "发布可行性"    $PY $TOOLS/publishcheck.py --dir $DIR
+run "长短版一致"    $PY $TOOLS/paircheck.py --dir $DIR
 run "响度一致"      $PY $TOOLS/loudaudit.py --dir $DIR
 run "配音情绪"      $PY $TOOLS/voiceaudit.py --dir $DIR
 run "封面可读性"    $PY $TOOLS/coveraudit.py --dir $DIR/out
