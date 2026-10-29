@@ -404,7 +404,24 @@ $PY $TOOLS/make.py --content examples/01-x.content.json --topic deck --out examp
 `lint`/`score` 放行 30~90s，playbook 甜区 32~46s，`score` 平均镜长 4~9.5s。
 **能同时满足的只有 32~46 秒且单镜 <8.6 秒**，按这个写。
 
-### 6. 其它
+### 6. 阿拉伯数字会顶爆语速判据，改中文数字更稳
+
+同一句「度数就是100除以焦距的米数」13 音节：
+
+| 写法 | 实测 | 音节/秒 |
+|---|---|---|
+| `100` | 1.90s | 6.85（lint 判 [x]） |
+| `一百` | 3.14s | 4.15（通过） |
+
+**不用改一处参数，只把数字写成中文，语速就降 40%**。这是比调 rate 更稳的降密度手段，
+且字数不变。反过来，画面要显示阿拉伯数字时，旁白可写中文、deck 里写数字，两者不冲突。
+
+### 7. 短版 4 镜的总长下界是 16s
+
+`score.py` 要求平均镜头 ≥4s ⇒ **4 镜必须 ≥16s**。短版 "一镜≈12 字" 很容易做成 15.x 秒，
+结果掉 6 分。写文案时按 16~22s 规划。
+
+### 8. 其它
 
 - `"format"` 不写 = 长版；只认 `"short" / "15s" / "quick"`（写 `"long"` 也是长版）
 - 数字一致性**只查钩子镜**：其余镜画面上的数字没念出来不会告警，自己核对
@@ -413,11 +430,31 @@ $PY $TOOLS/make.py --content examples/01-x.content.json --topic deck --out examp
 - 配音降级成静音时该 wav **没有 `.words.json`**，且必须 `--clean` 重跑，
   否则 tighten 会按静音时长写坏 `min_dur`
 
+## ⚠️ 情绪表只在 shot 写了 mood 时生效（现在会自动推断）
+
+`make.py` 原来用 `shot.get("mood")`，**不写 mood 就是 None** → 韵律恒为扁平 `+2%`，
+于是 preset 的五情绪表、`mood_tuning`、`VOICE_MOODS` **全部静默失效**。
+早期 4 条短版就是这样：听起来"没感情"，且 `mood_tuning` 怎么写都没反应。
+
+现在 `mood` 缺省时按镜头 id **自动推断**：
+
+| shot id | 自动 mood |
+|---|---|
+| hook | hook（快、上扬） |
+| rule | rule（稳） |
+| insight / explain | explain（慢，讲道理） |
+| reveal | reveal（加强） |
+| solve / win | win（收尾饱满） |
+
+要扁平化就显式写 `"mood": "flat"` 或 `voice.mood_auto: false`。
+
+**写 mood_tuning 的前提**：确认该镜有 mood（自动推断也算），否则 tuning 不生效。
+
 ## 语速的三个开关（按优先级）
 
 | 写法 | 作用 | 实测（同一句话、同一音色） |
 |---|---|---|
-| `voice.mood_tuning.rule.rate = "-15%"` | **直接替换**该情绪的语速 | 4.38s → 5.49s |
+| `voice.mood_tuning.rule.rate = "-15%"` | **直接替换**该情绪的语速（需该镜有 mood） | 4.38s → 5.49s |
 | `voice.rate = "-15%"` | **全局偏移**，叠加到每个情绪上 | 4.38s → 5.08s |
 | 删字 | 最有效，且不拉长总时长 | 见各条 |
 

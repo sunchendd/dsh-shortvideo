@@ -468,6 +468,11 @@ def _deck_numbers(node, out):
             out.add(m.rstrip("0").rstrip(".") if "." in m else m)
 
 
+# 镜头 id → 情绪。id 不在表里的（自定义 id）保持 None（扁平），不影响旧配置
+_MOOD_BY_ID = {"hook": "hook", "rule": "rule", "insight": "explain", "explain": "explain",
+               "reveal": "reveal", "solve": "win", "win": "win", "flat": "flat"}
+
+
 def lint_script(cfg, timeline, degraded=()):
     """开工前的脚本体检：返回 [(级别, 说明)]，级别 error/warn/ok。
 
@@ -757,7 +762,13 @@ def main():
 
     # ---------- 配音 + 对轴（能并行就并行） ----------
     lead, tail = cfg.get("lead_in", 0.15), cfg.get("tail", 0.55)
-    items = [{"text": shot["narration"], "mood": shot.get("mood"),
+    # mood 缺省时按镜头 id 推断：五段式结构本来就是"五种情绪"，
+    # 不写 mood 就等于整条片子的情绪表、preset 情绪、mood_tuning 全部静默失效
+    # （实测 mood=None 时韵律恒为扁平 +2%）。要扁平化就显式写 mood: "flat"。
+    mood_auto = (cfg.get("voice") or {}).get("mood_auto", True)
+    items = [{"text": shot["narration"],
+              "mood": shot.get("mood") or (_MOOD_BY_ID.get(str(shot.get("id", "")).lower())
+                                           if mood_auto else None),
               "path": os.path.join(build, f"{i:02d}_{shot['id']}.wav")}
              for i, shot in enumerate(cfg["shots"])]
     t_tts = time.time()

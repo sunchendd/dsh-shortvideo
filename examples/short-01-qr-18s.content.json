@@ -14,7 +14,7 @@
   "shots": [
     {
       "id": "hook",
-      "min_dur": 4.6,
+      "min_dur": 4.0,
       "narration": "二维码烂掉三成，居然照样能扫。",
       "emphasis": [
         "三成"
@@ -38,7 +38,7 @@
     },
     {
       "id": "solve",
-      "min_dur": 4.9,
+      "min_dur": 4.3,
       "narration": "塞个 logo 也读得出。评论区聊。",
       "emphasis": [
         "logo"
@@ -73,13 +73,16 @@
       ]
     },
     "solve": {
-      "kind": "big",
-      "lines": [
-        "塞个 logo",
-        "也照样能读"
-      ],
-      "emphasis": [
-        "logo"
+      "kind": "steps",
+      "items": [
+        {
+          "t": "缺角也能读",
+          "d": "纠错码补洞"
+        },
+        {
+          "t": "烂三成就危险",
+          "d": "超过一半就废"
+        }
       ]
     }
   },
