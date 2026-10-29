@@ -91,6 +91,43 @@ def check_one(content_path, out_dir, strict=False):
     return row
 
 
+def add_loudness_gate(rows, out_dir, tol=1.2):
+    """第 5 道门禁：横向响度。单条爆不爆由 loudaudit 之外的检查管，
+    这里只问"和同批其他条比，这条是不是明显偏轻/偏响"。"""
+    try:
+        import loudaudit
+    except ImportError:
+        return
+    stats = {}
+    for r in rows:
+        build = os.path.join(out_dir, r["slug"], "build")
+        wav = os.path.join(build, "audio.wav")
+        if not os.path.exists(wav):
+            continue
+        st = loudaudit.stats_of(wav, os.path.join(build, "audio_bgm.wav"))
+        if st:
+            stats[r["slug"]] = st
+    if len(stats) < 3:          # 条数太少，中位数没有意义
+        for r in rows:
+            r["gates"]["响度"] = stats[r["slug"]]["voice"] if r["slug"] in stats else "—"
+        return
+    vals = sorted(v["voice"] for v in stats.values())
+    med = vals[len(vals) // 2]
+    for r in rows:
+        st = stats.get(r["slug"])
+        if not st:
+            r["gates"]["响度"] = "—"
+            continue
+        dv = st["voice"] - med
+        r["gates"]["响度"] = round(st["voice"], 1)
+        if abs(dv) > tol:
+            r["problems"].append(f"人声比同批中位{'高' if dv > 0 else '低'} {abs(dv):.1f}dB"
+                                 f"（{st['voice']:.1f} vs {med:.1f}）")
+        if st["peak"] > -1.0:
+            r["problems"].append(f"峰值 {st['peak']:.1f}dB 偏高")
+        r["ok"] = not r["problems"]
+
+
 def main():
     ap = argparse.ArgumentParser(description="发布前总检（go / no-go）")
     ap.add_argument("--dir", default="examples")
@@ -112,6 +149,8 @@ def main():
     out_dir = os.path.join(args.dir, "out")
     rows = [check_one(p, out_dir, args.strict) for p in paths]
 
+    add_loudness_gate(rows, out_dir)
+
     if args.json:
         payload = {"total": len(rows), "go": sum(1 for r in rows if r["ok"]),
                    "rows": rows}
@@ -125,12 +164,13 @@ def main():
         return 0 if payload["go"] == payload["total"] else 1
 
     print(f"\n■ 发布前总检（{len(rows)} 条{'，严格模式' if args.strict else ''}）\n")
-    print(f"  {'条目':<26}{'清单':>7}{'体检':>7}{'画面':>7}{'节奏':>7}   结论")
+    print(f"  {'条目':<26}{'清单':>7}{'体检':>7}{'画面':>7}{'节奏':>7}{'响度':>7}   结论")
     for r in rows:
         g = r["gates"]
         verdict = "✅ GO" if r["ok"] else "⛔ NO-GO"
         print(f"  {r['slug']:<26}{g.get('清单', '—'):>7}{str(g.get('体检', '—')):>7}"
-              f"{str(g.get('画面', '—')):>7}{str(g.get('节奏', '—')):>7}   {verdict}")
+              f"{str(g.get('画面', '—')):>7}{str(g.get('节奏', '—')):>7}"
+              f"{str(g.get('响度', '—')):>7}   {verdict}")
         for p in r["problems"]:
             print(f"      - {p}")
 

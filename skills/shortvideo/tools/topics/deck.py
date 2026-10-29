@@ -177,6 +177,16 @@ def _bars(img, t, dur, spec):
         if fill_w > 2:
             S.panel(img, (x0 + 2, cy + 10, x0 + 2 + fill_w, cy + 6 + bh),
                     fill=col, alpha=0.95 * a, radius=bh // 2)
+            # 长满之后（p>0.62）一道慢扫光：约 4 秒走完全长，肉眼几乎察觉不到，
+            # 但整段画面不会变成一张静止图
+            if spec.get("sweep", True) and p > 0.62:
+                sp = R.clamp((p - 0.62) / 0.38)
+                sw = 90
+                sx = x0 + 2 + sp * (fill_w + sw) - sw
+                left, right = max(x0 + 2, sx), min(x0 + 2 + fill_w, sx + sw)
+                if right - left > 4:
+                    S.panel(img, (left, cy + 10, right, cy + 6 + bh),
+                            fill=(255, 255, 255), alpha=0.16 * a, radius=bh // 2)
 
     if spec.get("note"):
         _note(img, spec["note"], y=int(R.H * 0.70), alpha=_appear(p, 0.5))
