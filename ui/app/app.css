@@ -83,6 +83,8 @@ input, textarea, select { font: inherit; color: inherit; }
   display: inline-flex; align-items: center; gap: 6px; font-size: 12px;
 }
 .tbtn:hover { background: var(--bg3); color: var(--ink0); }
+.topbar .tbtn { border: 1px solid transparent; }
+.topbar .tbtn:hover { border-color: var(--line2); }
 .tbtn[disabled] { opacity: .35; cursor: default; }
 .tbtn.primary {
   background: var(--accent); color: #fff; font-weight: 600; padding: 0 14px;
@@ -96,24 +98,30 @@ input, textarea, select { font: inherit; color: inherit; }
   display: flex; flex-direction: column; align-items: center; padding-top: 8px; gap: 2px;
 }
 .rail button {
-  width: 56px; height: 52px; border-radius: 6px; color: var(--ink2);
-  display: grid; place-items: center; gap: 3px; font-size: 10px; letter-spacing: .04em;
+  position: relative; width: 56px; height: 54px; border-radius: 6px; color: var(--ink1);
+  display: grid; place-items: center; gap: 4px; font-size: 10.5px; letter-spacing: .02em;
+  transition: background .12s, color .12s;
 }
-.rail button svg { width: 18px; height: 18px; }
+.rail button svg { width: 19px; height: 19px; opacity: .92; }
 .rail button:hover { background: var(--bg2); color: var(--ink0); }
 .rail button.on { background: var(--accent-soft); color: var(--accent); }
+/* 当前分组用左侧一根 2px 竖条标出来：图标高亮在暗底上不够醒目 */
+.rail button.on::before {
+  content: ""; position: absolute; left: -6px; top: 12px; width: 2px; height: 30px;
+  border-radius: 2px; background: var(--accent);
+}
 .rail .spacer { flex: 1; }
 
 /* ---------------------------------------------------------------- 画布区 */
 .canvaswrap {
   grid-area: canvas; position: relative; display: flex; flex-direction: column;
   align-items: center; justify-content: center; gap: 10px;
-  background: radial-gradient(circle at 50% 30%, #14181e 0%, var(--bg0) 70%);
+  background: radial-gradient(ellipse at 50% 28%, #161b22 0%, #0a0c0f 72%);
   overflow: hidden;
 }
 .stage {
-  position: relative; background: #000; border-radius: 4px;
-  box-shadow: 0 12px 40px #00000080, 0 0 0 1px var(--line);
+  position: relative; background: #000; border-radius: 6px;
+  box-shadow: 0 18px 48px #00000099, 0 0 0 1px var(--line), inset 0 0 0 1px #ffffff0f;
   overflow: hidden;
 }
 .stage img, .stage video { display: block; width: 100%; height: 100%; object-fit: contain; }
@@ -137,10 +145,16 @@ input, textarea, select { font: inherit; color: inherit; }
   width: 30px; height: 30px; border-radius: 50%; display: grid; place-items: center; color: var(--ink1);
 }
 .transport button:hover { background: var(--bg3); color: var(--ink0); }
-.transport button.play { background: var(--ink0); color: var(--bg0); }
+.transport button.play { background: var(--ink0); color: var(--bg0); width: 32px; height: 32px; }
 .transport button.play:hover { background: #fff; }
 .transport svg { width: 14px; height: 14px; }
-.tc { font: 12px/1 var(--mono); color: var(--ink1); letter-spacing: .02em; padding: 0 6px; }
+.transport button.play svg { width: 15px; height: 15px; }
+/* 时间码、时长这类数字统一走等宽数位，"1"和"0"同宽 */
+.tc, .clip .dur, .ruler span, .clip .idx, .mono { font-variant-numeric: tabular-nums; }
+.tc {
+  font: 12px/1 var(--mono); color: var(--ink1); letter-spacing: .02em; padding: 0 8px;
+  font-variant-numeric: tabular-nums;
+}
 .tc b { color: var(--ink0); font-weight: 600; }
 
 /* ---------------------------------------------------------------- 检查器 */
@@ -148,16 +162,27 @@ input, textarea, select { font: inherit; color: inherit; }
   grid-area: insp; background: var(--bg1); border-left: 1px solid var(--line);
   overflow-y: auto; padding-bottom: 24px;
 }
-.insp .sect { border-bottom: 1px solid var(--line); padding: 14px 14px 16px; }
+.insp .sect { border-bottom: 1px solid var(--line); padding: 16px 14px 18px; }
 .insp h3 {
-  margin: 0 0 12px; font: 600 10px/1 var(--sans); letter-spacing: .16em;
-  text-transform: uppercase; color: var(--ink3);
+  margin: 0 0 12px; font: 600 10.5px/1 var(--sans); letter-spacing: .14em;
+  text-transform: uppercase; color: var(--ink1);
+  display: flex; align-items: center; gap: 8px;
 }
+/* 标题后面拖一条细线，区块感比纯靠间距清楚 */
+.insp h3::after { content: ""; flex: 1; height: 1px; background: var(--line); }
 .field { margin-bottom: 12px; }
 .field label {
-  display: block; font: 600 10px/1 var(--sans); letter-spacing: .12em;
-  text-transform: uppercase; color: var(--ink3); margin-bottom: 6px;
+  display: block; font: 600 10.5px/1 var(--sans); letter-spacing: .1em;
+  text-transform: uppercase; color: var(--ink2); margin-bottom: 5px;
 }
+/* 「复制镜头 / 删除镜头」是操作按钮，之前光秃秃地贴在输入框旁边像漏了边框 */
+.shotops { display: flex; gap: 8px; margin: 0 0 14px; }
+.shotops .tbtn {
+  flex: 1; height: 30px; justify-content: center; background: var(--bg2);
+  border: 1px solid var(--line2); color: var(--ink1);
+}
+.shotops .tbtn:hover { background: var(--bg3); color: var(--ink0); }
+.shotops #btnDel:hover { color: var(--bad); border-color: #f8717155; background: #f8717114; }
 .field input, .field select, .field textarea {
   width: 100%; background: var(--bg0); border: 1px solid var(--line2);
   border-radius: 4px; padding: 8px 9px; font-size: 13px; color: var(--ink0);
@@ -189,6 +214,15 @@ input, textarea, select { font: inherit; color: inherit; }
 .zoom input { width: 92px; accent-color: var(--accent); }
 .tlbody { position: relative; flex: 1; overflow-x: auto; overflow-y: hidden; }
 .lanes { position: relative; }
+.tllegend {
+  display: inline-flex; align-items: center; gap: 5px;
+  font: 10.5px/1 var(--sans); color: var(--ink2); letter-spacing: .02em;
+}
+.tllegend .k { width: 6px; height: 6px; border-radius: 2px; display: inline-block; }
+.tllegend .k.video { background: #3b82f6; }
+.tllegend .k.sub { background: #ffffff66; }
+.tllegend .k.audio { background: #34d399; }
+.tllegend .k + i { margin-left: 8px; }
 .lane { position: relative; border-bottom: 1px solid var(--line); }
 .lane.video { height: 76px; }
 .lane.sub { height: 30px; }
@@ -213,7 +247,7 @@ input, textarea, select { font: inherit; color: inherit; }
 }
 .track { position: relative; padding: 10px 0 0; }
 .clip {
-  position: absolute; top: 6px; height: 62px; border-radius: var(--radius);
+  position: absolute; top: 6px; height: 64px; border-radius: var(--radius);
   background: var(--bg2); border: 1px solid var(--line2); overflow: hidden;
   cursor: grab; transition: border-color .12s, transform .06s;
 }
@@ -231,18 +265,18 @@ input, textarea, select { font: inherit; color: inherit; }
   background: linear-gradient(180deg, #0b0d10b3 0%, #0b0d1022 42%, #0b0d10e6 100%);
 }
 .clip .cap {
-  position: absolute; left: 8px; right: 8px; bottom: 8px;
+  position: absolute; left: 8px; right: 8px; bottom: 7px;
   font: 600 11px/1.35 var(--sans); color: #fff; text-shadow: 0 1px 3px #000c;
   display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden;
 }
 .clip .idx {
-  position: absolute; left: 8px; top: 7px; font: 10px/1 var(--mono);
-  color: #ffffffcc; background: #00000066; padding: 3px 5px; border-radius: 3px;
+  position: absolute; left: 7px; top: 6px; font: 9.5px/1 var(--mono);
+  color: #ffffffd9; background: #00000099; padding: 3px 5px; border-radius: 3px;
   letter-spacing: .06em;
 }
 .clip .dur {
-  position: absolute; right: 7px; top: 7px; font: 10px/1 var(--mono);
-  color: #ffffffcc; background: #00000066; padding: 3px 5px; border-radius: 3px;
+  position: absolute; right: 6px; top: 6px; font: 9.5px/1 var(--mono);
+  color: #ffffffd9; background: #00000099; padding: 3px 5px; border-radius: 3px;
 }
 .clip .handle {
   position: absolute; top: 0; right: -3px; width: 8px; height: 100%; cursor: ew-resize;

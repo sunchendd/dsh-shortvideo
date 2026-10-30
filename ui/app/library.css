@@ -25,7 +25,14 @@ body.lib { overflow: auto; background: var(--bg0); }
   text-decoration: none; cursor: pointer;
 }
 .libnav nav a:hover { background: var(--bg2); color: var(--ink0); }
-.libnav nav a.on { background: var(--accent-soft); color: var(--accent); font-weight: 600; }
+.libnav nav a {
+  position: relative; border-left: 2px solid transparent; border-radius: 0 5px 5px 0;
+  margin-left: -14px; padding-left: 12px;
+}
+.libnav nav a.on {
+  background: linear-gradient(90deg, #3b82f61f, #3b82f60a 70%, transparent);
+  border-left-color: var(--accent); color: var(--accent); font-weight: 600;
+}
 .libnav nav a em { font: 11px/1 var(--mono); color: var(--ink3); font-style: normal; }
 .libnav nav a.on em { color: var(--accent); }
 .libfoot { margin-top: auto; }
@@ -33,68 +40,78 @@ body.lib { overflow: auto; background: var(--bg0); }
 .libfoot code { color: var(--ink1); background: var(--bg2); padding: 1px 4px; border-radius: 3px; }
 
 /* 主区 */
-.libmain { padding: 26px 30px 60px; }
-.libhead { display: flex; align-items: flex-end; justify-content: space-between; margin-bottom: 22px; gap: 20px; }
-.libhead h1 { margin: 0; font: 700 26px/1.2 var(--sans); letter-spacing: -.01em; }
+.libmain { padding: 28px 32px 64px; }
+.libhead { display: flex; align-items: flex-end; justify-content: space-between; margin-bottom: 24px; gap: 20px; }
+.libhead h1 { margin: 0; font: 700 22px/1.25 var(--sans); letter-spacing: -.01em; }
 .libhead p { margin: 6px 0 0; color: var(--ink2); font-size: 12px; }
 .libtools { display: flex; gap: 8px; align-items: center; }
 .libtools input {
-  width: 220px; background: var(--bg1); border: 1px solid var(--line2);
+  width: 240px; background: var(--bg1); border: 1px solid var(--line2);
   border-radius: 5px; padding: 8px 11px; font-size: 13px; color: var(--ink0);
 }
 .libtools input:focus { outline: none; border-color: var(--accent); }
 
-/* 卡片网格 */
+/* 卡片网格：接触印相式（contact sheet）——
+   缩略图只负责"这张片子长什么样"，信息放在下面一行行排开。
+   之前把标题/状态全叠在封面上，浅色封面上的小字几乎读不出来。 */
 .grid {
-  display: grid; gap: 18px;
-  grid-template-columns: repeat(auto-fill, minmax(184px, 1fr));
+  display: grid; gap: 22px 16px;
+  grid-template-columns: repeat(auto-fill, minmax(168px, 1fr));
 }
 .card {
-  position: relative; border-radius: 8px; overflow: hidden; cursor: pointer;
-  background: var(--bg1); border: 1px solid var(--line);
-  transition: border-color .14s, transform .14s;
+  position: relative; cursor: pointer; background: none; border: 0;
+  display: flex; flex-direction: column; gap: 8px;
 }
-.card:hover { border-color: var(--line2); transform: translateY(-2px); }
 .card .cover {
-  position: relative; aspect-ratio: 9 / 16; background: var(--bg2);
-  background-size: cover; background-position: center top;
+  position: relative; aspect-ratio: 3 / 4; border-radius: 7px; overflow: hidden;
+  background-color: var(--bg2); background-size: cover; background-position: center 30%;
+  border: 1px solid var(--line);
+  transition: border-color .14s, transform .14s, box-shadow .14s;
+}
+.card:hover .cover {
+  border-color: var(--line2); transform: translateY(-2px);
+  box-shadow: 0 8px 22px #00000066;
 }
 .card .cover::after {
-  content: ""; position: absolute; inset: 0;
-  /* 封面帧本身就是"大字 + 字幕"的构图，直接盖标题会糊在一起：
-     下半部压到接近不透明，标题才有落点。 */
-  background: linear-gradient(180deg, #0000 34%, #0b0d10d9 62%, #0b0d10fa 100%);
+  content: ""; position: absolute; inset: 0; pointer-events: none;
+  box-shadow: inset 0 0 0 1px #ffffff08;
 }
-.card .badges { position: absolute; top: 8px; left: 8px; right: 8px; display: flex; gap: 5px; z-index: 2; }
-.tag {
-  font: 10px/1 var(--mono); padding: 4px 6px; border-radius: 3px;
-  background: #0b0d10cc; color: var(--ink1); letter-spacing: .04em; backdrop-filter: blur(4px);
-}
-.tag.ok { color: var(--ok); }
-.tag.warn { color: var(--warn); }
-.tag.mute { color: var(--ink2); }
-.card .meta {
-  position: absolute; left: 10px; right: 10px; bottom: 9px; z-index: 2;
-}
-.card .meta b {
-  display: block; font: 650 12.5px/1.45 var(--sans); color: #fff;
-  text-shadow: 0 1px 4px #000c;
-  display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden;
-}
-.card .meta span { font: 10px/1.4 var(--mono); color: #ffffffa8; }
 .card .hoverbar {
-  position: absolute; inset: auto 0 0 0; padding: 10px; display: flex; gap: 6px;
-  background: linear-gradient(#0000, #0b0d10f2); opacity: 0; transition: opacity .14s;
-  z-index: 3;
+  position: absolute; inset: auto 0 0 0; padding: 8px; display: flex; gap: 6px;
+  background: linear-gradient(#0000, #0b0d10e6 62%);
+  opacity: 0; transition: opacity .14s; z-index: 3;
 }
 .card:hover .hoverbar { opacity: 1; }
-.card:hover .meta { opacity: 0; }
 .hoverbar button {
-  flex: 1; height: 30px; border-radius: 4px; background: #ffffff1f; color: #fff;
+  flex: 1; height: 28px; border-radius: 4px; background: #ffffff1f; color: #fff;
   font-size: 12px; border: 1px solid #ffffff26; cursor: pointer;
 }
 .hoverbar button:hover { background: #ffffff33; }
-.hoverbar button.main { background: var(--accent); border-color: var(--accent); }
+.hoverbar button.main { background: var(--accent); border-color: var(--accent); font-weight: 600; }
+
+.card .meta { min-width: 0; display: flex; flex-direction: column; gap: 4px; }
+.card .meta b {
+  font: 600 13px/1.45 var(--sans); color: var(--ink0);
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
+.card:hover .meta b { color: #fff; }
+.card .sub {
+  display: flex; align-items: center; gap: 8px; flex-wrap: wrap;
+  font: 11px/1 var(--mono); color: var(--ink2);
+}
+.card .sub .dur { color: var(--ink1); }
+.card .sub .kind {
+  font-family: var(--sans); font-size: 10.5px; letter-spacing: .02em;
+  color: var(--ink2); border: 1px solid var(--line2); border-radius: 3px; padding: 2px 5px;
+}
+.card .sub .cardqa { color: var(--warn); font-family: var(--sans); font-size: 10.5px; }
+.card .state {
+  display: flex; align-items: center; gap: 6px;
+  font: 11px/1 var(--sans); color: var(--ink2);
+}
+.card .dot { width: 5px; height: 5px; border-radius: 50%; flex: none; }
+.card .dot.ok { background: var(--ok); }
+.card .dot.warn { background: var(--warn); }
 
 .skeleton-card, .skeleton-card:hover {
   aspect-ratio: 9/16; transform: none; cursor: default;

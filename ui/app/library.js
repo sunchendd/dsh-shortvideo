@@ -69,22 +69,30 @@ function render() {
     return;
   }
   grid.innerHTML = rows.map((p) => {
-    const badge = p.has_video
-      ? `<span class="tag ok">已成片 ${p.size_mb || ""}MB</span>`
-      : `<span class="tag warn">未出片</span>`;
-    const qa = p.stages.qa ? `<span class="tag ${p.detail?.qa_ok === false ? "warn" : "ok"}">质检</span>` : "";
+    // 状态收成一个点 + 一句话，不再叠两三个胶囊压在封面上：
+    // 封面本身是"大字 + 字幕"的构图，上面的每一点文字都在跟它抢注意力。
+    const state = p.has_video
+      ? `<span class="dot ok"></span>已成片${p.size_mb ? ` · ${p.size_mb}MB` : ""}`
+      : `<span class="dot warn"></span>未出片`;
+    const qaBad = p.stages.qa && p.detail?.qa_ok === false
+      ? `<span class="cardqa" title="质检未通过">质检 ✕</span>` : "";
     const thumb = `/api/frame?slug=${encodeURIComponent(p.slug)}&t=1.2`;
     return `<article class="card" data-slug="${esc(p.slug)}">
       <div class="cover" style="background-image:url('${thumb}')">
-        <div class="badges">${badge}${qa}<span class="tag mute">${p.kind === "short" ? "18s" : "长版"}</span></div>
-        <div class="meta">
-          <b>${esc(p.title)}</b>
-          <span>${p.duration}s · ${p.shots} 镜 · ${esc(p.slug)}</span>
-        </div>
         <div class="hoverbar">
           <button class="main" data-open="${esc(p.slug)}">剪辑</button>
           <button data-export="${esc(p.slug)}">导出</button>
         </div>
+      </div>
+      <div class="meta">
+        <b title="${esc(p.title)}">${esc(p.title)}</b>
+        <div class="sub">
+          <span class="dur">${p.duration}s</span>
+          <span>${p.shots} 镜</span>
+          <span class="kind">${p.kind === "short" ? "18s 版" : "长版"}</span>
+          ${qaBad}
+        </div>
+        <div class="state">${state}</div>
       </div>
     </article>`;
   }).join("");
