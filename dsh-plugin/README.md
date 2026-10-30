@@ -8,7 +8,7 @@
 | 半边 | 职责 |
 |---|---|
 | 宿主 `index.js` | 按需拉起编辑器进程（`ui/preview.py`）；把 `/shortvideo/*` 反代到它；提供 `/api/shortvideo` 动作路由和 `shortvideo` 工具 |
-| 浏览器 `client.js` | 侧边栏一项「短视频」，页面是一条 38px 工具条 + 内嵌工作台（同源 iframe） |
+| 浏览器 `client.js` | 侧边栏一项「短视频」，页面就是工作台本身（同源 iframe 铺满），没有跳出去的出口 |
 
 **为什么是反代而不是直接嵌 `http://host:8099`**：Harness 常常是通过隧道或端口映射打开的，
 浏览器里的 `127.0.0.1:8099` 指的不是同一台机器；同源反代之后，工作台跟着 Harness 走，
@@ -24,12 +24,14 @@ dsh plugin --profile web add link:/path/to/this/repo/dsh-plugin
 ```
 
 `dsh plugin add` 会把这个包同时写进 profile 的 `dependencies` 和 `dsh.profile.bundles`，
-然后重启 Harness（或在 Harness 里重开一次页面）：
+然后重启 web 服务（会话不丢）：
 
 ```bash
-# 只重启 web 服务，不动会话
-python3 /root/.dsh/dsh-web-restart.py
+sudo systemctl restart dsh-web.service     # systemd 托管时
+# 或者： python3 /root/.dsh/dsh-web-restart.py
 ```
+
+重启后**刷新一下浏览器页面**，侧边栏才会出现新的一栏。
 
 没有 `dsh` CLI 时，等价的手工做法是：
 
@@ -62,8 +64,9 @@ curl -s -X POST http://127.0.0.1:3080/api/shortvideo \
   -H 'content-type: application/json' -d '{"action":"status"}'
 ```
 
-侧边栏里点「短视频」应该看到：顶部一条 38px 工具条（状态灯 / 重新载入 / 重启服务 /
-新窗口打开 / 复制链接），下面就是完整的片库与剪辑台。
+侧边栏里点「短视频」应该看到完整的片库与剪辑台，**就在 Harness 窗口里**，地址栏一直是 Harness 的地址。
+面板里没有"新窗口打开""复制链接"这类按钮，iframe 也不允许弹出窗口或改写顶层地址
+（`sandbox` 只给 `allow-scripts allow-same-origin allow-forms allow-modals allow-downloads`）。
 
 ## 已知边界
 

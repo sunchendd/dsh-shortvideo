@@ -45,8 +45,9 @@ dsh plugin --profile web add link:$(pwd)/dsh-plugin
 ```
 
 它是个同源反代：Harness 把 `/shortvideo/*` 转给本机的编辑器进程，所以走隧道、走反向代理、
-换 HTTPS 都跟着 Harness 走。插件源码在 [dsh-plugin/](dsh-plugin/)，按需启动、日志在
-`$DSH_HOME/shortvideo/server.log`。
+换 HTTPS 都跟着 Harness 走。面板里就是工作台本身，没有"打开新窗口"之类的出口，
+也不会把 Harness 的地址栏带到别处。插件源码在 [dsh-plugin/](dsh-plugin/)，
+按需启动、日志在 `$DSH_HOME/shortvideo/server.log`。
 
 ## 快速开始
 
