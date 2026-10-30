@@ -1,0 +1,6 @@
+{
+  "meta": {
+    "title": "短视频工作台",
+    "description": "在侧边栏里直接打开 dsh-shortvideo 的片库与剪辑台，同源反代，不用记 IP 和端口。"
+  }
+}

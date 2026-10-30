@@ -1,0 +1,12 @@
+# Short-video bundle: one Host plugin row that owns the editor process, the
+# /shortvideo reverse proxy, the /api/shortvideo action route and the tool.
+- insert:
+    - id: shortvideo
+      name: '@local/dsh-shortvideo'
+      config:
+        # 剪辑台仓库（ui/preview.py 所在目录）
+        repo: /root/dsh-shortvideo
+        # 编辑器监听端口；只在本机回环上，外部访问一律走 /shortvideo 反代
+        port: 8099
+        # 指定解释器（默认自动挑一个能 import PIL + imageio_ffmpeg 的）
+        # python: /root/shortvideo-lab/.venv/bin/python

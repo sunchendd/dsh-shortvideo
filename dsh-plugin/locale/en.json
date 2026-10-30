@@ -1,0 +1,6 @@
+{
+  "meta": {
+    "title": "Short-video workbench",
+    "description": "Open the dsh-shortvideo library and editor right inside the sidebar, served same-origin through the Harness — no host or port to remember."
+  }
+}

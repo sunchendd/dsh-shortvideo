@@ -35,6 +35,19 @@
 首镜过长——改一个字就重算）和**流水线质检**（跑过 `verify.sh` 才有结果）。
 批量工序（脚本/成片/封面/质检/发布包）留在 `/batch` —— 那是待办清单视图。
 
+## 在 Harness 里打开（可选）
+
+装了 [DeepSeek Harness](https://github.com/deepseek-ai) 的话，工作台可以像「情报雷达」一样
+出现在侧边栏，点开就在窗口里用——不用记 IP 和端口：
+
+```bash
+dsh plugin --profile web add link:$(pwd)/dsh-plugin
+```
+
+它是个同源反代：Harness 把 `/shortvideo/*` 转给本机的编辑器进程，所以走隧道、走反向代理、
+换 HTTPS 都跟着 Harness 走。插件源码在 [dsh-plugin/](dsh-plugin/)，按需启动、日志在
+`$DSH_HOME/shortvideo/server.log`。
+
 ## 快速开始
 
 ```bash
