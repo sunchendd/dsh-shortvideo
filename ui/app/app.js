@@ -772,7 +772,7 @@ function bindUI() {
   $("#btnEnd").onclick = () => { pause(); seek(S.proj.total - 0.1, { force: true, select: true }); };
   $("#btnUndo").onclick = undo;
   $("#btnRedo").onclick = redo;
-  $("#btnLib").onclick = () => { location.href = "/"; };
+  $("#btnLib").onclick = () => { location.href = BASE + "/"; };
 
   // 标题
   $("#titleInput").oninput = (e) => { beginEdit(); S.proj.title = e.target.value; scheduleSave(); };
@@ -1367,8 +1367,8 @@ async function openPalette() {
     { label: "导出成片", hint: "⌘E", run: () => $("#btnExport").click() },
     { label: "跑质检", hint: "", run: () => runQA() },
     { label: "查看交付面板", hint: "", run: () => openDeliver(false) },
-    { label: "新建项目", hint: "", run: () => { location.href = "/"; } },
-    { label: "回到片库", hint: "Esc", run: () => { location.href = "/"; } },
+    { label: "新建项目", hint: "", run: () => { location.href = BASE + "/"; } },
+    { label: "回到片库", hint: "Esc", run: () => { location.href = BASE + "/"; } },
     { label: "立即保存", hint: "⌘S", run: () => doSave() },
     { label: "切换主题：瓷白", run: () => setTheme("porcelain") },
     { label: "切换主题：午夜", run: () => setTheme("midnight") },
@@ -1511,6 +1511,16 @@ function showTour() {
     localStorage.removeItem(TOUR_KEY);
   }
 }
+
+/** 挂载点。嵌进 DSH 侧边栏时整站在 /shortvideo 前缀下，
+    指向站根的跳转必须带上它，否则一跳就出了工作台。 */
+const BASE = (typeof window !== "undefined" && window.__SV_BASE__) ||
+  (() => {
+    // 也可以在反代下推断：/shortvideo/app/ → 前缀 /shortvideo。
+    // 这样嵌进 DSH 侧边栏时"回片库"不会跳出工作台、跑到宿主首页去。
+    const matched = /^(.*)\/app\//.exec(location.pathname);
+    return matched ? matched[1] : "";
+  })();
 
 /* ------------------------------------------------------------ 小工具 */
 function esc(s) {
